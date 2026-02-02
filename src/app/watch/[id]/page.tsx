@@ -1,4 +1,5 @@
-'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
+'use client';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 import { useDetail, useSources } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
@@ -30,6 +31,11 @@ function WatchContent() {
 
   // Generate stream URL when sources change
   useEffect(() => {
+    // Wait for sources data to be ready
+    if (isLoadingSources) {
+      return;
+    }
+
     const generateStream = async () => {
       console.log('🎬 Generating stream...', { sourcesData, selectedQuality });
 
@@ -62,7 +68,7 @@ function WatchContent() {
     };
 
     generateStream();
-  }, [sourcesData, selectedQuality]);
+  }, [sourcesData, selectedQuality, isLoadingSources]);
 
   // Update URL when season/episode changes
   useEffect(() => {

@@ -1,4 +1,5 @@
-'use client';import { useEffect, useRef, useState } from 'react';
+'use client';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import 'plyr-react/plyr.css';
 
@@ -61,6 +62,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded }: VideoPlaye
     captions: {
       active: true,
       update: true,
+      language: 'in_id', // Default to Indonesian subtitles
     },
     fullscreen: {
       enabled: true,

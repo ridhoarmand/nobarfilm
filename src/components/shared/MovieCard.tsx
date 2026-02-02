@@ -5,11 +5,27 @@ import { Star } from 'lucide-react';
 interface MovieCardProps {
   movie: Subject;
   priority?: boolean;
+  rank?: number; // Ranking badge (1-10)
 }
 
-export function MovieCard({ movie, priority = false }: MovieCardProps) {
+export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
   return (
     <Link href={`/movie/${movie.subjectId}`} className="group relative block aspect-[2/3] overflow-hidden rounded-md bg-zinc-900">
+      {/* Ranking Badge (Top 10) */}
+      {rank && (
+        <div className="absolute -bottom-1 -left-1 z-30 pointer-events-none">
+          <span
+            className="text-[80px] font-black leading-none text-white/90"
+            style={{
+              textShadow: '0 0 8px rgba(0,0,0,0.9), 0 0 16px rgba(0,0,0,0.5)',
+              WebkitTextStroke: '2px rgba(0,0,0,0.8)',
+            }}
+          >
+            {rank}
+          </span>
+        </div>
+      )}
+
       {/* Poster Image - Scale happens here */}
       <div className="absolute inset-0 transition-transform duration-300 group-hover:scale-110">
         <Image
@@ -28,7 +44,7 @@ export function MovieCard({ movie, priority = false }: MovieCardProps) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
       {/* Info Overlay (on hover) */}
-      <div className="absolute inset-x-0 bottom-0 p-3 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+      <div className="absolute inset-x-0 bottom-0 p-3 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 z-20">
         {/* Title */}
         <h3 className="text-sm font-semibold text-white line-clamp-2 mb-1">{movie.title}</h3>
 
@@ -47,10 +63,12 @@ export function MovieCard({ movie, priority = false }: MovieCardProps) {
         {movie.genre && <p className="text-xs text-gray-400 mt-1 line-clamp-1">{movie.genre.split(',').slice(0, 2).join(', ')}</p>}
       </div>
 
-      {/* Badge for type */}
-      <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <span className="px-2 py-1 text-xs font-semibold bg-red-600 rounded">{movie.subjectType === 1 ? 'Movie' : 'Series'}</span>
-      </div>
+      {/* Badge for type (Hide if ranked) */}
+      {!rank && (
+        <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-20">
+          <span className="px-2 py-1 text-xs font-semibold bg-red-600 rounded">{movie.subjectType === 1 ? 'Movie' : 'Series'}</span>
+        </div>
+      )}
     </Link>
   );
 }

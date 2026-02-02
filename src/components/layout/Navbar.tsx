@@ -1,14 +1,14 @@
-'use client';
-import Link from 'next/link';
+'use client';import Link from 'next/link';
 import { Search, Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const pathname = usePathname();
 
   // Handle scroll effect
   if (typeof window !== 'undefined') {
@@ -40,7 +40,7 @@ export function Navbar() {
               <Link href="/" className="text-sm font-medium text-gray-300 hover:text-white transition">
                 Home
               </Link>
-              <Link href="/search" className="text-sm font-medium text-gray-300 hover:text-white transition">
+              <Link href="/browse" className="text-sm font-medium text-gray-300 hover:text-white transition">
                 Browse
               </Link>
             </div>
@@ -48,22 +48,24 @@ export function Navbar() {
 
           {/* Search & Mobile Menu */}
           <div className="flex items-center gap-4">
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="hidden sm:block">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search movies, series..."
-                  className="w-48 lg:w-64 bg-zinc-900 border border-zinc-700 rounded-md px-4 py-1.5 pl-10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
-            </form>
+            {/* Search Bar - Hidden on Browse and Search pages */}
+            {pathname !== '/browse' && pathname !== '/search' && (
+              <form onSubmit={handleSearch} className="hidden sm:block">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search movies, series..."
+                    className="w-48 lg:w-64 bg-zinc-900 border border-zinc-700 rounded-md px-4 py-1.5 pl-10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                  />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </form>
+            )}
 
             {/* Mobile Search Icon */}
-            <Link href="/search" className="sm:hidden p-2 text-gray-300 hover:text-white transition">
+            <Link href="/browse" className="sm:hidden p-2 text-gray-300 hover:text-white transition">
               <Search className="w-5 h-5" />
             </Link>
 
@@ -82,7 +84,7 @@ export function Navbar() {
             <Link href="/" className="block text-sm font-medium text-gray-300 hover:text-white transition" onClick={() => setIsMobileMenuOpen(false)}>
               Home
             </Link>
-            <Link href="/search" className="block text-sm font-medium text-gray-300 hover:text-white transition" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link href="/browse" className="block text-sm font-medium text-gray-300 hover:text-white transition" onClick={() => setIsMobileMenuOpen(false)}>
               Browse
             </Link>
           </div>

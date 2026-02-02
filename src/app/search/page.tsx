@@ -1,4 +1,5 @@
-'use client';import { useState, useEffect, Suspense } from 'react';
+'use client';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSearch } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
@@ -14,29 +15,39 @@ function SearchContent() {
   const pageParam = parseInt(searchParams.get('page') || '1');
 
   const [searchQuery, setSearchQuery] = useState(queryParam);
-  const [currentPage, setCurrentPage] = useState(pageParam);
   const [debouncedQuery, setDebouncedQuery] = useState(queryParam);
+  const [currentPage, setCurrentPage] = useState(pageParam);
 
   const { data, isLoading, error } = useSearch(debouncedQuery, currentPage);
 
-  // Debounce search input
+  // Debounce search query (wait 700ms after user stops typing)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
-      if (searchQuery) {
+      if (searchQuery && searchQuery !== queryParam) {
         router.push(`/search?q=${encodeURIComponent(searchQuery)}&page=1`);
         setCurrentPage(1);
       }
-    }, 500);
+    }, 700);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, router]);
+  }, [searchQuery]);
 
-  // Update search query from URL
+  // Update local state from URL params
   useEffect(() => {
     setSearchQuery(queryParam);
+    setDebouncedQuery(queryParam);
     setCurrentPage(pageParam);
   }, [queryParam, pageParam]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setDebouncedQuery(searchQuery);
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}&page=1`);
+      setCurrentPage(1);
+    }
+  };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -57,30 +68,21 @@ function SearchContent() {
           <div className="mb-8">
             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-6">Search Movies & Series</h1>
 
-            {/* Search Bar */}
-            <div className="relative max-w-2xl">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for movies, series..."
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-6 py-4 pl-14 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
-                autoFocus
-              />
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            </div>
+            {/* Search Box */}
+            <form onSubmit={handleSearch}>
+              <div className="relative max-w-2xl">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search movies, series, anime..."
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-3 pl-12 text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                  autoFocus
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              </div>
+            </form>
           </div>
-
-          {/* Filter Tabs (from API counts) */}
-          {data?.counts && data.counts.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-8">
-              {data.counts.map((count) => (
-                <button key={count.subjectType} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-gray-300 hover:text-white transition">
-                  {count.name}
-                </button>
-              ))}
-            </div>
-          )}
 
           {/* Results Count */}
           {debouncedQuery && (
@@ -163,9 +165,9 @@ function SearchContent() {
           {debouncedQuery && !isLoading && !hasResults && !error && (
             <div className="text-center py-20">
               <h2 className="text-2xl font-semibold text-white mb-2">No Results Found</h2>
-              <p className="text-gray-400 mb-6">Try adjusting your search terms or browse our homepage</p>
-              <button onClick={() => router.push('/')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
-                Back to Homepage
+              <p className="text-gray-400 mb-6">Try adjusting your search terms or browse our categories</p>
+              <button onClick={() => router.push('/browse')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                Browse Categories
               </button>
             </div>
           )}

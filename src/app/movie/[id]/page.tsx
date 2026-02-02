@@ -1,18 +1,21 @@
-'use client';
+'use client';import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDetail } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CastList } from '@/components/detail/CastList';
 import { SeasonSelector } from '@/components/detail/SeasonSelector';
+import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Info, Star, Calendar, Clock } from 'lucide-react';
+import { Play, Info, Star, Calendar, Clock, Download } from 'lucide-react';
 
 export default function DetailPage() {
   const params = useParams();
   const router = useRouter();
   const subjectId = params.id as string;
+
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const { data, isLoading, error } = useDetail(subjectId);
 
@@ -101,10 +104,46 @@ export default function DetailPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-3">
-                <Link href={watchUrl} className="flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105">
-                  <Play className="w-6 h-6 fill-current" />
-                  <span>Play Now</span>
-                </Link>
+                {(() => {
+                  // Check if this is an upcoming release (releaseDate is in the future)
+                  const releaseDate = subject.releaseDate ? new Date(subject.releaseDate) : null;
+                  const isUpcoming = releaseDate && releaseDate > new Date();
+
+                  if (isUpcoming) {
+                    // Show release date for upcoming content
+                    return (
+                      <div className="px-8 py-3 bg-zinc-800 border border-zinc-700 text-gray-300 font-semibold rounded-lg">
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-400">Coming Soon</span>
+                          <span className="text-white">
+                            {releaseDate.toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Show play button for released content
+                  return (
+                    <>
+                      <Link href={watchUrl} className="flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105">
+                        <Play className="w-6 h-6 fill-current" />
+                        <span>Play Now</span>
+                      </Link>
+                      <button
+                        onClick={() => setIsDownloadModalOpen(true)}
+                        className="flex items-center gap-2 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105"
+                      >
+                        <Download className="w-6 h-6" />
+                        <span>Download</span>
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -188,6 +227,9 @@ export default function DetailPage() {
       </main>
 
       <Footer />
+
+      {/* Download Modal */}
+      <DownloadModal isOpen={isDownloadModalOpen} onClose={() => setIsDownloadModalOpen(false)} subjectId={subjectId} title={subject.title} />
     </>
   );
 }
