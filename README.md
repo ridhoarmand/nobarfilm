@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎬 NobarFilm
 
-## Getting Started
+Platform streaming film yang mirip Netflix dengan fitur nonton bareng (Watch Party).
+Project ini dibuat menggunakan Next.js App Router terbaru, fokus pada performa dan user experience yang native-like.
 
-First, run the development server:
+---
 
+## Fitur Utama
+
+### 🎥 Streaming & Download
+- **Nonton Sepuasnya** - Akses ribuan film dan series dari berbagai sumber.
+- **Download Manager** - Bisa download film dan subtitle (background process), ada indikator progress real-time.
+- **Save Data** - Support PWA (Progressive Web App), bisa diinstall di HP/Desktop.
+- **Smart Quality** - Pilihan resolusi dari 360p hingga 1080p.
+
+### 👥 Nonton Bareng (Nobar)
+- **Real-time Sync** - Nonton bareng teman dengan delay hampir nol.
+- **Live Chat** - Ngobrol langsung saat nonton.
+- **Room System** - Buat room private dan undang teman pakai kode.
+
+### 🛠️ Tech Stack
+- **Framework**: Next.js 16 (App Router)
+- **UI**: TailwindCSS, Lucide Icons, React Hot Toast
+- **State**: Zustand (untuk Download Manager & Global State)
+- **Real-time**: Socket.io
+- **Deployment**: Docker & Portainer (CI/CD via GitHub Actions)
+
+---
+
+## Cara Install & Jalankan
+
+### Syarat
+Pastikan sudah install Node.js (v18+) dan Git.
+
+### 1. Clone Project
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/ridhoarmand/nobarfilm.git
+cd nobarfilm
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Setup Environment
+Copy file `.env.example` ke `.env.local`:
+```bash
+cp .env.example .env.local
+```
+Lalu isi variabel yang dibutuhkan (API Endpoint, dll).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Jalankan (Dev Mode)
+```bash
+npm run dev
+```
+Buka browser di `http://localhost:3000`.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment (Docker & CI/CD)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Project ini sudah siap deploy menggunakan Docker.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Cara Deploy Manual
+```bash
+# Build image
+docker build -t nobarfilm .
 
-## Deploy on Vercel
+# Jalankan container
+docker run -d -p 3000:3000 nobarfilm
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### CI/CD Otomatis (GitHub Actions)
+Kami menggunakan flow GitOps sederhana:
+1. Push code ke branch `main`.
+2. GitHub Actions otomatis build Docker Image -> Push ke Docker Hub.
+3. Webhook men-trigger Portainer untuk pull image baru.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**File penting:**
+- `.github/workflows/deploy.yml`: Konfigurasi CI/CD.
+- `docker-compose.prod.yml`: Konfigurasi untuk production server.
+
+---
+
+## Struktur Folder
+- `/src/app` - Halaman website (Next.js App Router).
+- `/src/components` - Komponen UI (Navbar, Modal, Player, dll).
+- `/src/lib` - Logika bisnis, hook, dan utility (termasuk Download Manager).
+- `/src/types` - Definisi TypeScript.
+
+---
+
+## 🎯 Roadmap & Status
+
+Berikut adalah status pengembangan fitur saat ini:
+
+- [x] **Homepage** (Trending, Top Picks)
+- [x] **Pencarian** (Movies & Series)
+- [x] **Halaman Detail** (Info Cast, Season/Episode)
+- [x] **Streaming Player** (Support Multi-quality)
+- [x] **Download Manager** (Background process, Toast notification)
+- [x] **PWA Support** (Installable App)
+- [x] **CI/CD Pipeline** (Docker & GitHub Actions)
+- [ ] **Watch Party System** (Room, Sync, Chat)
+- [ ] **User Auth** (Login/Register untuk simpan history)
+- [ ] **Watch History & Favorites**
+- [ ] **Chromecast / AirPlay Support**
+
+---
+
+**Note Development:**
+Project ini masih dalam tahap pengembangan aktif. Beberapa fitur mungkin berubah sewaktu-waktu.
+Jika menemukan bug, silakan report di Issues.
+
+Selamat menonton! 🍿

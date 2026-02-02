@@ -1,0 +1,34 @@
+services:
+  app:
+    # Ganti 'your-username' dengan username Docker Hub kamu
+    # Image ini akan otomatis ter-update jika ada push baru ke main (via Watchtower)
+    image: ${DOCKER_USERNAME:-yourusername}/nobarfilm:latest
+    container_name: nobarfilm
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - nobar-net
+      - npm_network
+
+  # Watchtower otomatis mengecek update image setiap interval tertentu
+  # dan merestart container app jika ada versi baru di Docker Hub
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --cleanup # Cek setiap 60 detik
+    restart: always
+    networks:
+      - nobar-net
+
+networks:
+  nobar-net:
+    driver: bridge
+  npm_network:
+    external: true
+    name: nginx-proxy-manager_default

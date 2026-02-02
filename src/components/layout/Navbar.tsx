@@ -1,4 +1,5 @@
-'use client';import Link from 'next/link';
+'use client';
+import Link from 'next/link';
 import { Search, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
