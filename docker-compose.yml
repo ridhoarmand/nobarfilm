@@ -4,17 +4,22 @@ services:
   nobarfilm:
     container_name: nobarfilm
     # Option 1: Build from Git (Portainer method)
-    build:
-      context: .
-      dockerfile: Dockerfile
-    
-    # Option 2: Pull from Docker Hub if you push image there
-    # image: yourusername/nobarfilm:latest
+    image: ${DOCKER_USERNAME}/nobarfilm:latest
+    # build: . # Uncomment for local build
     
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_BASE_URL=https://api.sansekai.my.id/api/moviebox
-      # Add other env vars here if needed
+      - PORT=3000
+    networks:
+      - nobar-net
+      - npm_network
+
+networks:
+  nobar-net:
+    driver: bridge
+  npm_network:
+    external: true
+    name: nginx-proxy-manager_default

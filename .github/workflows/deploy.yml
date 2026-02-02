@@ -6,8 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  # Ganti dengan username Docker Hub kamu
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   # Ganti dengan nama repository di Docker Hub
   IMAGE_NAME: nobarfilm 
 
@@ -39,5 +37,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger Portainer Webhook
-        run: curl -X POST https://portainer.ridhoarmand.eu.org/api/stacks/webhooks/c2c4dedb-d954-43ef-9c4a-1b9d0c0290e3
+      - name: Redeploy Portainer Stack
+        uses: wirgen/portainer-stack-redeploy-action@v1.1
+        with:
+          portainerUrl: 'https://portainer.ridhoarmand.eu.org' # Hardcoded based on previous context, or use secret
+          accessToken: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
+          stackId: 17
+          endpointId: 3
+          env: '{"DOCKER_USERNAME": "${{ secrets.DOCKER_USERNAME }}"}'
+          # Using default image update behavior
