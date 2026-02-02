@@ -4,6 +4,7 @@ import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ServiceWorkerRegistration } from '@/components/providers/ServiceWorkerRegistration';
 import { DownloadManager } from '@/components/download/DownloadManager';
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -41,6 +42,17 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <QueryProvider>{children}</QueryProvider>
         <DownloadManager />
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              background: '#333',
+              color: '#fff',
+              borderRadius: '10px',
+              border: '1px solid #444',
+            },
+          }}
+        />
       </body>
     </html>
   );

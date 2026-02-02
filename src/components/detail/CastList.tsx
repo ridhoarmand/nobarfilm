@@ -1,5 +1,4 @@
-'use client';
-import { Staff } from '@/types/api';
+'use client';import { Staff } from '@/types/api';
 import Image from 'next/image';
 
 interface CastListProps {
@@ -17,8 +16,8 @@ export function CastList({ cast, maxItems = 10 }: CastListProps) {
       <h2 className="text-xl sm:text-2xl font-bold text-white">Cast</h2>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {displayCast.map((actor) => (
-          <div key={actor.staffId} className="group">
+        {displayCast.map((actor, index) => (
+          <div key={`${actor.staffId}-${index}`} className="group">
             <div className="aspect-[2/3] relative overflow-hidden rounded-lg bg-zinc-900 mb-2">
               {actor.avatarUrl ? (
                 <Image

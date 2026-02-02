@@ -1,6 +1,6 @@
 'use client';import Link from 'next/link';
 import { Search, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export function Navbar() {
@@ -11,11 +11,14 @@ export function Navbar() {
   const pathname = usePathname();
 
   // Handle scroll effect
-  if (typeof window !== 'undefined') {
-    window.addEventListener('scroll', () => {
+  useEffect(() => {
+    const handleScroll = () => {
       setIsScrolled(window.scrollY > 0);
-    });
-  }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

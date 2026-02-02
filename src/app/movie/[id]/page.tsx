@@ -1,4 +1,5 @@
-'use client';import { useState } from 'react';
+'use client';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDetail } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
@@ -16,6 +17,12 @@ export default function DetailPage() {
   const subjectId = params.id as string;
 
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [downloadParams, setDownloadParams] = useState({ season: 0, episode: 0 });
+
+  const openDownloadModal = (season = 0, episode = 0) => {
+    setDownloadParams({ season, episode });
+    setIsDownloadModalOpen(true);
+  };
 
   const { data, isLoading, error } = useDetail(subjectId);
 
@@ -134,13 +141,16 @@ export default function DetailPage() {
                         <Play className="w-6 h-6 fill-current" />
                         <span>Play Now</span>
                       </Link>
-                      <button
-                        onClick={() => setIsDownloadModalOpen(true)}
-                        className="flex items-center gap-2 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105"
-                      >
-                        <Download className="w-6 h-6" />
-                        <span>Download</span>
-                      </button>
+                      {/* Download button - Only for Movies */}
+                      {!isSeries && (
+                        <button
+                          onClick={() => openDownloadModal(0, 0)}
+                          className="flex items-center gap-2 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105"
+                        >
+                          <Download className="w-6 h-6" />
+                          <span>Download</span>
+                        </button>
+                      )}
                     </>
                   );
                 })()}
@@ -219,7 +229,7 @@ export default function DetailPage() {
           </div>
 
           {/* Season/Episode Selector (for Series) */}
-          {isSeries && resource?.seasons && <SeasonSelector seasons={resource.seasons} subjectId={subjectId} />}
+          {isSeries && resource?.seasons && <SeasonSelector seasons={resource.seasons} subjectId={subjectId} onDownload={(season, episode) => openDownloadModal(season, episode)} />}
 
           {/* Cast */}
           {stars && stars.length > 0 && <CastList cast={stars} />}
@@ -229,7 +239,14 @@ export default function DetailPage() {
       <Footer />
 
       {/* Download Modal */}
-      <DownloadModal isOpen={isDownloadModalOpen} onClose={() => setIsDownloadModalOpen(false)} subjectId={subjectId} title={subject.title} />
+      <DownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        subjectId={subjectId}
+        title={subject.title}
+        seasonNumber={downloadParams.season}
+        episodeNumber={downloadParams.episode}
+      />
     </>
   );
 }

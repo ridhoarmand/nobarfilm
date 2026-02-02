@@ -1,15 +1,15 @@
-'use client';
-import { Season } from '@/types/api';
+'use client';import { Season } from '@/types/api';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Play } from 'lucide-react';
+import { Download, Play } from 'lucide-react';
 
 interface SeasonSelectorProps {
   seasons: Season[];
   subjectId: string;
+  onDownload?: (season: number, episode: number) => void;
 }
 
-export function SeasonSelector({ seasons, subjectId }: SeasonSelectorProps) {
+export function SeasonSelector({ seasons, subjectId, onDownload }: SeasonSelectorProps) {
   const [selectedSeason, setSelectedSeason] = useState(1);
 
   // Filter out movie entries (se: 0)
@@ -41,20 +41,28 @@ export function SeasonSelector({ seasons, subjectId }: SeasonSelectorProps) {
       {/* Episode Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {Array.from({ length: currentSeason.maxEp }, (_, i) => i + 1).map((episode) => (
-          <Link
-            key={episode}
-            href={`/watch/${subjectId}?season=${selectedSeason}&episode=${episode}`}
-            className="group flex items-center gap-3 p-3 bg-zinc-900 hover:bg-zinc-800 rounded-lg transition"
-          >
-            <div className="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-red-600 transition">
-              <Play className="w-5 h-5 text-white fill-current" />
-            </div>
+          <div key={episode} className="flex gap-2">
+            <Link href={`/watch/${subjectId}?season=${selectedSeason}&episode=${episode}`} className="flex-1 group flex items-center gap-3 p-3 bg-zinc-900 hover:bg-zinc-800 rounded-lg transition">
+              <div className="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-red-600 transition">
+                <Play className="w-5 h-5 text-white fill-current" />
+              </div>
 
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold">Episode {episode}</p>
-              <p className="text-xs text-gray-400">{currentSeason.resolutions?.[0]?.resolution}p</p>
-            </div>
-          </Link>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold">Episode {episode}</p>
+                <p className="text-xs text-gray-400">{currentSeason.resolutions?.[0]?.resolution}p</p>
+              </div>
+            </Link>
+
+            {onDownload && (
+              <button
+                onClick={() => onDownload(selectedSeason, episode)}
+                className="flex items-center justify-center w-14 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition text-gray-400 hover:text-white"
+                title="Download Episode"
+              >
+                <Download className="w-6 h-6" />
+              </button>
+            )}
+          </div>
         ))}
       </div>
 

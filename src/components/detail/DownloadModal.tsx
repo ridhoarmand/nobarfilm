@@ -1,7 +1,7 @@
-'use client';
-import { useState } from 'react';
+'use client';import { useState } from 'react';
 import { X, Download as DownloadIcon, Film, FileText } from 'lucide-react';
 import { useSources, useDetail } from '@/lib/hooks/useMovieBox';
+import toast from 'react-hot-toast';
 
 interface DownloadModalProps {
   isOpen: boolean;
@@ -73,11 +73,11 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, seasonNumber,
       startDownload(streamUrl, filename, 'video');
 
       // Close modal immediately (download continues in background)
-      alert(`✅ Download started!\n\nFilename: ${filename}\n\nCheck Download Manager (bottom-right) for progress.`);
+      toast.success(`Download started: ${filename}`, { duration: 4000 });
       onClose();
     } catch (error) {
       console.error('❌ Download failed:', error);
-      alert(`❌ Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDownloading(false);
     }
@@ -101,11 +101,11 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, seasonNumber,
       startDownload(subtitle.url, filename, 'subtitle');
 
       // Close modal
-      alert(`✅ Subtitle download started!\n\nFilename: ${filename}\n\nCheck Download Manager for progress.`);
+      toast.success(`Subtitle download started: ${filename}`, { duration: 4000 });
       onClose();
     } catch (error) {
       console.error('❌ Subtitle download failed:', error);
-      alert(`❌ Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDownloading(false);
     }
