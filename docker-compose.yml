@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  nobarfilm:
+    container_name: nobarfilm
+    # Option 1: Build from Git (Portainer method)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Option 2: Pull from Docker Hub if you push image there
+    # image: yourusername/nobarfilm:latest
+    
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_BASE_URL=https://api.sansekai.my.id/api/moviebox
+      # Add other env vars here if needed
