@@ -10,13 +10,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+    env_file:
+      - stack.env
     networks:
-      - nobar-net
-      - npm_network
+      - nginx-proxy-manager_default
 
 networks:
-  nobar-net:
-    driver: bridge
-  npm_network:
+  nginx-proxy-manager_default:
     external: true
-    name: nginx-proxy-manager_default

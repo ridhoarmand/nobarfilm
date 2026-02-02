@@ -1,4 +1,4 @@
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions, keepPreviousData } from '@tanstack/react-query';
 import { movieBoxAPI } from '@/lib/api/moviebox';
 import type { HomepageResponse, TrendingResponse, SearchResponse, DetailResponse, SourcesResponse, ApiError } from '@/types/api';
 
@@ -22,15 +22,12 @@ export function useHomepage(options?: Omit<UseQueryOptions<HomepageResponse, Api
     ...options,
   });
 }
-
-/**
- * Hook to fetch trending content
- */
 export function useTrending(page: number = 0, options?: Omit<UseQueryOptions<TrendingResponse, ApiError>, 'queryKey' | 'queryFn'>) {
   return useQuery<TrendingResponse, ApiError>({
     queryKey: queryKeys.trending(page),
     queryFn: () => movieBoxAPI.getTrending(page),
     staleTime: 1000 * 60 * 3, // 3 minutes
+    placeholderData: keepPreviousData,
     ...options,
   });
 }

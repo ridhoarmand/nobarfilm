@@ -1,4 +1,5 @@
-'use client';import { useState } from 'react';
+'use client';
+import { useState } from 'react';
 import { X, Download as DownloadIcon, Film, FileText } from 'lucide-react';
 import { useSources, useDetail } from '@/lib/hooks/useMovieBox';
 import toast from 'react-hot-toast';
