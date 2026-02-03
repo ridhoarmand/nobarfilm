@@ -1,4 +1,5 @@
-'use client';import { useEffect, useRef, useState, useMemo } from 'react';
+'use client';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'plyr-react/plyr.css';
 import { FastForward, Rewind, Volume2, Sun, Loader2 } from 'lucide-react';
@@ -164,11 +165,16 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
         player.volume = 1;
 
         return () => {
-          // Safe cleanup
-          if (typeof player.off === 'function') {
-            player.off('ended', handleEnded);
-            player.off('timeupdate', handleTimeUpdate);
-            player.off('ready', handleReady);
+          // Safe cleanup with optional chaining and existence check
+          const currentPlayer = plyrRef.current?.plyr;
+          if (currentPlayer && typeof currentPlayer.off === 'function') {
+            try {
+              currentPlayer.off('ended', handleEnded);
+              currentPlayer.off('timeupdate', handleTimeUpdate);
+              currentPlayer.off('ready', handleReady);
+            } catch (err) {
+              console.warn('Error removing player listeners:', err);
+            }
           }
         };
       }

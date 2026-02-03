@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ClientToServerEvents, ServerToClientEvents } from '@/types/watch-party';
 import { APITypes } from 'plyr-react';
@@ -223,6 +224,11 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
     emitSeek: (time: number) => {
       if (!isRemoteUpdate.current && socketRef.current) {
         socketRef.current.emit('seek', { roomCode, time });
+      }
+    },
+    emitBuffering: (isBuffering: boolean) => {
+      if (socketRef.current) {
+        socketRef.current.emit('buffering', { roomCode, isBuffering });
       }
     },
     emitMessage: (message: string) => {

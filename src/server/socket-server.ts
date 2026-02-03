@@ -30,6 +30,7 @@ io.on('connection', (socket) => {
         playback: {
           currentPosition: 0,
           isPlaying: false,
+          isBuffering: false,
           lastActionBy: '', // System
           timestamp: Date.now(),
         },
@@ -75,6 +76,7 @@ io.on('connection', (socket) => {
       room.playback = {
         currentPosition: time,
         isPlaying: true,
+        isBuffering: false,
         lastActionBy: socket.id,
         timestamp: Date.now(),
       };
@@ -91,6 +93,7 @@ io.on('connection', (socket) => {
       room.playback = {
         currentPosition: time,
         isPlaying: false,
+        isBuffering: false,
         lastActionBy: socket.id,
         timestamp: Date.now(),
       };
@@ -104,6 +107,16 @@ io.on('connection', (socket) => {
       room.playback.currentPosition = time;
       room.playback.timestamp = Date.now();
       socket.to(roomCode).emit('seek', { time, userId: socket.id });
+    }
+  });
+
+  socket.on('buffering', ({ roomCode, isBuffering }) => {
+    const room = rooms.get(roomCode);
+    if (room) {
+      room.playback.isBuffering = isBuffering;
+      // Broadcast to everyone (including sender? No, sender knows they are buffering)
+      // Actually, for UI "Waiting for...", we need to know WHO is buffering.
+      socket.to(roomCode).emit('buffering', { userId: socket.id, isBuffering });
     }
   });
 

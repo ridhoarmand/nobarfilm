@@ -1,5 +1,4 @@
-export interface WatchPartyRoom {
-  id: string;
+export interface WatchPartyRoom {  id: string;
   room_code: string;
   host_id: string;
 
@@ -53,6 +52,7 @@ export interface JoinPartyPayload {
 export interface PartyPlaybackState {
   currentPosition: number;
   isPlaying: boolean;
+  isBuffering: boolean;
   lastActionBy: string;
   timestamp: number;
 }
@@ -81,6 +81,7 @@ export interface ServerToClientEvents {
   play: (data: { time: number; userId: string }) => void;
   pause: (data: { time: number; userId: string }) => void;
   seek: (data: { time: number; userId: string }) => void;
+  buffering: (data: { userId: string; isBuffering: boolean }) => void;
   'chat-message': (message: ChatMessage) => void;
   'host-transferred': (data: { newHostId: string }) => void;
 }
@@ -91,6 +92,7 @@ export interface ClientToServerEvents {
   play: (data: { roomCode: string; time: number }) => void;
   pause: (data: { roomCode: string; time: number }) => void;
   seek: (data: { roomCode: string; time: number }) => void;
+  buffering: (data: { roomCode: string; isBuffering: boolean }) => void;
   'chat-message': (data: { roomCode: string; message: string }) => void;
   'transfer-host': (data: { roomCode: string; newHostId: string }) => void;
 }

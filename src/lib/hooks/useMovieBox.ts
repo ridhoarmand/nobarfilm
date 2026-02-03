@@ -1,5 +1,4 @@
-import { useQuery, UseQueryOptions, keepPreviousData } from '@tanstack/react-query';
-import { movieBoxAPI } from '@/lib/api/moviebox';
+import { useQuery, UseQueryOptions, keepPreviousData } from '@tanstack/react-query';import { movieBoxAPI } from '@/lib/api/moviebox';
 import type { HomepageResponse, TrendingResponse, SearchResponse, DetailResponse, SourcesResponse, ApiError } from '@/types/api';
 
 // Query keys for caching
@@ -68,6 +67,23 @@ export function useSources(subjectId: string, season: number = 0, episode: numbe
     enabled: !!subjectId, // Only fetch if subjectId is provided
     staleTime: 1000 * 60 * 2, // 2 minutes (URLs expire, need fresh data)
     gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes (renamed from cacheTime in v5)
+    ...options,
+    ...options,
+  });
+}
+
+/**
+ * Hook to generate stream link from a specific source URL
+ * Caches the result for 24 hours to avoid hitting the API frequently
+ */
+export function useGenerateStreamLink(url: string | undefined, options?: Omit<UseQueryOptions<{ streamUrl: string }, ApiError>, 'queryKey' | 'queryFn'>) {
+  return useQuery<{ streamUrl: string }, ApiError>({
+    queryKey: ['generate-stream', url] as const,
+    queryFn: () => movieBoxAPI.generateStreamLink(url!),
+    enabled: !!url,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    gcTime: 1000 * 60 * 60 * 24 * 2, // 48 hours
+    retry: 2,
     ...options,
   });
 }

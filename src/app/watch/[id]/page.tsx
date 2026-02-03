@@ -1,6 +1,7 @@
-'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
+'use client';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
-import { useDetail, useSources } from '@/lib/hooks/useMovieBox';
+import { useDetail, useSources, useGenerateStreamLink } from '@/lib/hooks/useMovieBox';
 import { useWatchHistory } from '@/lib/hooks/useWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
@@ -22,54 +23,19 @@ function WatchContent() {
   const [currentSeason, setCurrentSeason] = useState(seasonParam);
   const [currentEpisode, setCurrentEpisode] = useState(episodeParam);
   const [selectedQuality, setSelectedQuality] = useState(0);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
-  const [isLoadingStream, setIsLoadingStream] = useState(true);
-  const [streamError, setStreamError] = useState<string | null>(null);
   const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
 
   const { data: detailData, isLoading: isLoadingDetail } = useDetail(subjectId);
   const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useSources(subjectId, currentSeason, currentEpisode);
 
-  // Generate stream URL when sources change
-  useEffect(() => {
-    // Wait for sources data to be ready
-    if (isLoadingSources) {
-      return;
-    }
+  // Derive selected source URL
+  const selectedSourceUrl = sourcesData?.downloads?.[selectedQuality]?.url;
 
-    const generateStream = async () => {
-      console.log('🎬 Generating stream...', { sourcesData, selectedQuality });
+  // Use cached stream generation
+  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useGenerateStreamLink(selectedSourceUrl);
 
-      if (!sourcesData || !sourcesData.downloads || sourcesData.downloads.length === 0) {
-        console.warn('⚠️ No sources available');
-        setIsLoadingStream(false);
-        setStreamError('No video sources available');
-        return;
-      }
-
-      setIsLoadingStream(true);
-      setStreamError(null);
-
-      try {
-        const source = sourcesData.downloads[selectedQuality] || sourcesData.downloads[0];
-        console.log('📹 Selected source:', source);
-
-        const response = await movieBoxAPI.generateStreamLink(source.url);
-        console.log('✅ Stream URL generated:', response.streamUrl);
-
-        setStreamUrl(response.streamUrl);
-        setStreamError(null);
-      } catch (error: any) {
-        console.error('❌ Failed to generate stream link:', error);
-        setStreamUrl(null);
-        setStreamError(error.message || 'Failed to load video');
-      } finally {
-        setIsLoadingStream(false);
-      }
-    };
-
-    generateStream();
-  }, [sourcesData, selectedQuality, isLoadingSources]);
+  const streamUrl = streamData?.streamUrl;
+  const streamError = streamErrorData?.message || (sourcesData?.downloads?.length === 0 ? 'No video sources available' : null);
 
   // Update URL when season/episode changes
   useEffect(() => {
@@ -83,7 +49,6 @@ function WatchContent() {
 
   const handleEpisodeChange = (newEpisode: number) => {
     setCurrentEpisode(newEpisode);
-    setStreamUrl(null);
     setSavedTime(0); // Reset saved time for new episode
   };
 
@@ -185,49 +150,49 @@ function WatchContent() {
         </div>
 
         {/* Video Player */}
-        <div className="w-full bg-black">
-          {streamError ? (
-            <div className="aspect-video bg-zinc-900 flex items-center justify-center">
-              <div className="text-center max-w-md px-4">
-                <h2 className="text-2xl font-bold text-red-500 mb-4">⚠️ Playback Error</h2>
-                <p className="text-gray-300 mb-2">{streamError}</p>
-                {sourcesError && <p className="text-sm text-gray-400 mb-4">API Error: {sourcesError.message}</p>}
-                <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={() => {
-                      setStreamError(null);
-                      setStreamUrl(null);
-                      window.location.reload();
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
-                  >
-                    Try Again
-                  </button>
-                  <button onClick={() => router.push(`/movie/${subjectId}`)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition">
-                    Back to Details
-                  </button>
+        <div className="w-full bg-black flex justify-center py-4 lg:py-8">
+          <div className="w-full max-w-[1400px] shadow-2xl rounded-xl overflow-hidden border border-zinc-900 mx-auto">
+            {streamError ? (
+              <div className="aspect-video bg-zinc-900 flex items-center justify-center">
+                <div className="text-center max-w-md px-4">
+                  <h2 className="text-2xl font-bold text-red-500 mb-4">⚠️ Playback Error</h2>
+                  <p className="text-gray-300 mb-2">{streamError}</p>
+                  {sourcesError && <p className="text-sm text-gray-400 mb-4">API Error: {sourcesError.message}</p>}
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => {
+                        window.location.reload();
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
+                    >
+                      Try Again
+                    </button>
+                    <button onClick={() => router.push(`/movie/${subjectId}`)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition">
+                      Back to Details
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : isLoadingStream || !streamUrl ? (
-            <div className="aspect-video bg-zinc-900 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
-                <p className="text-white">{isLoadingSources ? 'Loading sources...' : 'Preparing stream...'}</p>
-                <p className="text-sm text-gray-400 mt-2">This may take a few seconds...</p>
+            ) : isLoadingStream || !streamUrl ? (
+              <div className="aspect-video bg-zinc-900 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+                  <p className="text-white">{isLoadingSources ? 'Loading sources...' : 'Preparing stream...'}</p>
+                  <p className="text-sm text-gray-400 mt-2">This may take a few seconds...</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <VideoPlayer
-              src={streamUrl}
-              subtitles={subtitles}
-              poster={detailData.subject.cover.url}
-              onEnded={handleNextEpisode}
-              onProgress={handleProgress}
-              initialTime={savedTime}
-              subjectType={detailData.subject.subjectType}
-            />
-          )}
+            ) : (
+              <VideoPlayer
+                src={streamUrl}
+                subtitles={subtitles}
+                poster={detailData.subject.cover.url}
+                onEnded={handleNextEpisode}
+                onProgress={handleProgress}
+                initialTime={savedTime}
+                subjectType={detailData.subject.subjectType}
+              />
+            )}
+          </div>
         </div>
 
         {/* Controls & Info */}
@@ -244,7 +209,6 @@ function WatchContent() {
                     key={source.id}
                     onClick={() => {
                       setSelectedQuality(index);
-                      setStreamUrl(null);
                     }}
                     className={`px-4 py-2 rounded-lg font-medium transition ${selectedQuality === index ? 'bg-red-600 text-white' : 'bg-zinc-900 text-gray-400 hover:bg-zinc-800 hover:text-white'}`}
                   >

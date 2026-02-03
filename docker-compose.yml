@@ -4,7 +4,7 @@ services:
   nobarfilm:
     container_name: nobarfilm
     # Option 1: Build from Git (Portainer method)
-    image: ${DOCKER_USERNAME}/nobarfilm:latest
+    image: ridhoarmand/nobarfilm:latest
     # build: . # Uncomment for local build
     
     restart: unless-stopped
@@ -20,7 +20,7 @@ services:
 
   socket-server:
     container_name: nobarfilm_socket
-    image: ${DOCKER_USERNAME}/nobarfilm:latest
+    image: ridhoarmand/nobarfilm:latest
     restart: unless-stopped
     command: node dist/server/socket-server.js
     ports:
