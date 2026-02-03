@@ -1,5 +1,4 @@
-'use client';
-import { useState } from 'react';
+'use client';import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDetail } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
@@ -10,6 +9,7 @@ import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Info, Star, Calendar, Clock, Download } from 'lucide-react';
+import { WatchPartyButton } from '@/components/watch-party/WatchPartyButton';
 
 export default function DetailPage() {
   const params = useParams();
@@ -151,6 +151,16 @@ export default function DetailPage() {
                           <span>Download</span>
                         </button>
                       )}
+
+                      {/* Watch Party Button */}
+                      <WatchPartyButton
+                        subject={{
+                          id: subject.subjectId,
+                          type: subject.subjectType,
+                          title: subject.title,
+                          coverUrl: subject.cover.url,
+                        }}
+                      />
                     </>
                   );
                 })()}

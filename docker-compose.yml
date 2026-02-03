@@ -13,6 +13,23 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      # Add other env vars here or via env_file
+    networks:
+      - nobar-net
+      - nginx-proxy-manager_default
+
+  socket-server:
+    container_name: nobarfilm_socket
+    image: ${DOCKER_USERNAME}/nobarfilm:latest
+    restart: unless-stopped
+    command: node dist/server/socket-server.js
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - SOCKET_PORT=4000
+      - CLIENT_URL=${CLIENT_URL} 
+      # Change CLIENT_URL to your production domain
     networks:
       - nobar-net
       - nginx-proxy-manager_default

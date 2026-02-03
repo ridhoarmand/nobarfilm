@@ -1,4 +1,5 @@
-'use client';import { createContext, useContext, useEffect, useState } from 'react';
+'use client';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { AuthContextType, UserProfile } from '@/lib/supabase/types';
 import { User } from '@supabase/supabase-js';
@@ -85,17 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       // Create profile
-      if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: fullName,
-        });
+      if (error) throw error;
 
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-        }
-      }
+      // Profile is automatically created by DB trigger "handle_new_user"
 
       toast.success('Registration successful! Please check your email for verification.');
     } catch (error: any) {

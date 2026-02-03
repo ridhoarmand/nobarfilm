@@ -20,7 +20,18 @@ ENV NEXT_TELEMETRY_DISABLED 1
 # Skip env validation for static build
 ENV SKIP_ENV_VALIDATION=1
 
+# Declare build arguments
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+ARG NEXT_PUBLIC_SOCKET_URL
+
+# Set as environment variables for the build
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
+
 RUN npm run build
+RUN npm run build:socket
 
 # 3. Production image, copy all the files and run next
 FROM node:20-alpine AS runner
@@ -33,18 +44,26 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy socket server build artifacts
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
+# Copy package.json to run scripts if needed, though we run node direct
+COPY --from=builder /app/package.json ./package.json 
+# We need node_modules for socket server dependencies (socket.io) not bundled in standalone?
+# Next.js standalone includes necessary deps for the app, but maybe not for the separate socket server if not imported?
+# Ideally, we should copy node_modules or install prod deps.
+# Standalone only traces Next.js files. 
+# Let's copy node_modules to be safe for the socket server.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 
 EXPOSE 3000
+EXPOSE 4000
 
 ENV PORT 3000
-# set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
+# Default command for Next.js app
 CMD ["node", "server.js"]

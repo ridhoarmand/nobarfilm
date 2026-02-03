@@ -1,6 +1,7 @@
 'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 import { useDetail, useSources } from '@/lib/hooks/useMovieBox';
+import { useWatchHistory } from '@/lib/hooks/useWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { movieBoxAPI } from '@/lib/api/moviebox';
@@ -101,9 +102,27 @@ function WatchContent() {
     }
   };
 
+  // Watch History Hook
+  const { saveProgress } = useWatchHistory({
+    subjectId,
+    subjectType: detailData?.subject?.subjectType || 1, // Default Movie
+    title: detailData?.subject?.title || 'Unknown Title',
+    coverUrl: detailData?.subject?.cover?.url,
+    currentEpisode,
+    totalEpisodes: detailData?.resource?.seasons?.find((s) => s.se === currentSeason)?.maxEp,
+  });
+
   // Update current playback time
   const handleProgress = (time: number) => {
     setSavedTime(time);
+    // Estimate total duration from stream or metadata if available,
+    // but the hook needs explicit duration.
+    // VideoPlayer onProgress usually just gives currentTime.
+    // Ideally VideoPlayer should pass duration too, or we get it from metadata (subject.duration * 60).
+    const duration = detailData?.subject?.duration ? detailData.subject.duration * 60 : 0;
+    if (duration > 0) {
+      saveProgress(time, duration);
+    }
   };
 
   // Prepare subtitles for player
