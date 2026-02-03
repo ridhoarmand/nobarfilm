@@ -1,4 +1,5 @@
-'use client';import { useState } from 'react';
+'use client';
+import { useState } from 'react';
 import { Users, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -63,7 +64,7 @@ export function WatchPartyButton({ subject, className = '' }: WatchPartyButtonPr
       className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-full transition shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >
       {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Users className="w-5 h-5" />}
-      <span>{isLoading ? 'Creating...' : 'Start Watch Party'}</span>
+      <span>{isLoading ? 'Creating...' : 'Watch Party'}</span>
     </button>
   );
 }

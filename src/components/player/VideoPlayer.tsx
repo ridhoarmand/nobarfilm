@@ -1,5 +1,4 @@
-'use client';
-import { useEffect, useRef, useState, useMemo } from 'react';
+'use client';import { useEffect, useRef, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'plyr-react/plyr.css';
 import { FastForward, Rewind, Volume2, Sun, Loader2 } from 'lucide-react';
@@ -244,7 +243,6 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
       // Double Tap Logic
       if (now - lastTap.current < 300) {
         const width = wrapperRef.current?.clientWidth || window.innerWidth;
-        // Calculate relative X safely
         const rect = wrapperRef.current?.getBoundingClientRect();
         const x = e.changedTouches[0].clientX - (rect?.left || 0);
         const player = plyrRef.current.plyr;
@@ -259,6 +257,12 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
         lastTap.current = 0;
       } else {
         lastTap.current = now;
+        // Single tap to toggle play (with a small delay to avoid fighting double tap)
+        setTimeout(() => {
+          if (Date.now() - lastTap.current >= 300 && lastTap.current !== 0) {
+            plyrRef.current?.plyr?.togglePlay();
+          }
+        }, 300);
       }
     }
 

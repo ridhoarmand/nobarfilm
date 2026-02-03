@@ -2,7 +2,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Navbar } from '@/components/layout/Navbar';
-import { Footer } from '@/components/layout/Footer';
+// import { Footer } from '@/components/layout/Footer'; // Unused
 import { APITypes } from 'plyr-react';
 import 'plyr-react/plyr.css';
 
@@ -27,7 +27,7 @@ import { WatchPartyParticipant, ChatMessage } from '@/types/watch-party';
 import { Users, Copy, Check, Share2, ChevronRight, Loader2, Play } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useSources, useGenerateStreamLink } from '@/lib/hooks/useMovieBox';
-import { movieBoxAPI } from '@/lib/api/moviebox';
+import toast from 'react-hot-toast';
 
 export default function WatchPartyRoom() {
   const { code } = useParams();
@@ -41,12 +41,14 @@ export default function WatchPartyRoom() {
   const [room, setRoom] = useState<any>(null);
   const [participants, setParticipants] = useState<WatchPartyParticipant[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasJoined, setHasJoined] = useState(false);
+  const [selectedQuality, setSelectedQuality] = useState(0);
 
   // Buffering State
   const [peersBuffering, setPeersBuffering] = useState<string[]>([]); // List of user IDs buffering
+
+  const pendingSeekTime = useRef<number | null>(null);
 
   // Protect Route: Redirect to login if not authenticated
   useEffect(() => {
@@ -59,15 +61,11 @@ export default function WatchPartyRoom() {
   // Fetch initial room data from DB (for title, video source, etc)
   useEffect(() => {
     const fetchRoom = async () => {
-      // Use RPC to fetch room by code to bypass RLS (if not yet joined)
       const { data, error } = await supabase.rpc('get_watch_party_by_code', { p_code: roomCode });
-
-      // Data from RPC returning SETOF is an array
       const roomData = data && Array.isArray(data) && data.length > 0 ? data[0] : null;
 
       if (error || !roomData) {
         console.error('Room not found', error);
-        // router.push('/404'); // Handle error
         setLoading(false);
         return;
       }
@@ -79,6 +77,13 @@ export default function WatchPartyRoom() {
     fetchRoom();
   }, [roomCode]);
 
+  // Auto-join if user is host
+  useEffect(() => {
+    if (room && user && room.host_id === user.id && !hasJoined) {
+      setHasJoined(true);
+    }
+  }, [room, user, hasJoined]);
+
   // Memoize options to prevent re-creation on every render
   const plyrOptions = useMemo(
     () => ({
@@ -89,13 +94,27 @@ export default function WatchPartyRoom() {
     [],
   );
 
+  const togglePlay = useCallback(() => {
+    const player = playerRef.current?.plyr;
+    if (player && typeof player.togglePlay === 'function') {
+      player.togglePlay();
+    }
+  }, []);
+
+  const handleQualityChange = (index: number) => {
+    const player = playerRef.current?.plyr;
+    if (player) {
+      pendingSeekTime.current = player.currentTime;
+    }
+    setSelectedQuality(index);
+  };
+
   // Memoize socket update handler
   const handleRoomStateUpdate = useCallback((data: any) => {
     if (data.participants) {
       setParticipants(data.participants);
     }
     if (data.chatHistory) setMessages(data.chatHistory);
-    // Initial sync of buffering state could be added here if server sends it
   }, []);
 
   // Handle Socket Sync
@@ -116,11 +135,14 @@ export default function WatchPartyRoom() {
         if (exists) return prev;
         return [...prev, user];
       });
+      toast.success(`${user.display_name} joined!`, { position: 'top-left', duration: 2000 });
     });
 
     socket.on('user-left', (userId) => {
+      const leaver = participants.find((p) => p.user_id === userId);
+      if (leaver) toast(`${leaver.display_name} left`, { icon: '👋', position: 'top-left', duration: 2000 });
       setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
-      setPeersBuffering((prev) => prev.filter((id) => id !== userId)); // Remove from buffering list
+      setPeersBuffering((prev) => prev.filter((id) => id !== userId));
     });
 
     socket.on('chat-message', (msg) => {
@@ -138,8 +160,6 @@ export default function WatchPartyRoom() {
         }
       });
 
-      // Optional: Auto-pause if someone buffers?
-      // For now, we just show UI. True "lockstep" requires pausing player.
       if (isBuffering && playerRef.current?.plyr?.playing) {
         playerRef.current.plyr.pause();
       }
@@ -151,18 +171,18 @@ export default function WatchPartyRoom() {
       socket.off('chat-message');
       socket.off('buffering');
     };
-  }, [socket]);
+  }, [socket, participants]);
 
   // Copy Room Link
   const copyLink = () => {
     const url = `${window.location.origin}/watch-party/${roomCode}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success('Link copied to clipboard!'))
+      .catch(() => toast.error('Failed to copy link'));
   };
 
   // --- VIDEO SOURCE HANDLING ---
-  // streamUrl and states managed by React Query hook now
 
   // Inferred params
   const subjectId = room?.subject_id || '';
@@ -173,8 +193,9 @@ export default function WatchPartyRoom() {
   // 1. Fetch Sources
   const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useSources(subjectId, currentSeason, currentEpisode);
 
-  // Default to first source for watch party (can add quality selector later)
-  const selectedSourceUrl = sourcesData?.downloads?.[0]?.url;
+  // Get selected source URL based on quality
+  // Default to 0 or selected
+  const selectedSourceUrl = sourcesData?.downloads?.[selectedQuality]?.url || sourcesData?.downloads?.[0]?.url;
 
   // 2. Prepare Subtitles
   const subtitles = useMemo(
@@ -195,6 +216,17 @@ export default function WatchPartyRoom() {
   const streamUrl = streamData?.streamUrl;
   const streamError = streamErrorData?.message || (sourcesData?.downloads?.length === 0 ? 'No video sources available' : null);
 
+  // Memoize player source to prevent flickering on focus/re-render
+  const playerSource = useMemo(
+    () => ({
+      type: 'video' as const,
+      sources: [{ src: streamUrl, type: 'video/mp4' }],
+      poster: room?.cover_url,
+      tracks: subtitles,
+    }),
+    [streamUrl, room?.cover_url, subtitles],
+  );
+
   // Handle local buffering events to notify others
   const handleWaiting = () => {
     if (hasJoined) emitBuffering && emitBuffering(true);
@@ -204,19 +236,55 @@ export default function WatchPartyRoom() {
     if (hasJoined) emitBuffering && emitBuffering(false);
   };
 
-  // Attach player events for buffering
+  // Attach player events for buffering and seek fix
   useEffect(() => {
     const player = playerRef.current?.plyr;
-    if (player && hasJoined) {
+    if (player && typeof player.on === 'function' && hasJoined) {
       player.on('waiting', handleWaiting);
       player.on('playing', handlePlaying);
 
+      const restoreTime = () => {
+        if (pendingSeekTime.current !== null) {
+          const timeToSeek = pendingSeekTime.current;
+          // Clear it first to prevent double-triggering
+          pendingSeekTime.current = null;
+
+          console.log('Restoring time to:', timeToSeek);
+
+          // Use a small timeout to ensure the player is truly ready to accept currentTime updates
+          setTimeout(() => {
+            if (player) {
+              player.currentTime = timeToSeek;
+              const playResult = player.play();
+              if (playResult instanceof Promise) {
+                playResult.catch(() => {});
+              }
+            }
+          }, 200);
+        }
+      };
+
+      // Listen to multiple events for better reliability
+      player.on('ready', restoreTime);
+      player.on('loadeddata', restoreTime);
+      player.on('canplay', restoreTime);
+
+      // Backup: Trigger if streamUrl changed
+      if (pendingSeekTime.current !== null) {
+        restoreTime();
+      }
+
       return () => {
-        player.off('waiting', handleWaiting);
-        player.off('playing', handlePlaying);
+        if (typeof player.off === 'function') {
+          player.off('waiting', handleWaiting);
+          player.off('playing', handlePlaying);
+          player.off('ready', restoreTime);
+          player.off('loadeddata', restoreTime);
+          player.off('canplay', restoreTime);
+        }
       };
     }
-  }, [hasJoined, playerRef.current]);
+  }, [hasJoined, playerRef.current, streamUrl]); // Added streamUrl as dependency to re-attach or trigger on source change
 
   if (loading || authLoading) {
     return (
@@ -276,94 +344,163 @@ export default function WatchPartyRoom() {
   return (
     <>
       <Navbar />
-      {/* Main Container */}
-      <div className="bg-black pt-20 h-[100dvh] flex flex-col lg:flex-row overflow-hidden pb-4 lg:pb-0">
-        {/* pb-4 added for desktop bottom spacing */}
+      {/* Main Container - Constrained to prevent oversized player on wide screens */}
+      <div className="bg-black pt-16 h-[100dvh] flex flex-col overflow-hidden">
+        <div className="flex-1 w-full max-w-[2000px] mx-auto flex flex-col lg:flex-row gap-4 px-4 lg:px-10 py-4 lg:py-8 overflow-hidden">
+          {/* Left/Top Content: Player */}
+          <div className="flex-1 flex flex-col relative z-20 min-h-0 bg-zinc-950 rounded-2xl border border-zinc-800/50 shadow-2xl overflow-hidden">
+            {/* Main Video Area */}
+            <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden min-h-0">
+              {streamError ? (
+                <div className="text-center p-6 text-red-500">
+                  <p className="font-bold mb-2">Unavailable</p>
+                  <p className="text-sm">{streamError}</p>
+                  {sourcesError && <p className="text-xs text-gray-500 mt-2">{sourcesError.message}</p>}
+                  <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition">
+                    Retry
+                  </button>
+                </div>
+              ) : isLoadingStream || (isLoadingSources && !sourcesData) ? (
+                <div className="text-center text-zinc-500">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-red-600" />
+                  <p className="text-sm">Loading Stream...</p>
+                </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center p-4 lg:p-10 overflow-hidden">
+                  <div
+                    className="relative max-w-full max-h-full aspect-video shadow-2xl overflow-hidden rounded-xl bg-black cursor-pointer group/player flex items-center justify-center"
+                    onClick={(e) => {
+                      // Only toggle if clicking the main video area, not controls
+                      const target = e.target as HTMLElement;
+                      if (!target.closest('.plyr__controls')) {
+                        togglePlay();
+                      }
+                    }}
+                  >
+                    <Plyr ref={playerRef} source={playerSource} options={plyrOptions} />
 
-        {/* Left/Top Content: Player */}
-        <div className="flex-none lg:flex-1 flex flex-col items-center justify-center bg-black relative z-20 px-0 lg:px-6">
-          {/* Added px-6 for desktop spacing from edges */}
-
-          <div className="w-full max-w-[95%] lg:max-w-none aspect-video relative bg-black flex items-center justify-center rounded-xl overflow-hidden shadow-2xl border border-zinc-800/50">
-            {streamError ? (
-              <div className="text-center p-6 text-red-500">
-                <p className="font-bold mb-2">Unavailable</p>
-                <p className="text-sm">{streamError}</p>
-                {sourcesError && <p className="text-xs text-gray-500 mt-2">{sourcesError.message}</p>}
-              </div>
-            ) : isLoadingStream || (isLoadingSources && !sourcesData) ? (
-              <div className="text-center text-zinc-500">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-red-600" />
-                <p className="text-sm">Loading Stream...</p>
-              </div>
-            ) : (
-              <>
-                <Plyr
-                  ref={playerRef}
-                  source={{
-                    type: 'video',
-                    sources: [{ src: streamUrl, type: 'video/mp4' }],
-                    poster: room?.cover_url,
-                    tracks: subtitles,
-                  }}
-                  options={plyrOptions}
-                />
-
-                {/* AUTOPLAY BLOCKER OVERLAY */}
-                {playError && (
-                  <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm">
-                    <div className="text-center">
-                      <p className="text-white mb-4 font-semibold text-lg">Click to Sync Playback</p>
-                      <button
-                        onClick={() => {
-                          playerRef.current?.plyr?.play();
-                          resolvePlayError();
-                        }}
-                        className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold flex items-center gap-2 transition transform hover:scale-105"
-                      >
-                        <Play className="w-5 h-5 fill-current" />
-                        JOIN STREAM
-                      </button>
+                    {/* Visual Central Pause/Play Indicator on Click (Optional enhancement) */}
+                  </div>
+                  {/* AUTOPLAY BLOCKER OVERLAY */}
+                  {playError && (
+                    <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm">
+                      <div className="text-center">
+                        <p className="text-white mb-4 font-semibold text-lg">Click to Sync Playback</p>
+                        <button
+                          onClick={() => {
+                            playerRef.current?.plyr?.play();
+                            resolvePlayError();
+                          }}
+                          className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold flex items-center gap-2 transition transform hover:scale-105"
+                        >
+                          <Play className="w-5 h-5 fill-current" />
+                          JOIN STREAM
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* BUFFERING OVERLAY */}
-                {peersBuffering.length > 0 && !playError && (
-                  <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-700 flex items-center gap-3 z-40 animate-pulse">
-                    <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                    <span className="text-xs text-white font-medium">Waiting for {participants.find((p) => p.id === peersBuffering[0])?.display_name || 'others'}...</span>
-                  </div>
-                )}
-              </>
-            )}
+                  {/* BUFFERING OVERLAY */}
+                  {peersBuffering.length > 0 && !playError && (
+                    <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-700 flex items-center gap-3 z-40 animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                      <span className="text-xs text-white font-medium">Waiting for {participants.find((p) => p.id === peersBuffering[0])?.display_name || 'others'}...</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {/* Room Info (Mobile Only - below video) */}
-            <div className="w-full p-3 lg:hidden flex items-center justify-between border-b border-zinc-800 bg-zinc-900 absolute bottom-0 translate-y-full left-0">
-              {/* Moved outside absolute if needed, but keeping structure */}
+              {/* Room Info (Mobile Only - below video overlay) */}
+              <div className="w-full p-3 lg:hidden flex items-center justify-between border-b border-zinc-800 bg-zinc-900 absolute bottom-0 translate-y-full left-0 z-10">
+                {/* This block is usually visually hidden because of translate-y-full and overflow hidden on parent, but let's keep it clean */}
+              </div>
+            </div>
+
+            {/* Premium Info Bar (Desktop) */}
+            <div className="hidden md:flex items-center justify-between px-6 py-4 bg-zinc-900/50 border-t border-zinc-800/50">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl font-bold text-white truncate">{room?.title}</h1>
+                  <span className="px-2 py-0.5 rounded bg-red-600/10 text-red-500 text-[10px] font-bold uppercase tracking-wider border border-red-600/20">Live Party</span>
+                </div>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <div className="flex items-center gap-2 px-2 py-1 bg-black/40 rounded border border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">ID Room</span>
+                    <span className="text-sm font-mono text-zinc-300 font-bold tracking-wider">{roomCode}</span>
+                  </div>
+
+                  {/* Resolution Picker - Desktop */}
+                  {sourcesData?.downloads && sourcesData.downloads.length > 0 && (
+                    <div className="flex items-center gap-1.5 ml-4 border-l border-zinc-800 pl-4">
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mr-1">Quality</span>
+                      {sourcesData.downloads.map((source, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleQualityChange(index)}
+                          className={`px-3 py-1 text-xs font-bold rounded-full transition-all duration-300 border
+                          ${
+                            selectedQuality === index
+                              ? 'bg-red-600 text-white border-red-500 shadow-[0_0_15px_rgba(229,9,20,0.3)]'
+                              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:border-zinc-500'
+                          }
+                        `}
+                        >
+                          {source.resolution}p
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 ml-6">
+                <button
+                  onClick={copyLink}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-semibold transition-all hover:scale-105 active:scale-95 shadow-lg border border-zinc-700"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Invite</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Info Bar (Visible < md) */}
+            <div className="w-full p-3 md:hidden flex items-center justify-between border-b border-zinc-800 bg-zinc-900">
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold text-white truncate">{room?.title || 'Watch Party'}</h1>
+                <p className="text-[10px] text-zinc-500 truncate">Room: {roomCode}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {sourcesData &&
+                  sourcesData.downloads &&
+                  sourcesData.downloads.length > 0 &&
+                  (sourcesData.downloads.length > 1 ? (
+                    <select className="bg-zinc-800 text-xs text-white border border-zinc-700 rounded px-1 py-1" value={selectedQuality} onChange={(e) => handleQualityChange(parseInt(e.target.value))}>
+                      {sourcesData.downloads.map((source, index) => (
+                        <option key={index} value={index}>
+                          {source.resolution}p
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-[10px] text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">{sourcesData.downloads[0].resolution}p</span>
+                  ))}
+
+                <button
+                  onClick={copyLink}
+                  className="flex items-center gap-2 text-xs font-medium text-white px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full border border-zinc-700 transition flex-shrink-0"
+                >
+                  <Share2 className="w-3 h-3" />
+                  Invite
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Room Info Mobile (Outside Player Wrapper) */}
-          <div className="w-full p-3 lg:hidden flex items-center justify-between border-b border-zinc-800 bg-zinc-900">
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-white truncate">{room?.title || 'Watch Party'}</h1>
-              <p className="text-[10px] text-zinc-500 truncate">Room: {roomCode}</p>
-            </div>
-            <button
-              onClick={copyLink}
-              className="flex items-center gap-2 text-xs font-medium text-white px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full border border-zinc-700 transition flex-shrink-0"
-            >
-              <Share2 className="w-3 h-3" />
-              {copied ? 'Copied!' : 'Invite'}
-            </button>
+          {/* Right/Bottom Sidebar: Chat & Participants */}
+          <div className="flex-1 lg:flex-none lg:w-96 min-h-0 bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 relative z-10 lg:rounded-xl lg:border lg:overflow-hidden">
+            <ChatPanel roomCode={roomCode} messages={messages} onSendMessage={emitMessage} participantCount={participants.length} className="h-full" />
           </div>
-        </div>
-
-        {/* Right/Bottom Sidebar: Chat & Participants */}
-        <div className="flex-1 lg:flex-none lg:w-96 min-h-0 bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 relative z-10 lg:mr-4 lg:rounded-xl lg:border lg:mb-4 lg:overflow-hidden">
-          {/* Added mr-4 mb-4 rounded-xl for desktop spacing */}
-          <ChatPanel roomCode={roomCode} messages={messages} onSendMessage={emitMessage} participantCount={participants.length} className="h-full" />
         </div>
       </div>
     </>

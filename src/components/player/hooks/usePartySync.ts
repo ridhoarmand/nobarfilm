@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useState } from 'react';import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ClientToServerEvents, ServerToClientEvents } from '@/types/watch-party';
 import { APITypes } from 'plyr-react';
@@ -146,15 +145,13 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
     // ATTACH OUTGOING EVENT LISTENERS TO PLAYER
     // We do this inside the same effect or a separate one, ensuring playerRef is ready
     const attachPlayerListeners = () => {
-      if (!playerRef.current?.plyr) return;
-
-      const player = playerRef.current.plyr;
+      const player = playerRef.current?.plyr;
+      if (!player || typeof player.on !== 'function') return;
 
       const onPlay = () => {
         if (!isRemoteUpdate.current && socketRef.current) {
           console.log('▶️ Local Play', player.currentTime);
           setPlayError(false); // Clear error on intentional play
-          // Use standard currentTime
           socketRef.current.emit('play', { roomCode, time: player.currentTime });
         }
       };
@@ -175,10 +172,12 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
         }
       };
 
-      // Ensure we don't duplicate listeners (plyr handles this well but good to be safe)
-      player.off('play', onPlay);
-      player.off('pause', onPause);
-      player.off('seeked', onSeeked);
+      // Ensure we don't duplicate listeners
+      if (typeof player.off === 'function') {
+        player.off('play', onPlay);
+        player.off('pause', onPause);
+        player.off('seeked', onSeeked);
+      }
 
       player.on('play', onPlay);
       player.on('pause', onPause);

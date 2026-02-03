@@ -91,7 +91,7 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 min-h-0">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 text-xs lg:text-sm mt-8">
             <MessageCircle className="w-8 h-8 lg:w-12 lg:h-12 mx-auto mb-2 opacity-30" />
@@ -126,7 +126,7 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
       </div>
 
       {/* Input */}
-      <div className="p-3 lg:p-4 border-t border-zinc-700/50 bg-zinc-900 pb-2 lg:pb-0">
+      <div className="p-4 lg:p-5 border-t border-zinc-700/50 bg-zinc-900 shadow-2xl">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             type="text"

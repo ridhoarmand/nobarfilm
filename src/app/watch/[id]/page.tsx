@@ -1,6 +1,5 @@
-'use client';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, Suspense } from 'react';
+'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useDetail, useSources, useGenerateStreamLink } from '@/lib/hooks/useMovieBox';
 import { useWatchHistory } from '@/lib/hooks/useWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
@@ -91,15 +90,28 @@ function WatchContent() {
   };
 
   // Prepare subtitles for player
-  const subtitles =
-    sourcesData?.captions?.map((caption) => ({
-      kind: 'captions' as const,
-      label: caption.lanName,
-      srcLang: caption.lan,
-      // Use our own proxy to bypass CORS and convert SRT to VTT
-      src: `/api/subtitle?url=${encodeURIComponent(caption.url)}`,
-      default: caption.lan.includes('id') || caption.lanName.toLowerCase().includes('indonesia'),
-    })) || [];
+  const subtitles = useMemo(
+    () =>
+      sourcesData?.captions?.map((caption) => ({
+        kind: 'captions' as const,
+        label: caption.lanName,
+        srcLang: caption.lan,
+        // Use our own proxy to bypass CORS and convert SRT to VTT
+        src: `/api/subtitle?url=${encodeURIComponent(caption.url)}`,
+        default: caption.lan.includes('id') || caption.lanName.toLowerCase().includes('indonesia'),
+      })) || [],
+    [sourcesData],
+  );
+
+  // Memoize video source to prevent flickering on focus/re-render
+  const videoSource = useMemo(
+    () => ({
+      src: streamUrl,
+      subtitles,
+      poster: detailData?.subject?.cover?.url || '',
+    }),
+    [streamUrl, subtitles, detailData?.subject?.cover?.url],
+  );
 
   const isMovie = detailData?.subject?.subjectType === 1;
   const isSeries = detailData?.subject?.subjectType === 2;
@@ -136,24 +148,24 @@ function WatchContent() {
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-black pt-16">
-        {/* Title - Now above player */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href={`/movie/${subjectId}`} className="text-xl sm:text-2xl font-bold text-white hover:text-gray-300 transition">
-            {detailData.subject.title}
-          </Link>
-          {isSeries && (
-            <p className="text-gray-400 mt-1 text-sm">
-              Season {currentSeason} · Episode {currentEpisode}
-            </p>
-          )}
-        </div>
+      <main className="min-h-screen bg-black pt-20 flex flex-col items-center">
+        {/* Unified Container for Player & Controls - Constrained Width to prevent scroll on large screens */}
+        <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8">
+          {/* Title - Compact */}
+          <div className="py-2 mb-2">
+            <Link href={`/movie/${subjectId}`} className="text-lg sm:text-xl font-bold text-white hover:text-gray-300 transition">
+              {detailData.subject.title}
+            </Link>
+            {isSeries && (
+              <span className="text-gray-400 ml-2 text-sm">
+                S{currentSeason}:E{currentEpisode}
+              </span>
+            )}
+          </div>
 
-        {/* Video Player */}
-        <div className="w-full bg-black flex justify-center py-4 lg:py-8">
-          <div className="w-full max-w-[1400px] shadow-2xl rounded-xl overflow-hidden border border-zinc-900 mx-auto">
+          <div className="w-full shadow-2xl rounded-xl overflow-hidden border border-zinc-900 bg-black">
             {streamError ? (
-              <div className="aspect-video bg-zinc-900 flex items-center justify-center">
+              <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
                 <div className="text-center max-w-md px-4">
                   <h2 className="text-2xl font-bold text-red-500 mb-4">⚠️ Playback Error</h2>
                   <p className="text-gray-300 mb-2">{streamError}</p>
@@ -174,7 +186,7 @@ function WatchContent() {
                 </div>
               </div>
             ) : isLoadingStream || !streamUrl ? (
-              <div className="aspect-video bg-zinc-900 flex items-center justify-center">
+              <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
                   <p className="text-white">{isLoadingSources ? 'Loading sources...' : 'Preparing stream...'}</p>
@@ -183,9 +195,9 @@ function WatchContent() {
               </div>
             ) : (
               <VideoPlayer
-                src={streamUrl}
-                subtitles={subtitles}
-                poster={detailData.subject.cover.url}
+                src={videoSource.src || ''}
+                subtitles={videoSource.subtitles}
+                poster={videoSource.poster}
                 onEnded={handleNextEpisode}
                 onProgress={handleProgress}
                 initialTime={savedTime}
@@ -193,65 +205,65 @@ function WatchContent() {
               />
             )}
           </div>
-        </div>
 
-        {/* Controls & Info */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Quality Selector */}
-          {sourcesData && sourcesData.downloads && sourcesData.downloads.length > 1 && (
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-gray-400">Quality:</span>
+          {/* Controls Immediately Below */}
+          <div className="pt-3 pb-8">
+            {/* Quality Selector */}
+            {sourcesData && sourcesData.downloads && sourcesData.downloads.length > 1 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-gray-400 uppercase tracking-wider">Quality</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {sourcesData.downloads.map((source, index) => (
+                    <button
+                      key={source.id}
+                      onClick={() => {
+                        setSelectedQuality(index);
+                      }}
+                      className={`px-3 py-1 text-sm rounded-md font-medium transition ${selectedQuality === index ? 'bg-red-600 text-white' : 'bg-zinc-900 text-gray-400 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                      {source.resolution}p
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {sourcesData.downloads.map((source, index) => (
-                  <button
-                    key={source.id}
-                    onClick={() => {
-                      setSelectedQuality(index);
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${selectedQuality === index ? 'bg-red-600 text-white' : 'bg-zinc-900 text-gray-400 hover:bg-zinc-800 hover:text-white'}`}
-                  >
-                    {source.resolution}p
-                  </button>
-                ))}
+            )}
+
+            {/* Episode Navigation (Series only) */}
+            {isSeries && currentSeasonData && (
+              <div className="flex items-center justify-between py-3 border-t border-zinc-800">
+                <button
+                  onClick={handlePreviousEpisode}
+                  disabled={currentEpisode <= 1}
+                  className="flex items-center gap-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Prev</span>
+                </button>
+
+                <span className="text-gray-400 text-sm">
+                  Ep {currentEpisode} / {currentSeasonData.maxEp}
+                </span>
+
+                <button
+                  onClick={handleNextEpisode}
+                  disabled={currentEpisode >= currentSeasonData.maxEp}
+                  className="flex items-center gap-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Episode Navigation (Series only) */}
-          {isSeries && currentSeasonData && (
-            <div className="flex items-center justify-between py-4 border-t border-zinc-800">
-              <button
-                onClick={handlePreviousEpisode}
-                disabled={currentEpisode <= 1}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span>Previous Episode</span>
-              </button>
-
-              <span className="text-gray-400">
-                {currentEpisode} / {currentSeasonData.maxEp}
-              </span>
-
-              <button
-                onClick={handleNextEpisode}
-                disabled={currentEpisode >= currentSeasonData.maxEp}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Next Episode</span>
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
-          {/* Description */}
-          {detailData.subject.description && (
-            <div className="mt-6 p-4 bg-zinc-900 rounded-lg">
-              <p className="text-gray-300 text-sm leading-relaxed">{detailData.subject.description}</p>
-            </div>
-          )}
+            {/* Description */}
+            {detailData.subject.description && (
+              <div className="mt-4 p-4 bg-zinc-900/50 border border-zinc-800/50 rounded-lg">
+                <p className="text-zinc-400 text-sm leading-relaxed">{detailData.subject.description}</p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </>

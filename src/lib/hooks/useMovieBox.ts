@@ -67,7 +67,7 @@ export function useSources(subjectId: string, season: number = 0, episode: numbe
     enabled: !!subjectId, // Only fetch if subjectId is provided
     staleTime: 1000 * 60 * 2, // 2 minutes (URLs expire, need fresh data)
     gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes (renamed from cacheTime in v5)
-    ...options,
+    refetchOnWindowFocus: false, // Prevent flickering on alt-tab
     ...options,
   });
 }
@@ -84,6 +84,7 @@ export function useGenerateStreamLink(url: string | undefined, options?: Omit<Us
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 24 * 2, // 48 hours
     retry: 2,
+    refetchOnWindowFocus: false, // Prevent flickering on alt-tab
     ...options,
   });
 }
@@ -105,6 +106,7 @@ export function usePlaybackUrl(
     staleTime: 1000 * 60, // 1 minute (URLs expire quickly)
     gcTime: 1000 * 60 * 2, // 2 minutes cache (renamed from cacheTime in v5)
     retry: 2, // Retry failed requests
+    refetchOnWindowFocus: false, // Prevent flickering on alt-tab
     ...options,
   });
 }
