@@ -4,6 +4,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2019",
+    "outDir": "dist",
     "isolatedModules": false,
     "noEmit": false
   },
