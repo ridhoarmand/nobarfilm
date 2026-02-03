@@ -1,11 +1,10 @@
-'use client';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 import { useDetail, useSources } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { movieBoxAPI } from '@/lib/api/moviebox';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 function WatchContent() {
@@ -25,6 +24,7 @@ function WatchContent() {
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [isLoadingStream, setIsLoadingStream] = useState(true);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
 
   const { data: detailData, isLoading: isLoadingDetail } = useDetail(subjectId);
   const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useSources(subjectId, currentSeason, currentEpisode);
@@ -83,6 +83,7 @@ function WatchContent() {
   const handleEpisodeChange = (newEpisode: number) => {
     setCurrentEpisode(newEpisode);
     setStreamUrl(null);
+    setSavedTime(0); // Reset saved time for new episode
   };
 
   const handleNextEpisode = () => {
@@ -98,6 +99,11 @@ function WatchContent() {
     if (currentEpisode > 1) {
       handleEpisodeChange(currentEpisode - 1);
     }
+  };
+
+  // Update current playback time
+  const handleProgress = (time: number) => {
+    setSavedTime(time);
   };
 
   // Prepare subtitles for player
@@ -147,6 +153,18 @@ function WatchContent() {
       <Navbar />
 
       <main className="min-h-screen bg-black pt-16">
+        {/* Title - Now above player */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Link href={`/movie/${subjectId}`} className="text-xl sm:text-2xl font-bold text-white hover:text-gray-300 transition">
+            {detailData.subject.title}
+          </Link>
+          {isSeries && (
+            <p className="text-gray-400 mt-1 text-sm">
+              Season {currentSeason} · Episode {currentEpisode}
+            </p>
+          )}
+        </div>
+
         {/* Video Player */}
         <div className="w-full bg-black">
           {streamError ? (
@@ -181,29 +199,24 @@ function WatchContent() {
               </div>
             </div>
           ) : (
-            <VideoPlayer src={streamUrl} subtitles={subtitles} poster={detailData.subject.cover.url} onEnded={handleNextEpisode} />
+            <VideoPlayer
+              src={streamUrl}
+              subtitles={subtitles}
+              poster={detailData.subject.cover.url}
+              onEnded={handleNextEpisode}
+              onProgress={handleProgress}
+              initialTime={savedTime}
+              subjectType={detailData.subject.subjectType}
+            />
           )}
         </div>
 
         {/* Controls & Info */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Title */}
-          <div className="mb-6">
-            <Link href={`/movie/${subjectId}`} className="text-2xl sm:text-3xl font-bold text-white hover:text-gray-300 transition">
-              {detailData.subject.title}
-            </Link>
-            {isSeries && (
-              <p className="text-gray-400 mt-1">
-                Season {currentSeason} · Episode {currentEpisode}
-              </p>
-            )}
-          </div>
-
           {/* Quality Selector */}
           {sourcesData && sourcesData.downloads && sourcesData.downloads.length > 1 && (
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <Settings className="w-4 h-4 text-gray-400" />
                 <span className="text-sm text-gray-400">Quality:</span>
               </div>
               <div className="flex flex-wrap gap-2">

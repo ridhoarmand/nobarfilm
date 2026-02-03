@@ -2,6 +2,7 @@
 import dynamic from 'next/dynamic';
 import 'plyr-react/plyr.css';
 import { FastForward, Rewind, Volume2, Sun, Loader2 } from 'lucide-react';
+import { SubjectType } from '@/types/api';
 
 const Plyr = dynamic(() => import('plyr-react').then((mod) => mod.Plyr), {
   ssr: false,
@@ -24,9 +25,11 @@ interface VideoPlayerProps {
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number) => void;
+  subjectType?: SubjectType; // To detect drama shorts
+  initialTime?: number; // Initial playback position (for quality changes)
 }
 
-export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress }: VideoPlayerProps) {
+export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, subjectType, initialTime = 0 }: VideoPlayerProps) {
   const plyrRef = useRef<any>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -41,6 +44,59 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress }
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Screen Rotation Handler for Fullscreen
+  useEffect(() => {
+    if (!isClient) return;
+
+    const player = plyrRef.current?.plyr;
+    if (!player || typeof player.on !== 'function') return;
+
+    const handleFullscreenChange = async () => {
+      const playerInstance = plyrRef.current?.plyr;
+      if (!playerInstance) return;
+
+      const isDramaShort = subjectType === SubjectType.Short;
+      const isFullscreen = playerInstance.fullscreen.active;
+
+      try {
+        if (isFullscreen && !isDramaShort) {
+          // Not a drama short: Force landscape orientation
+          if (screen.orientation && (screen.orientation as any).lock) {
+            await (screen.orientation as any).lock('landscape').catch(() => {});
+          }
+        } else if (isFullscreen && isDramaShort) {
+          // Drama short: Keep portrait orientation
+          if (screen.orientation && (screen.orientation as any).lock) {
+            await (screen.orientation as any).lock('portrait').catch(() => {});
+          }
+        } else if (!isFullscreen) {
+          // Exit fullscreen: Unlock orientation to allow natural rotation
+          if (screen.orientation && (screen.orientation as any).unlock) {
+            (screen.orientation as any).unlock();
+          }
+          // Small delay then try to unlock again to ensure it takes effect
+          setTimeout(() => {
+            if (screen.orientation && (screen.orientation as any).unlock) {
+              (screen.orientation as any).unlock();
+            }
+          }, 100);
+        }
+      } catch (error) {
+        // Silently fail if orientation API not supported
+      }
+    };
+
+    player.on('enterfullscreen', handleFullscreenChange);
+    player.on('exitfullscreen', handleFullscreenChange);
+
+    return () => {
+      if (typeof player.off === 'function') {
+        player.off('enterfullscreen', handleFullscreenChange);
+        player.off('exitfullscreen', handleFullscreenChange);
+      }
+    };
+  }, [isClient, subjectType]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -93,8 +149,16 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress }
           }
         };
 
+        const handleReady = () => {
+          // Seek to initialTime when player is ready (for quality changes)
+          if (initialTime > 0) {
+            player.currentTime = initialTime;
+          }
+        };
+
         player.on('ended', handleEnded);
         player.on('timeupdate', handleTimeUpdate);
+        player.on('ready', handleReady);
 
         // Default Volume
         player.volume = 1;
@@ -104,11 +168,12 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress }
           if (typeof player.off === 'function') {
             player.off('ended', handleEnded);
             player.off('timeupdate', handleTimeUpdate);
+            player.off('ready', handleReady);
           }
         };
       }
     }
-  }, [onEnded, onProgress]);
+  }, [onEnded, onProgress, initialTime]);
 
   // Helpers
   const displayFeedback = (Icon: any, text: string) => {
