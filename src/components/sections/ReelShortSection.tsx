@@ -1,13 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
-import Link from 'next/link';
-import { Play, Flame } from 'lucide-react';
 import { useReelShortHomepage } from '@/hooks/useReelShort';
 import { BannerCarousel } from '@/components/common/BannerCarousel';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
 import { InfiniteReelShortSection } from '@/components/sections/InfiniteReelShortSection';
+import { HorizontalMediaSlider } from '@/components/shared/HorizontalMediaSlider';
 import type { ReelShortBook, ReelShortBanner } from '@/types/reelshort';
 
 export function ReelShortSection() {
@@ -63,18 +62,18 @@ export function ReelShortSection() {
       {/* Banner Carousel */}
       {banners.length > 0 && <BannerCarousel banners={banners} />}
 
-      {/* Book Sections - Grid Layout */}
+      {/* Book Sections - Slider Layout */}
       {bookGroups.map((group, index) => (
-        <section key={index}>
-          <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">{group.title}</h2>
-
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-            {group.books
-              .filter((book) => book.book_id && book.book_pic)
-              .slice(0, 16)
-              .map((book, index) => (
+        <HorizontalMediaSlider
+          key={index}
+          title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{group.title}</h2>}
+        >
+          {group.books
+            .filter((book) => book.book_id && book.book_pic)
+            .slice(0, 18)
+            .map((book, index) => (
+              <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
                 <UnifiedMediaCard
-                  key={book.book_id}
                   index={index}
                   title={book.book_title}
                   cover={book.book_pic}
@@ -98,9 +97,9 @@ export function ReelShortSection() {
                       : null
                   }
                 />
-              ))}
-          </div>
-        </section>
+              </div>
+            ))}
+        </HorizontalMediaSlider>
       ))}
 
       {/* Infinite Scroll Section */}
@@ -113,9 +112,9 @@ function SectionSkeleton() {
   return (
     <div>
       <div className="h-6 w-32 bg-muted/50 rounded animate-pulse mb-4" />
-      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i}>
+          <div key={i} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
             <div className="aspect-[2/3] rounded-lg bg-muted/50 animate-pulse" />
             <div className="mt-1.5 h-3 bg-muted/50 rounded animate-pulse" />
           </div>

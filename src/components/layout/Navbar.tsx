@@ -51,7 +51,6 @@ export function Navbar() {
     { href: '/movie', label: 'Movie' },
     { href: '/anime', label: 'Anime' },
     { href: '/drama', label: 'Drama' },
-    { href: '/akun', label: 'Akun', authRequired: true },
   ];
 
   const isActive = (href: string) => {
@@ -62,20 +61,20 @@ export function Navbar() {
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-black/95 backdrop-blur-sm shadow-lg' : 'bg-gradient-to-b from-black/90 to-transparent'}`}>
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/movie" className="flex-shrink-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-red-600 hover:text-red-500 transition">{pathname.startsWith('/drama') ? 'NobarDrama' : 'NobarFilm'}</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-red-600 hover:text-red-500 transition">{pathname.startsWith('/drama') ? 'NobarDrama' : 'NobarFilm'}</h1>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-10">
             {navItems.map((item) => {
               // Skip Akun tab if not authenticated
               if (item.authRequired && !isAuthenticated) return null;
 
               return (
-                <Link key={item.href} href={item.href} className={`text-sm font-semibold transition-all relative pb-1 ${isActive(item.href) ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                <Link key={item.href} href={item.href} className={`text-base font-semibold transition-all relative pb-1 ${isActive(item.href) ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}>
                   {item.label}
                   {isActive(item.href) && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600 rounded-full" />}
                 </Link>
@@ -94,7 +93,7 @@ export function Navbar() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search..."
-                    className="w-48 xl:w-64 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-1.5 pl-10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    className="w-56 xl:w-72 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 pl-10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
                   />
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 </div>
@@ -105,11 +104,11 @@ export function Navbar() {
             <div className="hidden md:block relative">
               {isAuthenticated ? (
                 <>
-                  <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 transition">
-                    <div className="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center">
+                  <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 transition">
+                    <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
                       <User className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-sm text-white font-medium max-w-[100px] truncate">{profile?.full_name || user?.email?.split('@')[0]}</span>
+                    <span className="text-sm text-white font-medium max-w-[120px] truncate">{profile?.full_name || user?.email?.split('@')[0]}</span>
                   </button>
 
                   {/* User Dropdown */}
@@ -127,7 +126,7 @@ export function Navbar() {
                   )}
                 </>
               ) : (
-                <Link href="/login" className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-full transition">
+                <Link href="/login" className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-full transition">
                   Login
                 </Link>
               )}

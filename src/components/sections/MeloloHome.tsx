@@ -4,16 +4,17 @@ import { useMeloloLatest, useMeloloTrending } from '@/hooks/useMelolo';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
 import { InfiniteMeloloSection } from '@/components/sections/InfiniteMeloloSection';
+import { HorizontalMediaSlider } from '@/components/shared/HorizontalMediaSlider';
+import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 
 function MeloloSectionSkeleton() {
   return (
     <section className="space-y-4">
       <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />
-      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i}>
-            <div className="aspect-[3/4] rounded-xl bg-muted/30 animate-pulse mb-2" />
-            <div className="h-4 w-3/4 bg-muted/30 rounded animate-pulse" />
+          <div key={i} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
+            <UnifiedMediaCardSkeleton />
           </div>
         ))}
       </div>
@@ -43,15 +44,12 @@ export function MeloloHome() {
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Trending Section */}
       {trendingData?.books && trendingData.books.length > 0 && (
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Sedang Hangat</h2>
-          </div>
-
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-            {trendingData.books.map((book, index) => (
+        <HorizontalMediaSlider
+          title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Sedang Hangat</h2>}
+        >
+          {trendingData.books.map((book, index) => (
+            <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
-                key={book.book_id}
                 title={book.book_name}
                 cover={book.thumb_url}
                 link={`/drama/melolo/${book.book_id}`}
@@ -59,22 +57,19 @@ export function MeloloHome() {
                 topLeftBadge={null}
                 index={index}
               />
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </HorizontalMediaSlider>
       )}
 
       {/* Latest Section */}
       {latestData?.books && latestData.books.length > 0 && (
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Rilis Baru</h2>
-          </div>
-
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-            {latestData.books.map((book, index) => (
+        <HorizontalMediaSlider
+          title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Rilis Baru</h2>}
+        >
+          {latestData.books.map((book, index) => (
+            <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
-                key={book.book_id}
                 title={book.book_name}
                 cover={book.thumb_url}
                 link={`/drama/melolo/${book.book_id}`}
@@ -82,9 +77,9 @@ export function MeloloHome() {
                 topLeftBadge={null}
                 index={index}
               />
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </HorizontalMediaSlider>
       )}
 
       {/* Infinite Scroll Section */}

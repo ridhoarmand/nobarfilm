@@ -5,6 +5,7 @@ import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 import { InfiniteNetShortSection } from '@/components/sections/InfiniteNetShortSection';
+import { HorizontalMediaSlider } from '@/components/shared/HorizontalMediaSlider';
 
 // ... existing emoji stripper ...
 function stripEmoji(text: string): string {
@@ -34,10 +35,12 @@ export function NetShortHome() {
             {/* Title Skeleton */}
             <div className="h-7 w-48 bg-muted/50 rounded animate-pulse mb-4" />
 
-            {/* Card Grid Skeleton */}
-            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-              {Array.from({ length: 12 }).map((_, cardIndex) => (
-                <UnifiedMediaCardSkeleton key={cardIndex} index={cardIndex} />
+            {/* Card Slider Skeleton */}
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {Array.from({ length: 10 }).map((_, cardIndex) => (
+                <div key={cardIndex} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
+                  <UnifiedMediaCardSkeleton index={cardIndex} />
+                </div>
               ))}
             </div>
           </div>
@@ -69,14 +72,12 @@ export function NetShortHome() {
     <div className="space-y-10">
       {/* For You Section */}
       {forYouData?.data && forYouData.data.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold font-display text-foreground">Rekomendasi Untukmu</h2>
-          </div>
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-            {forYouData.data.map((drama, index) => (
+        <HorizontalMediaSlider
+          title={<h2 className="text-xl font-bold font-display text-foreground">Rekomendasi Untukmu</h2>}
+        >
+          {forYouData.data.map((drama, index) => (
+            <div key={drama.shortPlayId} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
-                key={drama.shortPlayId}
                 index={index}
                 title={drama.title}
                 cover={drama.cover}
@@ -99,24 +100,20 @@ export function NetShortHome() {
                     : null
                 }
               />
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </HorizontalMediaSlider>
       )}
 
       {/* Theaters Sections */}
       {filteredGroups.map((group) => (
-        <section key={group.groupId}>
-          {/* Section Header - removed "Lihat Semua" link */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold font-display text-foreground">{stripEmoji(group.groupName)}</h2>
-          </div>
-
-          {/* Drama Grid */}
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-            {group.dramas.slice(0, 12).map((drama, index) => (
+        <HorizontalMediaSlider
+          key={group.groupId}
+          title={<h2 className="text-xl font-bold font-display text-foreground">{stripEmoji(group.groupName)}</h2>}
+        >
+          {group.dramas.slice(0, 16).map((drama, index) => (
+            <div key={drama.shortPlayId} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
-                key={drama.shortPlayId}
                 index={index}
                 title={drama.title}
                 cover={drama.cover}
@@ -139,9 +136,9 @@ export function NetShortHome() {
                     : null
                 }
               />
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </HorizontalMediaSlider>
       ))}
 
       {/* Infinite Scroll Section */}

@@ -1,6 +1,4 @@
 'use client';
-
-import { useEffect, useRef } from 'react';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
@@ -13,27 +11,6 @@ interface InfiniteReelShortSectionProps {
 
 export function InfiniteReelShortSection({ title }: InfiniteReelShortSectionProps) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } = useInfiniteReelShortDramas();
-
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Flatten pages into a single array of dramas
   const allDramas = data?.pages.flatMap((page) => page) || [];
@@ -51,7 +28,7 @@ export function InfiniteReelShortSection({ title }: InfiniteReelShortSectionProp
     return (
       <section className="space-y-4">
         <div className="h-7 md:h-8 w-48 bg-white/10 rounded-lg animate-pulse mb-4" />
-        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
           {Array.from({ length: 16 }).map((_, i) => (
             <UnifiedMediaCardSkeleton key={i} />
           ))}
@@ -64,7 +41,7 @@ export function InfiniteReelShortSection({ title }: InfiniteReelShortSectionProp
     <section>
       <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">{title}</h2>
 
-      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
         {allDramas.map((drama, index) => {
           // Normalize badge color: If text is "Terpopuler", force RED to match ReelShort/NetShort
           const isPopular = drama.corner?.name?.toLowerCase().includes('populer');
@@ -99,12 +76,19 @@ export function InfiniteReelShortSection({ title }: InfiniteReelShortSectionProp
         })}
       </div>
 
-      {/* Loading Indicator & Trigger */}
-      <div ref={loadMoreRef} className="py-8 flex justify-center w-full">
+      <div className="py-10 flex justify-center w-full">
         {isFetchingNextPage ? (
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="flex items-center gap-2 text-white">
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
+            <span>Memuat lagi...</span>
+          </div>
         ) : hasNextPage ? (
-          <div className="h-4" /> // Invisible trigger
+          <button
+            onClick={() => fetchNextPage()}
+            className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-900/20"
+          >
+            Muat Lagi
+          </button>
         ) : (
           <p className="text-muted-foreground text-sm">Sudah mencapai akhir daftar</p>
         )}

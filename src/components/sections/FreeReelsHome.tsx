@@ -5,6 +5,7 @@ import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
 import { InfiniteFreeReelsSection } from '@/components/sections/InfiniteFreeReelsSection';
+import { HorizontalMediaSlider } from '@/components/shared/HorizontalMediaSlider';
 
 // Helper to extract items from a module, handling special cases like 'recommend'
 function getModuleItems(module: FreeReelsModule): FreeReelsItem[] {
@@ -25,10 +26,12 @@ function SectionLoader({ count = 6, titleWidth = 'w-48' }: { count?: number; tit
       {/* Title Skeleton */}
       <div className={`h-7 md:h-8 ${titleWidth} bg-white/10 rounded-lg animate-pulse`} />
 
-      {/* Grid Skeleton - Matches main grid exactly */}
-      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
+      {/* Slider Skeleton */}
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
         {Array.from({ length: count }).map((_, i) => (
-          <UnifiedMediaCardSkeleton key={i} />
+          <div key={i} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
+            <UnifiedMediaCardSkeleton />
+          </div>
         ))}
       </div>
     </section>
@@ -76,24 +79,22 @@ export function FreeReelsHome() {
             const title = (module.module_name ? cleanTitle(module.module_name) : '') || 'Rekomendasi Untukmu';
 
             return (
-              <section key={`home-module-${mIdx}`} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{title}</h2>
-                </div>
-
-                <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-                  {validItems.map((item, idx) => (
+              <HorizontalMediaSlider
+                key={`home-module-${mIdx}`}
+                title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{title}</h2>}
+              >
+                {validItems.map((item, idx) => (
+                  <div key={`${item.key}-home-${mIdx}-${idx}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
                     <UnifiedMediaCard
-                      key={`${item.key}-home-${mIdx}-${idx}`}
                       title={item.title}
                       cover={item.cover}
                       link={`/drama/freereels/${item.key}`}
                       episodes={item.episode_count || 0}
                       topRightBadge={item.follow_count ? { text: `${(item.follow_count / 1000).toFixed(1)}k`, isTransparent: true } : null}
                     />
-                  ))}
-                </div>
-              </section>
+                  </div>
+                ))}
+              </HorizontalMediaSlider>
             );
           })
       )}
@@ -117,23 +118,25 @@ export function FreeReelsHome() {
                 const validItems = items.filter((item) => item.title && item.cover);
                 if (validItems.length === 0) return null;
 
-                return (
-                  <div key={`anime-module-${mIdx}`} className="space-y-4">
-                    {module.module_name && cleanTitle(module.module_name) !== '' && <h3 className="font-display font-semibold text-lg text-foreground/90">{cleanTitle(module.module_name)}</h3>}
+                const moduleTitle = module.module_name && cleanTitle(module.module_name) !== '' ? cleanTitle(module.module_name) : null;
 
-                    <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-                      {validItems.map((item, idx) => (
+                return (
+                  <HorizontalMediaSlider
+                    key={`anime-module-${mIdx}`}
+                    title={moduleTitle ? <h3 className="font-display font-semibold text-lg text-foreground/90">{moduleTitle}</h3> : <span />}
+                  >
+                    {validItems.map((item, idx) => (
+                      <div key={`${item.key}-anime-${mIdx}-${idx}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
                         <UnifiedMediaCard
-                          key={`${item.key}-anime-${mIdx}-${idx}`}
                           title={item.title}
                           cover={item.cover}
                           link={`/drama/freereels/${item.key}`}
                           episodes={item.episode_count || 0}
                           topRightBadge={item.follow_count ? { text: `${(item.follow_count / 1000).toFixed(1)}k`, isTransparent: true } : null}
                         />
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    ))}
+                  </HorizontalMediaSlider>
                 );
               })}
             </div>

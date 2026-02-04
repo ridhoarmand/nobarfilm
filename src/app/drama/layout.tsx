@@ -21,7 +21,7 @@ export default function DramaLayout({ children }: { children: React.ReactNode })
       <main className="bg-black min-h-screen sm:px-6 lg:px-8">
         <div className="max-w-[2400px] mx-auto">
           {isMainDramaPage && (
-            <div className="bg-zinc-950 sticky top-[64px] z-40 border-b border-white/5">
+            <div className="bg-zinc-950 sticky top-[80px] z-40 border-b border-white/5">
               <PlatformSelector />
             </div>
           )}

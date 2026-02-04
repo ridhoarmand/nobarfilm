@@ -6,13 +6,28 @@ class MovieBoxAPI {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api';
+    // Development: hit upstream directly (localhost, any IP)
+    // Production: use /api proxy (allows server-side Warp to work)
+    const isDevelopment = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || 
+       window.location.hostname === '127.0.0.1' ||
+       window.location.hostname.startsWith('192.168.') ||
+       window.location.hostname.startsWith('10.'));
+    
+    this.baseURL = isDevelopment 
+      ? 'https://api.sansekai.my.id/api'
+      : '/api';
 
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://sansekai.my.id/',
+        'Origin': 'https://sansekai.my.id',
       },
     });
 

@@ -21,7 +21,7 @@ export default function HomeContent() {
   const { data: dubindoDramas, isLoading: loadingDubindo, error: errorDubindo, refetch: refetchDubindo } = useDubindoDramas();
 
   return (
-    <main className="pt-14">
+    <main className="pt-20">
       {/* Platform Selector removed - handled in layout */}
 
       {/* DramaBox Content - Multiple Sections */}

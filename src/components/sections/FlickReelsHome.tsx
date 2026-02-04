@@ -3,9 +3,9 @@
 import { useFlickReelsLatest, useFlickReelsHotRank } from '@/hooks/useFlickReels';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
-import { AlertCircle } from 'lucide-react';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
 import { InfiniteFlickReelsSection } from '@/components/sections/InfiniteFlickReelsSection';
+import { HorizontalMediaSlider } from '@/components/shared/HorizontalMediaSlider';
 
 // Helper Component for Section Skeleton
 function SectionLoader({ count = 6, titleWidth = 'w-48' }: { count?: number; titleWidth?: string }) {
@@ -14,10 +14,12 @@ function SectionLoader({ count = 6, titleWidth = 'w-48' }: { count?: number; tit
       {/* Title Skeleton */}
       <div className={`h-7 md:h-8 ${titleWidth} bg-white/10 rounded-lg animate-pulse`} />
 
-      {/* Grid Skeleton - Matches main grid exactly */}
-      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
+      {/* Slider Skeleton */}
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
         {Array.from({ length: count }).map((_, i) => (
-          <UnifiedMediaCardSkeleton key={i} />
+          <div key={i} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
+            <UnifiedMediaCardSkeleton />
+          </div>
         ))}
       </div>
     </section>
@@ -47,27 +49,24 @@ export function FlickReelsHome() {
         <SectionLoader count={6} titleWidth="w-40" />
       ) : (
         hotRankData?.data?.map((section, sIdx) => (
-          <section key={section.name || sIdx} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display font-bold text-xl md:text-2xl text-foreground flex items-center gap-2">{section.name}</h2>
-            </div>
-
-            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
-              {section.data
-                ?.filter((item) => item.title && item.cover)
-                .map((item, idx) => (
-                  <div key={`${item.playlet_id}-${idx}`} className="relative">
-                    <UnifiedMediaCard
-                      title={item.title}
-                      cover={item.cover}
-                      link={`/drama/flickreels/${item.playlet_id}`}
-                      episodes={item.upload_num ? parseInt(item.upload_num) : 0}
-                      topRightBadge={item.hot_num ? { text: item.hot_num, isTransparent: true } : null}
-                    />
-                  </div>
-                ))}
-            </div>
-          </section>
+          <HorizontalMediaSlider
+            key={section.name || sIdx}
+            title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground flex items-center gap-2">{section.name}</h2>}
+          >
+            {section.data
+              ?.filter((item) => item.title && item.cover)
+              .map((item, idx) => (
+                <div key={`${item.playlet_id}-${idx}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
+                  <UnifiedMediaCard
+                    title={item.title}
+                    cover={item.cover}
+                    link={`/drama/flickreels/${item.playlet_id}`}
+                    episodes={item.upload_num ? parseInt(item.upload_num) : 0}
+                    topRightBadge={item.hot_num ? { text: item.hot_num, isTransparent: true } : null}
+                  />
+                </div>
+              ))}
+          </HorizontalMediaSlider>
         ))
       )}
 
@@ -76,28 +75,24 @@ export function FlickReelsHome() {
         <SectionLoader count={12} titleWidth="w-48" />
       ) : (
         latestData?.data?.map((section, idx) => (
-          <section key={idx} className="space-y-4">
-            {section.title && (
-              <div className="flex items-center justify-between">
-                <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{section.title}</h2>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
-              {section.list
-                ?.filter((item) => item.title && item.cover)
-                .map((item, i) => (
+          <HorizontalMediaSlider
+            key={idx}
+            title={section.title ? <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{section.title}</h2> : null}
+          >
+            {section.list
+              ?.filter((item) => item.title && item.cover)
+              .map((item, i) => (
+                <div key={`${item.playlet_id}-${i}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
                   <UnifiedMediaCard
-                    key={`${item.playlet_id}-${i}`}
                     title={item.title}
                     cover={item.cover}
                     link={`/drama/flickreels/${item.playlet_id}`}
                     episodes={item.upload_num ? parseInt(item.upload_num) : 0}
                     topRightBadge={null}
                   />
-                ))}
-            </div>
-          </section>
+                </div>
+              ))}
+          </HorizontalMediaSlider>
         ))
       )}
 

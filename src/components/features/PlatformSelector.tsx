@@ -35,32 +35,32 @@ export function PlatformSelector() {
   }, []);
 
   return (
-    <div className="w-full pb-2 pt-0 px-2">
+    <div className="w-full pb-3 pt-1 px-2">
       {/* Mobile: Dropdown */}
       <div className="block md:hidden" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 transition-colors border border-white/5"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 hover:from-zinc-800 hover:to-zinc-900 transition-colors border border-white/10 shadow-[0_10px_30px_-20px_rgba(255,255,255,0.2)]"
         >
           <div className="flex items-center gap-3">
-            <div className="relative w-6 h-6 rounded-md overflow-hidden">
+            <div className="relative w-7 h-7 rounded-lg overflow-hidden ring-1 ring-white/10">
               <Image src={currentPlatformInfo.logo} alt={currentPlatformInfo.name} fill className="object-cover" sizes="24px" />
             </div>
-            <span className="font-medium text-foreground">{currentPlatformInfo.name}</span>
+            <span className="font-semibold text-foreground">{currentPlatformInfo.name}</span>
           </div>
           <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Dropdown Menu */}
         {isOpen && (
-          <div className="absolute left-4 right-4 mt-2 bg-zinc-900 rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50">
+          <div className="absolute left-4 right-4 mt-2 bg-zinc-900 rounded-2xl shadow-2xl border border-white/10 overflow-hidden z-50">
             {platforms.map((platform) => (
               <button
                 key={platform.id}
                 onClick={() => handlePlatformChange(platform.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${currentPlatform === platform.id ? 'bg-red-600 text-white font-bold' : 'hover:bg-zinc-800 text-white/70'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 transition-colors ${currentPlatform === platform.id ? 'bg-red-600 text-white font-bold' : 'hover:bg-zinc-800 text-white/70'}`}
               >
-                <div className="relative w-6 h-6 rounded-md overflow-hidden flex items-center justify-center bg-zinc-800">
+                <div className="relative w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center bg-zinc-800 ring-1 ring-white/10">
                   <Image src={platform.logo} alt={platform.name} fill className="object-cover" sizes="24px" />
                 </div>
                 <span className="font-medium">{platform.name}</span>
@@ -92,17 +92,17 @@ function PlatformButton({ platform, isActive, onClick }: PlatformButtonProps) {
     <button
       onClick={onClick}
       className={`
-        relative flex items-center gap-2 px-4 py-2.5 rounded-full
+        relative flex items-center gap-2.5 px-5 py-3 rounded-full
         transition-all duration-300 ease-out
-        ${isActive ? 'bg-red-600/10 text-red-500 ring-1 ring-red-500/50 shadow-[0_0_20px_rgba(220,38,38,0.2)]' : 'bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 text-white/60'}
+        ${isActive ? 'bg-gradient-to-r from-red-600/15 to-red-500/10 text-red-400 ring-1 ring-red-500/40 shadow-[0_10px_30px_-18px_rgba(220,38,38,0.5)]' : 'bg-zinc-900/60 hover:bg-zinc-800 border border-white/10 text-white/70'}
       `}
     >
-      <div className="relative w-6 h-6 rounded-md overflow-hidden">
+      <div className="relative w-7 h-7 rounded-lg overflow-hidden ring-1 ring-white/10">
         <Image src={platform.logo} alt={platform.name} fill className="object-cover" sizes="24px" />
       </div>
       <span
         className={`
-          font-medium text-sm whitespace-nowrap
+          font-semibold text-sm whitespace-nowrap
           ${isActive ? 'text-red-500' : 'text-inherit'}
         `}
       >
