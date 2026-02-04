@@ -2,7 +2,7 @@
 import { ChevronDown } from 'lucide-react';
 import { usePlatform, type PlatformInfo } from '@/hooks/usePlatform';
 import { useState, useRef, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export function PlatformSelector() {
   const { currentPlatform, setPlatform, platforms, getPlatformInfo } = usePlatform();
@@ -10,13 +10,21 @@ export function PlatformSelector() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const handlePlatformChange = (platformId: any) => {
     setPlatform(platformId);
     setIsOpen(false);
 
-    // If we're on a detail page or search page, go back to drama home
-    if (pathname !== '/drama') {
+    // Check if we're on a search page
+    const isSearchPage = pathname.includes('/search');
+    const searchQuery = searchParams.get('q');
+
+    if (isSearchPage && searchQuery) {
+      // Redirect to the new platform's search page with the same query
+      router.push(`/drama/${platformId}/search?q=${encodeURIComponent(searchQuery)}`);
+    } else if (pathname !== '/drama') {
+      // If we're on a detail page or other page, go back to drama home
       router.push('/drama');
     }
   };

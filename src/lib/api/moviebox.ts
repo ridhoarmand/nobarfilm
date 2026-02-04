@@ -6,17 +6,8 @@ class MovieBoxAPI {
   private baseURL: string;
 
   constructor() {
-    // Development: hit upstream directly (localhost, any IP)
-    // Production: use /api proxy (allows server-side Warp to work)
-    const isDevelopment = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1' ||
-       window.location.hostname.startsWith('192.168.') ||
-       window.location.hostname.startsWith('10.'));
-    
-    this.baseURL = isDevelopment 
-      ? 'https://api.sansekai.my.id/api'
-      : '/api';
+    // Always use upstream API directly
+    this.baseURL = 'https://api.sansekai.my.id/api';
 
     this.client = axios.create({
       baseURL: this.baseURL,

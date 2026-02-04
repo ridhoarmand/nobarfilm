@@ -3,6 +3,7 @@ import { Search, Menu, X, User, LogOut, Settings, Film, Tv, Clapperboard } from 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { usePlatform } from '@/hooks/usePlatform';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -13,6 +14,7 @@ export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, profile, isAuthenticated, logout } = useAuth();
+  const { currentPlatform } = usePlatform();
 
   // Handle scroll effect
   useEffect(() => {
@@ -31,9 +33,11 @@ export function Navbar() {
 
       // Check if we are in drama section
       if (pathname.startsWith('/drama')) {
-        router.push(`/drama/search?q=${encodeURIComponent(searchQuery)}`);
+        // Route to platform-specific search based on current platform
+        router.push(`/drama/${currentPlatform}/search?q=${encodeURIComponent(searchQuery)}`);
       } else {
-        router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+        // Default to movie/moviebox search
+        router.push(`/movie/search?q=${encodeURIComponent(searchQuery)}`);
       }
 
       setSearchQuery('');
@@ -80,7 +84,7 @@ export function Navbar() {
           {/* Right Side: Search & User */}
           <div className="flex items-center gap-3">
             {/* Search Bar - Desktop */}
-            {pathname !== '/browse' && pathname !== '/search' && pathname !== '/drama/search' && (
+            {!pathname.includes('/search') && (
               <form onSubmit={handleSearch} className="hidden lg:block">
                 <div className="relative">
                   <input
