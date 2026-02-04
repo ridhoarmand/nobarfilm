@@ -69,17 +69,12 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-10">
-            {navItems.map((item) => {
-              // Skip Akun tab if not authenticated
-              if (item.authRequired && !isAuthenticated) return null;
-
-              return (
-                <Link key={item.href} href={item.href} className={`text-base font-semibold transition-all relative pb-1 ${isActive(item.href) ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-                  {item.label}
-                  {isActive(item.href) && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600 rounded-full" />}
-                </Link>
-              );
-            })}
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href} className={`text-base font-semibold transition-all relative pb-1 ${isActive(item.href) ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                {item.label}
+                {isActive(item.href) && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600 rounded-full" />}
+              </Link>
+            ))}
           </div>
 
           {/* Right Side: Search & User */}
@@ -149,20 +144,16 @@ export function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-black/98 border-t border-zinc-800">
           <div className="px-4 py-4 space-y-1">
-            {navItems.map((item) => {
-              if (item.authRequired && !isAuthenticated) return null;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`block px-3 py-2 text-base font-medium rounded-lg transition ${isActive(item.href) ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-zinc-800'}`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`block px-3 py-2 text-base font-medium rounded-lg transition ${isActive(item.href) ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-zinc-800'}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
 
             {/* Mobile Auth Section */}
             <div className="pt-3 mt-3 border-t border-zinc-700">
