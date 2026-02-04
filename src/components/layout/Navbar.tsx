@@ -27,9 +27,16 @@ export function Navbar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
       setIsMobileMenuOpen(false);
+
+      // Check if we are in drama section
+      if (pathname.startsWith('/drama')) {
+        router.push(`/drama/search?q=${encodeURIComponent(searchQuery)}`);
+      } else {
+        router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+      }
+
+      setSearchQuery('');
     }
   };
 
@@ -79,7 +86,7 @@ export function Navbar() {
           {/* Right Side: Search & User */}
           <div className="flex items-center gap-3">
             {/* Search Bar - Desktop */}
-            {pathname !== '/browse' && pathname !== '/search' && (
+            {pathname !== '/browse' && pathname !== '/search' && pathname !== '/drama/search' && (
               <form onSubmit={handleSearch} className="hidden lg:block">
                 <div className="relative">
                   <input

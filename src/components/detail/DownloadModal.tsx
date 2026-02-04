@@ -65,7 +65,7 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, seasonNumber,
 
     try {
       const filename = generateFilename('video');
-      const streamUrl = `https://api.sansekai.my.id/api/moviebox/direct-stream?url=${encodeURIComponent(source.url)}`;
+      const streamUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/moviebox/direct-stream?url=${encodeURIComponent(source.url)}`;
 
       // Import download helper dynamically
       const { startDownload } = await import('@/lib/utils/downloadHelper');

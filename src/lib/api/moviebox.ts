@@ -6,7 +6,7 @@ class MovieBoxAPI {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api/moviebox';
+    this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api';
 
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -58,7 +58,7 @@ class MovieBoxAPI {
    * Get homepage content with banners, categories, and featured sections
    */
   async getHomepage(): Promise<HomepageResponse> {
-    const response = await this.client.get<HomepageResponse>('/homepage');
+    const response = await this.client.get<HomepageResponse>('/moviebox/homepage');
     return response.data;
   }
 
@@ -67,7 +67,7 @@ class MovieBoxAPI {
    * @param page - Page number (starts at 0)
    */
   async getTrending(page: number = 0): Promise<TrendingResponse> {
-    const response = await this.client.get<TrendingResponse>('/trending', {
+    const response = await this.client.get<TrendingResponse>('/moviebox/trending', {
       params: { page },
     });
     return response.data;
@@ -79,7 +79,7 @@ class MovieBoxAPI {
    * @param page - Page number (starts at 1)
    */
   async search(query: string, page: number = 1): Promise<SearchResponse> {
-    const response = await this.client.get<SearchResponse>('/search', {
+    const response = await this.client.get<SearchResponse>('/moviebox/search', {
       params: { query, page },
     });
     return response.data;
@@ -90,7 +90,7 @@ class MovieBoxAPI {
    * @param subjectId - Unique movie/series ID
    */
   async getDetail(subjectId: string): Promise<DetailResponse> {
-    const response = await this.client.get<DetailResponse>('/detail', {
+    const response = await this.client.get<DetailResponse>('/moviebox/detail', {
       params: { subjectId },
     });
     return response.data;
@@ -103,13 +103,13 @@ class MovieBoxAPI {
    * @param episode - Episode number (0 for movies, >= 1 for series)
    */
   async getSources(subjectId: string, season: number = 0, episode: number = 0): Promise<SourcesResponse> {
-    console.log('📡 API Request: /sources', { subjectId, season, episode });
+    console.log('📡 API Request: /moviebox/sources', { subjectId, season, episode });
 
-    const response = await this.client.get<SourcesResponse>('/sources', {
+    const response = await this.client.get<SourcesResponse>('/moviebox/sources', {
       params: { subjectId, season, episode },
     });
 
-    console.log('📦 API Response: /sources', response.data);
+    console.log('📦 API Response: /moviebox/sources', response.data);
     console.log('📹 Downloads available:', response.data?.downloads?.length || 0);
 
     return response.data;
@@ -124,7 +124,7 @@ class MovieBoxAPI {
 
     try {
       // Don't encode - axios will handle it, and API expects raw URL in query
-      const response = await this.client.get<GenerateStreamResponse>('/generate-link-stream-video', {
+      const response = await this.client.get<GenerateStreamResponse>('/moviebox/generate-link-stream-video', {
         params: { url },
       });
 
