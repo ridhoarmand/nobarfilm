@@ -135,12 +135,42 @@ export default function WatchPartyRoom() {
         if (exists) return prev;
         return [...prev, user];
       });
+      // Add system message to chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `system-${Date.now()}`,
+          room_code: roomCode,
+          user_id: 'system',
+          display_name: 'System',
+          message: `${user.display_name} joined the room`,
+          avatar_url: null,
+          timestamp: new Date().toISOString(),
+          is_system: true,
+        } as any,
+      ]);
       toast.success(`${user.display_name} joined!`, { position: 'top-left', duration: 2000 });
     });
 
     socket.on('user-left', (userId) => {
       const leaver = participants.find((p) => p.user_id === userId);
-      if (leaver) toast(`${leaver.display_name} left`, { icon: '👋', position: 'top-left', duration: 2000 });
+      if (leaver) {
+        // Add system message to chat
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `system-${Date.now()}`,
+            room_code: roomCode,
+            user_id: 'system',
+            display_name: 'System',
+            message: `${leaver.display_name} left the room`,
+            avatar_url: null,
+            timestamp: new Date().toISOString(),
+            is_system: true,
+          } as any,
+        ]);
+        toast(`${leaver.display_name} left`, { icon: '👋', position: 'top-left', duration: 2000 });
+      }
       setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
       setPeersBuffering((prev) => prev.filter((id) => id !== userId));
     });
@@ -344,9 +374,9 @@ export default function WatchPartyRoom() {
   return (
     <>
       <Navbar />
-      {/* Main Container - Constrained to prevent oversized player on wide screens */}
+      {/* Main Container - Full width for better responsiveness */}
       <div className="bg-black pt-16 h-[100dvh] flex flex-col overflow-hidden">
-        <div className="flex-1 w-full max-w-[2000px] mx-auto flex flex-col lg:flex-row gap-4 px-4 lg:px-10 py-4 lg:py-8 overflow-hidden">
+        <div className="flex-1 w-full flex flex-col lg:flex-row gap-4 px-4 lg:px-8 py-4 lg:py-6 overflow-hidden">
           {/* Left/Top Content: Player */}
           <div className="flex-1 flex flex-col relative z-20 min-h-0 bg-zinc-950 rounded-2xl border border-zinc-800/50 shadow-2xl overflow-hidden">
             {/* Main Video Area */}

@@ -78,9 +78,14 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
       {/* Header */}
       <div className="p-3 lg:p-4 border-b border-zinc-700/50 bg-zinc-900">
         <div className="flex items-center justify-between mb-1 lg:mb-2">
-          <h3 className="text-white font-semibold flex items-center gap-2 text-sm lg:text-base">
+          <h3 className="text-white font-semibold flex items-center gap-2 text-sm lg:text-base relative">
             <MessageCircle className="w-4 h-4 lg:w-5 lg:h-5" />
             Chat
+            {unreadCount > 0 && !isExpanded && (
+              <span className="absolute -top-2 -right-3 bg-red-600 text-white text-[10px] lg:text-xs font-bold rounded-full w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </h3>
           <div className="flex items-center gap-1 text-xs lg:text-sm text-gray-400">
             <Users className="w-3 h-3 lg:w-4 lg:h-4" />
@@ -98,29 +103,43 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
             No messages yet. Start the conversation!
           </div>
         ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="flex gap-2">
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                {msg.avatar_url ? (
-                  <img src={msg.avatar_url} alt={msg.display_name} className="w-7 h-7 lg:w-8 lg:h-8 rounded-full" />
-                ) : (
-                  <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center text-white text-[10px] lg:text-xs font-semibold">
-                    {msg.display_name.charAt(0).toUpperCase()}
+          messages.map((msg) => {
+            const isSystem = (msg as any).is_system || msg.user_id === 'system';
+            return (
+              <div key={msg.id} className={`flex gap-2 ${isSystem ? 'justify-center' : ''}`}>
+                {!isSystem && (
+                  <>
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      {msg.avatar_url ? (
+                        <img src={msg.avatar_url} alt={msg.display_name} className="w-7 h-7 lg:w-8 lg:h-8 rounded-full" />
+                      ) : (
+                        <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center text-white text-[10px] lg:text-xs font-semibold">
+                          {msg.display_name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Message */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 mb-0.5">
+                        <span className="text-xs lg:text-sm font-medium text-white truncate">{msg.display_name}</span>
+                        <span className="text-[10px] lg:text-xs text-gray-500">{formatTime(msg.timestamp)}</span>
+                      </div>
+                      <p className="text-xs lg:text-sm text-gray-300 break-words">{msg.message}</p>
+                    </div>
+                  </>
+                )}
+                {isSystem && (
+                  <div className="text-center flex-1">
+                    <p className="text-[10px] lg:text-xs text-gray-500 italic px-2 py-1 bg-zinc-800/50 rounded-full inline-block">
+                      ℹ️ {msg.message}
+                    </p>
                   </div>
                 )}
               </div>
-
-              {/* Message */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 mb-0.5">
-                  <span className="text-xs lg:text-sm font-medium text-white truncate">{msg.display_name}</span>
-                  <span className="text-[10px] lg:text-xs text-gray-500">{formatTime(msg.timestamp)}</span>
-                </div>
-                <p className="text-xs lg:text-sm text-gray-300 break-words">{msg.message}</p>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

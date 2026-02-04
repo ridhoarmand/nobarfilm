@@ -149,121 +149,172 @@ function WatchContent() {
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-black pt-20 flex flex-col items-center">
-        {/* Unified Container for Player & Controls - Constrained Width to prevent scroll on large screens */}
-        <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8">
-          {/* Title - Compact */}
-          <div className="py-2 mb-2">
-            <Link href={`/movie/${subjectId}`} className="text-lg sm:text-xl font-bold text-white hover:text-gray-300 transition">
+      <main className="min-h-screen bg-black pt-20 pb-12">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+          {/* Title Section */}
+          <div className="mb-6">
+            <Link href={`/movie/${subjectId}`} className="inline-flex items-center gap-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-white hover:text-red-500 transition group">
+              <ChevronLeft className="w-8 h-8 opacity-0 group-hover:opacity-100 transition -ml-8 group-hover:-ml-2" />
               {detailData.subject.title}
             </Link>
             {isSeries && (
-              <span className="text-gray-400 ml-2 text-sm">
-                S{currentSeason}:E{currentEpisode}
-              </span>
+              <p className="text-gray-400 mt-2 text-lg">
+                Season {currentSeason} • Episode {currentEpisode} / {currentSeasonData?.maxEp}
+              </p>
             )}
           </div>
 
-          <div className="w-full shadow-2xl rounded-xl overflow-hidden border border-zinc-900 bg-black">
-            {streamError ? (
-              <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
-                <div className="text-center max-w-md px-4">
-                  <h2 className="text-2xl font-bold text-red-500 mb-4">⚠️ Playback Error</h2>
-                  <p className="text-gray-300 mb-2">{streamError}</p>
-                  {sourcesError && <p className="text-sm text-gray-400 mb-4">API Error: {sourcesError.message}</p>}
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={() => {
-                        window.location.reload();
-                      }}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
-                    >
-                      Try Again
-                    </button>
-                    <button onClick={() => router.push(`/movie/${subjectId}`)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition">
-                      Back to Details
-                    </button>
+          <div className="flex flex-col gap-6">
+            {/* Player Section - Full width */}
+            <div>
+              <div className="w-full shadow-2xl rounded-2xl overflow-hidden border border-zinc-800 bg-black">
+                {streamError ? (
+                  <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
+                    <div className="text-center max-w-md px-4">
+                      <h2 className="text-2xl font-bold text-red-500 mb-4">⚠️ Playback Error</h2>
+                      <p className="text-gray-300 mb-2">{streamError}</p>
+                      {sourcesError && <p className="text-sm text-gray-400 mb-4">API Error: {sourcesError.message}</p>}
+                      <div className="flex gap-3 justify-center flex-wrap">
+                        <button
+                          onClick={() => {
+                            window.location.reload();
+                          }}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                        >
+                          Try Again
+                        </button>
+                        <button onClick={() => router.push(`/movie/${subjectId}`)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition">
+                          Back to Details
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : isLoadingStream || !streamUrl ? (
+                  <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+                      <p className="text-white font-medium">{isLoadingSources ? 'Loading sources...' : 'Preparing stream...'}</p>
+                      <p className="text-sm text-gray-400 mt-2">This may take a few seconds...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <VideoPlayer
+                    src={videoSource.src || ''}
+                    subtitles={videoSource.subtitles}
+                    poster={videoSource.poster}
+                    onEnded={handleNextEpisode}
+                    onProgress={handleProgress}
+                    initialTime={savedTime}
+                    subjectType={detailData.subject.subjectType}
+                  />
+                )}
               </div>
-            ) : isLoadingStream || !streamUrl ? (
-              <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
-                  <p className="text-white">{isLoadingSources ? 'Loading sources...' : 'Preparing stream...'}</p>
-                  <p className="text-sm text-gray-400 mt-2">This may take a few seconds...</p>
-                </div>
-              </div>
-            ) : (
-              <VideoPlayer
-                src={videoSource.src || ''}
-                subtitles={videoSource.subtitles}
-                poster={videoSource.poster}
-                onEnded={handleNextEpisode}
-                onProgress={handleProgress}
-                initialTime={savedTime}
-                subjectType={detailData.subject.subjectType}
-              />
-            )}
-          </div>
 
-          {/* Controls Immediately Below */}
-          <div className="pt-3 pb-8">
-            {/* Quality Selector */}
-            {sourcesData && sourcesData.downloads && sourcesData.downloads.length > 1 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs text-gray-400 uppercase tracking-wider">Quality</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {sourcesData.downloads.map((source, index) => (
-                    <button
-                      key={source.id}
-                      onClick={() => {
-                        setSelectedQuality(index);
-                      }}
-                      className={`px-3 py-1 text-sm rounded-md font-medium transition ${selectedQuality === index ? 'bg-red-600 text-white' : 'bg-zinc-900 text-gray-400 hover:bg-zinc-800 hover:text-white'}`}
-                    >
-                      {source.resolution}p
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+              {/* Controls Below Player */}
+              <div className="mt-6 space-y-4">
+                {/* Quality Selector */}
+                {sourcesData && sourcesData.downloads && sourcesData.downloads.length > 1 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Quality</span>
+                      <span className="text-xs text-gray-500">({sourcesData.downloads.length} options)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sourcesData.downloads.map((source, index) => (
+                        <button
+                          key={source.id}
+                          onClick={() => {
+                            setSelectedQuality(index);
+                          }}
+                          className={`px-4 py-2 text-sm rounded-lg font-semibold transition ${selectedQuality === index ? 'bg-red-600 text-white shadow-lg shadow-red-600/50' : 'bg-zinc-900 text-gray-300 hover:bg-zinc-800 hover:text-white border border-zinc-800'}`}
+                        >
+                          {source.resolution}p
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Episode Navigation (Series only) */}
-            {isSeries && currentSeasonData && (
-              <div className="flex items-center justify-between py-3 border-t border-zinc-800">
+                {/* Episode Navigation (Series only) */}
+                {isSeries && currentSeasonData && (
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={handlePreviousEpisode}
+                        disabled={currentEpisode <= 1}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                        <span>Previous Episode</span>
+                      </button>
+
+                      <span className="text-gray-300 font-semibold">
+                        Ep {currentEpisode} of {currentSeasonData.maxEp}
+                      </span>
+
+                      <button
+                        onClick={handleNextEpisode}
+                        disabled={currentEpisode >= currentSeasonData.maxEp}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm"
+                      >
+                        <span>Next Episode</span>
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sidebar - Below player */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Description */}
+              {detailData.subject.description && (
+                <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-zinc-800 rounded-xl p-5">
+                  <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-3">Synopsis</h3>
+                  <p className="text-zinc-300 text-sm leading-relaxed line-clamp-6">{detailData.subject.description}</p>
+                  {detailData.subject.description.length > 200 && (
+                    <Link href={`/movie/${subjectId}`} className="text-red-500 hover:text-red-400 text-xs mt-3 inline-block font-semibold">
+                      Read More →
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* Info Card */}
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
+                {detailData.subject.releaseDate && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">Release Date</p>
+                    <p className="text-white font-semibold">{new Date(detailData.subject.releaseDate).getFullYear()}</p>
+                  </div>
+                )}
+                {detailData.subject.duration && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">Duration</p>
+                    <p className="text-white font-semibold">{detailData.subject.duration} min</p>
+                  </div>
+                )}
+                {detailData.subject.imdbRatingValue && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">IMDb Rating</p>
+                    <p className="text-white font-semibold flex items-center gap-1">
+                      ⭐ {parseFloat(String(detailData.subject.imdbRatingValue)).toFixed(1)}/10
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Back Button */}
+              <div className="flex flex-col gap-3">
                 <button
-                  onClick={handlePreviousEpisode}
-                  disabled={currentEpisode <= 1}
-                  className="flex items-center gap-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  onClick={() => router.push(`/movie/${subjectId}`)}
+                  className="w-full px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl transition font-semibold text-sm"
                 >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Prev</span>
-                </button>
-
-                <span className="text-gray-400 text-sm">
-                  Ep {currentEpisode} / {currentSeasonData.maxEp}
-                </span>
-
-                <button
-                  onClick={handleNextEpisode}
-                  disabled={currentEpisode >= currentSeasonData.maxEp}
-                  className="flex items-center gap-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="w-4 h-4" />
+                  ← Back to Details
                 </button>
               </div>
-            )}
-
-            {/* Description */}
-            {detailData.subject.description && (
-              <div className="mt-4 p-4 bg-zinc-900/50 border border-zinc-800/50 rounded-lg">
-                <p className="text-zinc-400 text-sm leading-relaxed">{detailData.subject.description}</p>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </main>
