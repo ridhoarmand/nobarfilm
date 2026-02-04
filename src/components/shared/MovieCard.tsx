@@ -1,4 +1,5 @@
-import { Subject } from '@/types/api';import Image from 'next/image';
+import { Subject } from '@/types/api';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Star, PlayCircle } from 'lucide-react';
 
@@ -13,7 +14,7 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
     <div className="w-full">
       <Link href={`/movie/${movie.subjectId}`} className="group/card block w-full relative">
         {/* POSTER IMAGE CONTAINER */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-600/50 group-hover/card:shadow-red-900/20 group-hover/card:-translate-y-1">
+        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-600/50 group-hover/card:shadow-red-900/20 group-hover/card:-translate-y-1">
           {/* Rank Badge - Top Left (Consistent & Readable) */}
           {rank && (
             <div className="absolute top-0 left-0 z-30 bg-red-600 shadow-lg flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-br-xl">

@@ -65,7 +65,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/movie" className="flex-shrink-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-red-600 hover:text-red-500 transition">NobarFilm</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-red-600 hover:text-red-500 transition">{pathname.startsWith('/drama') ? 'NobarDrama' : 'NobarFilm'}</h1>
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,7 +1,4 @@
-'use client';
-
-import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
-import { TooltipProvider } from '@/components/ui/tooltip';
+'use client';import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -34,7 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-        <TooltipProvider>{children}</TooltipProvider>
+        {children}
       </ThemeProvider>
     </QueryClientProvider>
   );

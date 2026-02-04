@@ -1,4 +1,5 @@
-'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
+'use client';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useDetail, useSources, useGenerateStreamLink } from '@/lib/hooks/useMovieBox';
 import { useWatchHistory } from '@/lib/hooks/useWatchHistory';
@@ -43,7 +44,7 @@ function WatchContent() {
     if (currentEpisode > 1) query.set('episode', currentEpisode.toString());
     const queryString = query.toString();
     const newUrl = `/watch/${subjectId}${queryString ? `?${queryString}` : ''}`;
-    router.push(newUrl, { scroll: false });
+    router.replace(newUrl, { scroll: false });
   }, [currentSeason, currentEpisode, subjectId, router]);
 
   const handleEpisodeChange = (newEpisode: number) => {

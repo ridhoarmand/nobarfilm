@@ -1,26 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
-import { UnifiedMediaCard } from "@/components/cards/UnifiedMediaCard";
-import { UnifiedMediaCardSkeleton } from "@/components/cards/UnifiedMediaCardSkeleton";
-import { UnifiedErrorDisplay } from "@/components/common/UnifiedErrorDisplay";
-import { useInfiniteFreeReelsDramas } from "@/hooks/useFreeReels";
-import { Loader2 } from "lucide-react";
+import { useEffect, useRef } from 'react';
+import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
+import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
+import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
+import { useInfiniteFreeReelsDramas } from '@/hooks/useFreeReels';
+import { Loader2 } from 'lucide-react';
 
 interface InfiniteFreeReelsSectionProps {
   title: string;
 }
 
 export function InfiniteFreeReelsSection({ title }: InfiniteFreeReelsSectionProps) {
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isError,
-    refetch,
-  } = useInfiniteFreeReelsDramas();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } = useInfiniteFreeReelsDramas();
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +23,7 @@ export function InfiniteFreeReelsSection({ title }: InfiniteFreeReelsSectionProp
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (loadMoreRef.current) {
@@ -44,24 +36,13 @@ export function InfiniteFreeReelsSection({ title }: InfiniteFreeReelsSectionProp
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Flatten pages
-  const allDramas = data?.pages.flatMap((page) => 
-    (page.data?.items || []).filter(item => 
-        item.title && 
-        item.cover
-    )
-  ) || [];
+  const allDramas = data?.pages.flatMap((page) => (page.data?.items || []).filter((item) => item.title && item.cover)) || [];
 
   if (isError) {
     return (
       <section>
-        <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">
-          {title}
-        </h2>
-        <UnifiedErrorDisplay
-          title={`Gagal Memuat ${title}`}
-          message="Tidak dapat mengambil data drama."
-          onRetry={() => refetch()}
-        />
+        <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">{title}</h2>
+        <UnifiedErrorDisplay title={`Gagal Memuat ${title}`} message="Tidak dapat mengambil data drama." onRetry={() => refetch()} />
       </section>
     );
   }
@@ -71,7 +52,7 @@ export function InfiniteFreeReelsSection({ title }: InfiniteFreeReelsSectionProp
     return (
       <section className="space-y-4">
         <div className="h-7 md:h-8 w-48 bg-white/10 rounded-lg animate-pulse mb-4" />
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
           {Array.from({ length: 12 }).map((_, i) => (
             <UnifiedMediaCardSkeleton key={i} />
           ))}
@@ -82,14 +63,12 @@ export function InfiniteFreeReelsSection({ title }: InfiniteFreeReelsSectionProp
 
   return (
     <section>
-      <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">
-        {title}
-      </h2>
+      <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">{title}</h2>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
         {allDramas.map((item, index) => (
-          <UnifiedMediaCard 
-            key={`${item.key}-${index}`} 
+          <UnifiedMediaCard
+            key={`${item.key}-${index}`}
             index={index}
             title={item.title}
             cover={item.cover}

@@ -1,4 +1,5 @@
-'use client';import { useState } from 'react';
+'use client';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDetail } from '@/lib/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
@@ -59,9 +60,9 @@ export default function DetailPage() {
   const isSeries = subject.subjectType === 2;
   const isMovie = subject.subjectType === 1;
 
-  // For movies: season=0, episode=0
+  // For movies: clean URL
   // For series: season=1, episode=1 (default to first episode)
-  const watchUrl = isMovie ? `/watch/${subjectId}?season=0&episode=0` : `/watch/${subjectId}?season=1&episode=1`;
+  const watchUrl = isMovie ? `/watch/${subjectId}` : `/watch/${subjectId}?season=1&episode=1`;
 
   return (
     <>

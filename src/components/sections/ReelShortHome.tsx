@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import { useReelShortHomepage } from "@/hooks/useReelShort";
-import { ReelShortCard } from "@/components/cards/ReelShortCard";
-import { BannerCarousel } from "@/components/common/BannerCarousel";
-import { DramaCardSkeleton } from "@/components/cards/DramaCardSkeleton";
-import type { ReelShortBook, ReelShortBanner } from "@/types/reelshort";
+import { useMemo } from 'react';
+import { useReelShortHomepage } from '@/hooks/useReelShort';
+import { ReelShortCard } from '@/components/cards/ReelShortCard';
+import { BannerCarousel } from '@/components/common/BannerCarousel';
+import { DramaCardSkeleton } from '@/components/cards/DramaCardSkeleton';
+import type { ReelShortBook, ReelShortBanner } from '@/types/reelshort';
 
 export function ReelShortHome() {
   const { data, isLoading, error } = useReelShortHomepage();
@@ -18,7 +18,7 @@ export function ReelShortHome() {
 
     // Get the first/popular tab
     const tabs = data.data.tab_list || [];
-    const popularTab = tabs.find((t) => t.tab_name === "POPULER") || tabs[0];
+    const popularTab = tabs.find((t) => t.tab_name === 'POPULER') || tabs[0];
     const popularTabId = popularTab?.tab_id;
 
     if (!popularTabId) {
@@ -26,7 +26,7 @@ export function ReelShortHome() {
     }
 
     const tabLists = data.data.lists.filter((list) => list.tab_id === popularTabId);
-    
+
     let allBanners: ReelShortBanner[] = [];
     let allBooks: ReelShortBook[] = [];
 
@@ -56,16 +56,10 @@ export function ReelShortHome() {
       {banners.length > 0 && <BannerCarousel banners={banners} />}
 
       {/* Books Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
         {isLoading
-          ? Array.from({ length: 12 }).map((_, i) => (
-              <DramaCardSkeleton key={i} index={i} />
-            ))
-          : books
-              .filter((book) => book.book_id)
-              .map((book, index) => (
-                <ReelShortCard key={book.book_id} book={book} index={index} />
-              ))}
+          ? Array.from({ length: 12 }).map((_, i) => <DramaCardSkeleton key={i} index={i} />)
+          : books.filter((book) => book.book_id).map((book, index) => <ReelShortCard key={book.book_id} book={book} index={index} />)}
       </div>
 
       {!isLoading && books.length === 0 && (

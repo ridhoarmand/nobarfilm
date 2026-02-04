@@ -21,12 +21,12 @@ export default function HomeContent() {
   const { data: dubindoDramas, isLoading: loadingDubindo, error: errorDubindo, refetch: refetchDubindo } = useDubindoDramas();
 
   return (
-    <main className="min-h-screen pt-16">
+    <main className="pt-14">
       {/* Platform Selector removed - handled in layout */}
 
       {/* DramaBox Content - Multiple Sections */}
       {isDramaBox && (
-        <div className="container mx-auto px-4 py-6 space-y-8">
+        <div className="container px-4 py-6 space-y-8 max-w-[2400px]">
           <DramaSection title="Terbaru" dramas={latestDramas} isLoading={loadingLatest} error={!!errorLatest} onRetry={() => refetchLatest()} />
           <DramaSection title="Terpopuler" dramas={trendingDramas} isLoading={loadingTrending} error={!!errorTrending} onRetry={() => refetchTrending()} />
           <DramaSection title="Dubindo" dramas={dubindoDramas} isLoading={loadingDubindo} error={!!errorDubindo} onRetry={() => refetchDubindo()} />
@@ -38,35 +38,35 @@ export default function HomeContent() {
 
       {/* ReelShort Content - Multiple Sections */}
       {isReelShort && (
-        <div className="container mx-auto px-4 py-6 space-y-8">
+        <div className="container px-4 py-6 space-y-8 max-w-[2400px]">
           <ReelShortSection />
         </div>
       )}
 
       {/* NetShort Content */}
       {isNetShort && (
-        <div className="container mx-auto px-4 py-6 space-y-8">
+        <div className="container px-4 py-6 space-y-8 max-w-[2400px]">
           <NetShortHome />
         </div>
       )}
 
       {/* Melolo Content */}
       {isMelolo && (
-        <div className="container mx-auto px-4 py-6 space-y-8">
+        <div className="container px-4 py-6 space-y-8 max-w-[2400px]">
           <MeloloHome />
         </div>
       )}
 
       {/* FlickReels Content */}
       {isFlickReels && (
-        <div className="container mx-auto px-4 py-6 space-y-8">
+        <div className="container px-4 py-6 space-y-8 max-w-[2400px]">
           <FlickReelsHome />
         </div>
       )}
 
       {/* FreeReels Content */}
       {isFreeReels && (
-        <div className="container mx-auto px-4 py-6 space-y-8">
+        <div className="container px-4 py-6 space-y-8 max-w-[2400px]">
           <FreeReelsHome />
         </div>
       )}

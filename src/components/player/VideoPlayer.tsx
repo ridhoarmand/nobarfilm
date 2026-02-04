@@ -1,14 +1,17 @@
-'use client';import { useEffect, useRef, useState, useMemo } from 'react';
+'use client';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'plyr-react/plyr.css';
-import { FastForward, Rewind, Volume2, Sun, Loader2 } from 'lucide-react';
+import { FastForward, Rewind, Volume2, Sun, Loader2, Maximize, Play, RotateCcw } from 'lucide-react';
 import { SubjectType } from '@/types/api';
+import Hls from 'hls.js';
+import { cn } from '@/lib/utils';
 
 const Plyr = dynamic(() => import('plyr-react').then((mod) => mod.Plyr), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-white">
-      <Loader2 className="w-10 h-10 animate-spin text-red-600" />
+    <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
+      <Loader2 className="w-10 h-10 animate-spin text-primary" />
     </div>
   ),
 });
@@ -133,52 +136,91 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Safe Player Init & History Listener
+  // Refs for stable callbacks
+  const onEndedRef = useRef(onEnded);
+  const onProgressRef = useRef(onProgress);
+
   useEffect(() => {
-    if (plyrRef.current?.plyr) {
-      const player = plyrRef.current.plyr;
+    onEndedRef.current = onEnded;
+    onProgressRef.current = onProgress;
+  }, [onEnded, onProgress]);
 
-      // Ensure player.on exists before using
-      if (player && typeof player.on === 'function') {
-        const handleEnded = () => onEnded && onEnded();
+  // Safe Player Init & HLS Setup
+  useEffect(() => {
+    if (!isClient) return;
+
+    let hls: Hls | null = null;
+    let cleanupListeners: (() => void) | null = null;
+    let initTimer: NodeJS.Timeout | null = null;
+
+    const initPlayer = () => {
+      const player = plyrRef.current?.plyr;
+      if (!player || typeof player.on !== 'function') {
+        // Retry if player not ready
+        initTimer = setTimeout(initPlayer, 50);
+        return;
+      }
+
+      const isM3U8 = src.includes('.m3u8');
+
+      const setupListeners = () => {
+        const handleEnded = () => onEndedRef.current && onEndedRef.current();
         const handleTimeUpdate = (event: any) => {
-          // Safe access to time
           const time = event?.detail?.plyr?.currentTime;
-          if (typeof time === 'number' && onProgress) {
-            onProgress(time);
-          }
-        };
-
-        const handleReady = () => {
-          // Seek to initialTime when player is ready (for quality changes)
-          if (initialTime > 0) {
-            player.currentTime = initialTime;
+          if (typeof time === 'number' && onProgressRef.current) {
+            onProgressRef.current(time);
           }
         };
 
         player.on('ended', handleEnded);
         player.on('timeupdate', handleTimeUpdate);
-        player.on('ready', handleReady);
-
-        // Default Volume
-        player.volume = 1;
 
         return () => {
-          // Safe cleanup with optional chaining and existence check
-          const currentPlayer = plyrRef.current?.plyr;
-          if (currentPlayer && typeof currentPlayer.off === 'function') {
-            try {
-              currentPlayer.off('ended', handleEnded);
-              currentPlayer.off('timeupdate', handleTimeUpdate);
-              currentPlayer.off('ready', handleReady);
-            } catch (err) {
-              console.warn('Error removing player listeners:', err);
+          try {
+            if (player) {
+              player.off('ended', handleEnded);
+              player.off('timeupdate', handleTimeUpdate);
             }
+          } catch (e) {
+            // Player might be destroyed already, ignore
           }
         };
+      };
+
+      if (isM3U8 && Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(player.media);
+        (window as any).hls = hls;
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (initialTime > 0) player.currentTime = initialTime;
+        });
+
+        cleanupListeners = setupListeners();
+      } else {
+        // MP4 flow
+        if (initialTime > 0) {
+          player.once('ready', () => {
+            player.currentTime = initialTime;
+          });
+        }
+        cleanupListeners = setupListeners();
       }
-    }
-  }, [onEnded, onProgress, initialTime]);
+
+      // Ensure volume
+      player.volume = 1;
+    };
+
+    // Start initialization attempt
+    initPlayer();
+
+    return () => {
+      if (initTimer) clearTimeout(initTimer);
+      if (cleanupListeners) cleanupListeners();
+      if (hls) hls.destroy();
+    };
+  }, [src, isClient]); // Removed onEnded, onProgress, initialTime from dependencies
 
   // Helpers
   const displayFeedback = (Icon: any, text: string) => {
@@ -273,14 +315,14 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
   const videoSrc = useMemo(
     () => ({
       type: 'video' as const,
-      sources: [{ src, type: 'video/mp4' }],
+      sources: [{ src, type: src.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4' }],
       poster,
-      tracks: subtitles.map((sub) => ({
+      tracks: subtitles.map((sub, index) => ({
         kind: 'captions' as const,
         label: sub.label,
         srcLang: sub.srcLang,
         src: sub.src,
-        default: sub.default,
+        default: sub.default || index === 0,
       })),
     }),
     [src, poster, subtitles],
@@ -298,18 +340,13 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
     [],
   );
 
-  if (!isClient)
-    return (
-      <div className="w-full aspect-video bg-zinc-900 flex items-center justify-center rounded-xl">
-        <Loader2 className="w-10 h-10 animate-spin text-red-600" />
-      </div>
-    );
-
   return (
     <div
       ref={wrapperRef}
-      // Added max-w-full and aspect-video to constrain size and maintain ratio
-      className="relative w-full max-w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto"
+      className={cn(
+        'relative w-full bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto transition-all duration-500',
+        subjectType === SubjectType.Short ? 'max-w-[400px] aspect-[9/16] md:aspect-[9/16]' : 'max-w-7xl aspect-video',
+      )}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -320,7 +357,13 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
 
       {/* Plyr Instance */}
       <div className="relative z-0 h-full">
-        <Plyr ref={plyrRef} source={videoSrc} options={options} />
+        {!isClient ? (
+          <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+            <Loader2 className="w-10 h-10 animate-spin text-red-600" />
+          </div>
+        ) : (
+          <Plyr ref={plyrRef} source={videoSrc} options={options} />
+        )}
       </div>
 
       {/* Visual Feedback */}

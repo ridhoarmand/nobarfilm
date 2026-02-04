@@ -1,26 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
-import { UnifiedMediaCard } from "@/components/cards/UnifiedMediaCard";
-import { UnifiedMediaCardSkeleton } from "@/components/cards/UnifiedMediaCardSkeleton";
-import { UnifiedErrorDisplay } from "@/components/common/UnifiedErrorDisplay";
-import { useInfiniteMeloloDramas } from "@/hooks/useMelolo";
-import { Loader2 } from "lucide-react";
+import { useEffect, useRef } from 'react';
+import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
+import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
+import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
+import { useInfiniteMeloloDramas } from '@/hooks/useMelolo';
+import { Loader2 } from 'lucide-react';
 
 interface InfiniteMeloloSectionProps {
   title: string;
 }
 
 export function InfiniteMeloloSection({ title }: InfiniteMeloloSectionProps) {
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isError,
-    refetch,
-  } = useInfiniteMeloloDramas();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } = useInfiniteMeloloDramas();
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +23,7 @@ export function InfiniteMeloloSection({ title }: InfiniteMeloloSectionProps) {
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (loadMoreRef.current) {
@@ -49,14 +41,8 @@ export function InfiniteMeloloSection({ title }: InfiniteMeloloSectionProps) {
   if (isError) {
     return (
       <section>
-        <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">
-          {title}
-        </h2>
-        <UnifiedErrorDisplay
-          title={`Gagal Memuat ${title}`}
-          message="Tidak dapat mengambil data drama."
-          onRetry={() => refetch()}
-        />
+        <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">{title}</h2>
+        <UnifiedErrorDisplay title={`Gagal Memuat ${title}`} message="Tidak dapat mengambil data drama." onRetry={() => refetch()} />
       </section>
     );
   }
@@ -65,7 +51,7 @@ export function InfiniteMeloloSection({ title }: InfiniteMeloloSectionProps) {
     return (
       <section className="space-y-4">
         <div className="h-7 md:h-8 w-48 bg-white/10 rounded-lg animate-pulse mb-4" />
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
           {Array.from({ length: 16 }).map((_, i) => (
             <UnifiedMediaCardSkeleton key={i} />
           ))}
@@ -76,14 +62,12 @@ export function InfiniteMeloloSection({ title }: InfiniteMeloloSectionProps) {
 
   return (
     <section>
-      <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">
-        {title}
-      </h2>
+      <h2 className="font-display font-bold text-xl md:text-2xl text-foreground mb-4">{title}</h2>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
         {allBooks.map((book, index) => (
-          <UnifiedMediaCard 
-            key={`${book.book_id}-${index}`} 
+          <UnifiedMediaCard
+            key={`${book.book_id}-${index}`}
             index={index}
             title={book.book_name}
             cover={book.thumb_url}

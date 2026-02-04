@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { Play } from "lucide-react";
+import Link from 'next/link';
+import { Play } from 'lucide-react';
 
 export interface BadgeConfig {
   text: string;
-  color?: string;       // Background color (e.g., "#E52E2E" or "hsl(var(--primary))")
-  textColor?: string;   // Text color (default white)
+  color?: string; // Background color (e.g., "#E52E2E" or "hsl(var(--primary))")
+  textColor?: string; // Text color (default white)
   isTransparent?: boolean; // If true, uses black/60 backdrop
 }
 
@@ -20,39 +20,24 @@ export interface UnifiedMediaCardProps {
   index?: number;
 }
 
-export function UnifiedMediaCard({
-  title,
-  cover,
-  link,
-  episodes = 0,
-  topLeftBadge,
-  topRightBadge,
-  index = 0,
-}: UnifiedMediaCardProps) {
-  
+export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadge, topRightBadge, index = 0 }: UnifiedMediaCardProps) {
   // SHARED STYLES
   // Responsive: Mobile (Default) -> smaller | Desktop (md:) -> regular 10px
   // Using text-[8px] for mobile and text-[10px] for desktop
   // Note: Removed absolute positioning from BASE, moving it to container
-  const BADGE_BASE = "px-1 py-0.5 md:px-1.5 rounded font-bold text-white shadow-sm leading-none tracking-wide flex items-center justify-center font-sans text-[8px] md:text-[10px]";
-  
-  const BADGE_FONT = { 
-    lineHeight: "1",      
-    fontFamily: "inherit"
+  const BADGE_BASE = 'px-1.5 py-0.5 md:px-2 rounded font-bold text-white shadow-sm leading-none tracking-wide flex items-center justify-center font-sans text-[10px] md:text-xs';
+
+  const BADGE_FONT = {
+    lineHeight: '1',
+    fontFamily: 'inherit',
   };
 
   return (
-    <Link
-      href={link}
-      className="group relative block"
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
+    <Link href={link} className="group relative block" style={{ animationDelay: `${index * 50}ms` }}>
       {/* Visual Container */}
       <div className="aspect-[2/3] relative overflow-hidden rounded-xl bg-muted/20">
         <img
-          src={cover.includes(".heic") 
-            ? `https://wsrv.nl/?url=${encodeURIComponent(cover)}&output=jpg` 
-            : cover}
+          src={cover.includes('.heic') ? `https://wsrv.nl/?url=${encodeURIComponent(cover)}&output=jpg` : cover}
           alt={title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           loading="lazy"
@@ -64,16 +49,15 @@ export function UnifiedMediaCard({
 
         {/* Badges Container - Flexbox to prevent overlap */}
         <div className="absolute top-1.5 left-1.5 right-1.5 md:top-2 md:left-2 md:right-2 flex justify-between items-start pointer-events-none z-10">
-          
           {/* Top Left Badge - Allowed to truncate */}
-          <div className="flex-1 min-w-0 pr-1 flex justify-start"> 
+          <div className="flex-1 min-w-0 pr-1 flex justify-start">
             {topLeftBadge && (
-              <div 
+              <div
                 className={`${BADGE_BASE} truncate max-w-full`}
-                style={{ 
+                style={{
                   ...BADGE_FONT,
-                  backgroundColor: topLeftBadge.color || "#E52E2E",
-                  color: topLeftBadge.textColor || "#FFFFFF"
+                  backgroundColor: topLeftBadge.color || '#E52E2E',
+                  color: topLeftBadge.textColor || '#FFFFFF',
                 }}
               >
                 {topLeftBadge.text}
@@ -84,12 +68,12 @@ export function UnifiedMediaCard({
           {/* Top Right Badge - Fixed width/Shrink 0 */}
           <div className="shrink-0 flex justify-end">
             {topRightBadge && (
-              <div 
+              <div
                 className={`${BADGE_BASE} ${topRightBadge.isTransparent ? 'backdrop-blur-sm' : ''}`}
-                style={{ 
+                style={{
                   ...BADGE_FONT,
-                  backgroundColor: topRightBadge.isTransparent ? "rgba(0,0,0,0.6)" : (topRightBadge.color || "rgba(0,0,0,0.6)"),
-                  color: topRightBadge.textColor || "#FFFFFF"
+                  backgroundColor: topRightBadge.isTransparent ? 'rgba(0,0,0,0.6)' : topRightBadge.color || 'rgba(0,0,0,0.6)',
+                  color: topRightBadge.textColor || '#FFFFFF',
                 }}
               >
                 {topRightBadge.text}
@@ -116,9 +100,7 @@ export function UnifiedMediaCard({
 
       {/* Title */}
       <div className="pt-2 md:pt-3 pb-1">
-        <h3 className="font-display font-semibold text-xs md:text-sm leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-          {title}
-        </h3>
+        <h3 className="font-display font-semibold text-xs md:text-sm leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors">{title}</h3>
       </div>
     </Link>
   );
