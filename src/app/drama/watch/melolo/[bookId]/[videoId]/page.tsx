@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMeloloDetail, useMeloloStream } from '@/hooks/useMelolo';
 import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Settings, Check } from 'lucide-react';
@@ -22,6 +22,23 @@ export default function MeloloWatchPage() {
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [selectedQuality, setSelectedQuality] = useState<VideoQuality | null>(null);
+  
+  // Auto-hide controls
+  const [showControls, setShowControls] = useState(true);
+  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const resetHideTimer = useCallback(() => {
+    setShowControls(true);
+    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
+
+  useEffect(() => {
+    resetHideTimer();
+    return () => {
+      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    };
+  }, [resetHideTimer]);
 
   // Internal state for videoId to prevent page unmount/remount on navigation
   const [currentVideoId, setCurrentVideoId] = useState(params.videoId || '');
@@ -128,6 +145,12 @@ export default function MeloloWatchPage() {
     if (!drama?.video_list?.[index]) return;
     const nextVideoId = drama.video_list[index].vid;
 
+    // Prevent restart if clicking current episode
+    if (nextVideoId === currentVideoId) {
+      setShowEpisodeList(false);
+      return;
+    }
+
     // Update internal state
     setCurrentVideoId(nextVideoId);
 
@@ -226,29 +249,36 @@ export default function MeloloWatchPage() {
           )}
         </div>
 
-        {/* Navigation Controls */}
-        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
+        {/* Navigation Controls (Auto-hide) */}
+        <div 
+          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
+          onPointerMove={resetHideTimer}
+          onClick={resetHideTimer}
+        >
           <div
-            className={`flex items-center gap-2 md:gap-6 pointer-events-auto bg-black/60 backdrop-blur-md px-3 py-1.5 md:px-6 md:py-3 rounded-full border border-white/10 shadow-lg transition-all scale-90 md:scale-100 origin-bottom ${showEpisodeList ? 'opacity-0' : 'opacity-100'}`}
+            className={cn(
+              "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
+              showControls && !showEpisodeList ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+            )}
           >
             <button
-              onClick={() => currentEpisodeIndex > 0 && handleEpisodeChange(currentEpisodeIndex - 1)}
+              onClick={() => { currentEpisodeIndex > 0 && handleEpisodeChange(currentEpisodeIndex - 1); resetHideTimer(); }}
               disabled={currentEpisodeIndex <= 0}
-              className="p-1.5 md:p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
             >
-              <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <span className="text-white font-medium text-xs md:text-sm tabular-nums min-w-[60px] md:min-w-[80px] text-center">
-              Ep {currentEpisodeIndex !== -1 ? currentEpisodeIndex + 1 : '-'} / {totalEpisodes}
+            <span className="text-white/80 font-medium text-[10px] tabular-nums px-1">
+              {currentEpisodeIndex !== -1 ? currentEpisodeIndex + 1 : '-'}/{totalEpisodes}
             </span>
 
             <button
-              onClick={() => currentEpisodeIndex < totalEpisodes - 1 && handleEpisodeChange(currentEpisodeIndex + 1)}
+              onClick={() => { currentEpisodeIndex < totalEpisodes - 1 && handleEpisodeChange(currentEpisodeIndex + 1); resetHideTimer(); }}
               disabled={currentEpisodeIndex >= totalEpisodes - 1}
-              className="p-1.5 md:p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
             >
-              <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>

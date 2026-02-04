@@ -132,4 +132,11 @@
   .plyr--hide-controls .plyr__captions {
     transform: translateY(0) !important;
   }
+
+  /* Hide volume on mobile */
+  @media (max-width: 768px) {
+    .plyr__volume {
+      display: none !important;
+    }
+  }
 }

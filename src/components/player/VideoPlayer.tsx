@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import 'plyr-react/plyr.css';
-import { FastForward, Rewind, Volume2, Sun, Loader2, Maximize, Play, RotateCcw } from 'lucide-react';
+import { FastForward, Rewind, Volume2, Loader2 } from 'lucide-react';
 import { SubjectType } from '@/types/api';
 import Hls from 'hls.js';
 import { cn } from '@/lib/utils';
@@ -33,16 +33,16 @@ interface VideoPlayerProps {
 }
 
 export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, subjectType, initialTime = 0 }: VideoPlayerProps) {
-  const plyrRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const plyrRef = useRef<{ plyr: any } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
-
   // Gesture State
   const [brightness, setBrightness] = useState(1);
-  const [showFeedback, setShowFeedback] = useState<{ Icon: any; text: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [showFeedback, setShowFeedback] = useState<{ Icon: React.ComponentType<any>; text: string } | null>(null);
   const feedbackTimeout = useRef<NodeJS.Timeout | null>(null);
   const touchStart = useRef<{ x: number; y: number; time: number; val: number } | null>(null);
-  const lastTap = useRef<number>(0);
 
   useEffect(() => {
     setIsClient(true);
@@ -65,27 +65,27 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
       try {
         if (isFullscreen && !isDramaShort) {
           // Not a drama short: Force landscape orientation
-          if (screen.orientation && (screen.orientation as any).lock) {
-            await (screen.orientation as any).lock('landscape').catch(() => {});
+          if (screen.orientation && (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock) {
+            await (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock('landscape').catch(() => {});
           }
         } else if (isFullscreen && isDramaShort) {
           // Drama short: Keep portrait orientation
-          if (screen.orientation && (screen.orientation as any).lock) {
-            await (screen.orientation as any).lock('portrait').catch(() => {});
+          if (screen.orientation && (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock) {
+            await (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock('portrait').catch(() => {});
           }
         } else if (!isFullscreen) {
           // Exit fullscreen: Unlock orientation to allow natural rotation
-          if (screen.orientation && (screen.orientation as any).unlock) {
-            (screen.orientation as any).unlock();
+          if (screen.orientation && (screen.orientation as unknown as { unlock: () => void }).unlock) {
+            (screen.orientation as unknown as { unlock: () => void }).unlock();
           }
           // Small delay then try to unlock again to ensure it takes effect
           setTimeout(() => {
-            if (screen.orientation && (screen.orientation as any).unlock) {
-              (screen.orientation as any).unlock();
+            if (screen.orientation && (screen.orientation as unknown as { unlock: () => void }).unlock) {
+              (screen.orientation as unknown as { unlock: () => void }).unlock();
             }
           }, 100);
         }
-      } catch (error) {
+      } catch {
         // Silently fail if orientation API not supported
       }
     };
@@ -165,7 +165,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
 
       const setupListeners = () => {
         const handleEnded = () => onEndedRef.current && onEndedRef.current();
-        const handleTimeUpdate = (event: any) => {
+        const handleTimeUpdate = (event: { detail?: { plyr?: { currentTime?: number } } }) => {
           const time = event?.detail?.plyr?.currentTime;
           if (typeof time === 'number' && onProgressRef.current) {
             onProgressRef.current(time);
@@ -181,7 +181,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
               player.off('ended', handleEnded);
               player.off('timeupdate', handleTimeUpdate);
             }
-          } catch (e) {
+          } catch {
             // Player might be destroyed already, ignore
           }
         };
@@ -191,7 +191,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
         hls = new Hls();
         hls.loadSource(src);
         hls.attachMedia(player.media);
-        (window as any).hls = hls;
+        (window as unknown as { hls: Hls }).hls = hls;
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (initialTime > 0) player.currentTime = initialTime;
@@ -220,10 +220,11 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
       if (cleanupListeners) cleanupListeners();
       if (hls) hls.destroy();
     };
-  }, [src, isClient]); // Removed onEnded, onProgress, initialTime from dependencies
+  }, [src, isClient, initialTime]); // Removed onEnded, onProgress from dependencies
 
   // Helpers
-  const displayFeedback = (Icon: any, text: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const displayFeedback = (Icon: React.ComponentType<any>, text: string) => {
     setShowFeedback({ Icon, text });
     if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
     feedbackTimeout.current = setTimeout(() => setShowFeedback(null), 800);
@@ -250,25 +251,37 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStart.current || !plyrRef.current?.plyr) return;
 
+    // Prevent default to avoid browser zoom/scroll
+    e.preventDefault();
+
     // Ignore small movements (avoid blocking scroll for tiny jitters)
     const deltaY = touchStart.current.y - e.touches[0].clientY;
-    if (Math.abs(deltaY) < 15) return;
-
-    // If vertical movement is dominant, prevent scroll (Gesture Active)
-    // e.preventDefault(); // Note: React synthetic events might not support preventDefault in time for passive listeners.
+    const deltaX = touchStart.current.x - e.touches[0].clientX;
+    if (Math.abs(deltaY) < 15 && Math.abs(deltaX) < 15) return;
 
     const player = plyrRef.current.plyr;
-    const sensitivity = 0.005;
 
-    if (touchStart.current.x < window.innerWidth / 2) {
-      // LEFT: Brightness
-      const newBright = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0.2), 1.5);
-      setBrightness(newBright);
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      // Vertical swipe: Volume/Brightness
+      const sensitivity = 0.005;
+
+      if (touchStart.current.x < window.innerWidth / 2) {
+        // LEFT: Brightness
+        const newBright = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0.2), 1.5);
+        setBrightness(newBright);
+      } else {
+        // RIGHT: Volume
+        const newVol = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0), 1);
+        player.volume = newVol;
+        displayFeedback(Volume2, `${Math.round(newVol * 100)}%`);
+      }
     } else {
-      // RIGHT: Volume
-      const newVol = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0), 1);
-      player.volume = newVol;
-      displayFeedback(Volume2, `${Math.round(newVol * 100)}%`);
+      // Horizontal swipe: Seek
+      const sensitivity = 0.5; // Adjust sensitivity for seek
+      const seekAmount = deltaX * sensitivity;
+      const newTime = Math.max(0, Math.min(player.duration, player.currentTime + seekAmount));
+      player.currentTime = newTime;
+      displayFeedback(seekAmount > 0 ? FastForward : Rewind, `${seekAmount > 0 ? '+' : ''}${Math.round(seekAmount)}s`);
     }
   };
 
@@ -282,30 +295,8 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
 
     // Detect Tap (Low movement, short time)
     if (deltaX < 10 && deltaY < 10 && timeDiff < 300) {
-      // Double Tap Logic
-      if (now - lastTap.current < 300) {
-        const width = wrapperRef.current?.clientWidth || window.innerWidth;
-        const rect = wrapperRef.current?.getBoundingClientRect();
-        const x = e.changedTouches[0].clientX - (rect?.left || 0);
-        const player = plyrRef.current.plyr;
-
-        if (x > width * 0.65) {
-          player.forward(10);
-          displayFeedback(FastForward, '+10s');
-        } else if (x < width * 0.35) {
-          player.rewind(10);
-          displayFeedback(Rewind, '-10s');
-        }
-        lastTap.current = 0;
-      } else {
-        lastTap.current = now;
-        // Single tap to toggle play (with a small delay to avoid fighting double tap)
-        setTimeout(() => {
-          if (Date.now() - lastTap.current >= 300 && lastTap.current !== 0) {
-            plyrRef.current?.plyr?.togglePlay();
-          }
-        }, 300);
-      }
+      // Single tap to toggle play
+      plyrRef.current.plyr.togglePlay();
     }
 
     touchStart.current = null;
@@ -325,12 +316,13 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
         default: sub.default || index === 0,
       })),
     }),
-    [src, poster, subtitles],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [src, poster, JSON.stringify(subtitles)],
   );
 
   const options = useMemo(
     () => ({
-      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
+      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
       settings: ['captions', 'quality', 'speed'],
       quality: { default: 720, options: [360, 480, 720, 1080] },
       captions: { active: true, language: 'in_id', update: true },
@@ -378,7 +370,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
 
       {/* Mobile Hint */}
       <div className="absolute top-4 inset-x-0 flex justify-center z-40 pointer-events-none sm:hidden opacity-0 animate-pulse">
-        <span className="text-[10px] text-white/50 bg-black/40 px-2 rounded">Double tap sides • Slide vertically</span>
+        <span className="text-[10px] text-white/50 bg-black/40 px-2 rounded">Tap to play • Slide vertically for volume • Slide horizontally to seek</span>
       </div>
     </div>
   );

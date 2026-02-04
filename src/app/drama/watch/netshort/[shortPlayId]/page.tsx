@@ -5,6 +5,7 @@ import { useNetShortDetail } from '@/hooks/useNetShort';
 import { ChevronLeft, ChevronRight, Loader2, AlertCircle, List } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import Hls from 'hls.js';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SubjectType } from '@/types/api';
@@ -19,6 +20,23 @@ export default function NetShortWatchPage() {
 
   const [currentEpisode, setCurrentEpisode] = useState(1);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-hide controls after 3 seconds
+  const resetHideTimer = useCallback(() => {
+    setShowControls(true);
+    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
+
+  // Initial timer and cleanup
+  useEffect(() => {
+    resetHideTimer();
+    return () => {
+      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    };
+  }, [resetHideTimer]);
 
   // Debug log state (kept internal for now, can be exposed if needed)
   const [debugLog, setDebugLog] = useState<string[]>([]);
@@ -54,6 +72,10 @@ export default function NetShortWatchPage() {
   }, [currentEpisode, data?.episodes, shortPlayId]);
 
   const goToEpisode = (ep: number) => {
+    if (ep === currentEpisode) {
+      setShowEpisodeList(false);
+      return;
+    }
     setCurrentEpisode(ep);
     router.replace(`/drama/watch/netshort/${shortPlayId}?ep=${ep}`, { scroll: false });
     setShowEpisodeList(false);
@@ -131,27 +153,34 @@ export default function NetShortWatchPage() {
           )}
         </div>
 
-        {/* Navigation Controls Overlay - Bottom */}
-        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
-          <div className="flex items-center gap-2 md:gap-6 pointer-events-auto bg-black/60 backdrop-blur-md px-3 py-1.5 md:px-6 md:py-3 rounded-full border border-white/10 shadow-lg transition-all scale-90 md:scale-100 origin-bottom">
+        {/* Navigation Controls Overlay - Bottom (Auto-hide) */}
+        <div 
+          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
+          onPointerMove={resetHideTimer}
+          onClick={resetHideTimer}
+        >
+          <div className={cn(
+            "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
+            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+          )}>
             <button
-              onClick={() => currentEpisode > 1 && goToEpisode(currentEpisode - 1)}
+              onClick={() => { currentEpisode > 1 && goToEpisode(currentEpisode - 1); resetHideTimer(); }}
               disabled={currentEpisode <= 1}
-              className="p-1.5 md:p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
             >
-              <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <span className="text-white font-medium text-xs md:text-sm tabular-nums min-w-[60px] md:min-w-[80px] text-center">
-              Ep {currentEpisode} / {totalEpisodes}
+            <span className="text-white/80 font-medium text-[10px] tabular-nums px-1">
+              {currentEpisode}/{totalEpisodes}
             </span>
 
             <button
-              onClick={() => currentEpisode < totalEpisodes && goToEpisode(currentEpisode + 1)}
+              onClick={() => { currentEpisode < totalEpisodes && goToEpisode(currentEpisode + 1); resetHideTimer(); }}
               disabled={currentEpisode >= totalEpisodes}
-              className="p-1.5 md:p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
             >
-              <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
