@@ -1,4 +1,6 @@
-'use client';import Image from 'next/image';
+'use client';
+
+import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import { usePlatform, type PlatformInfo } from '@/hooks/usePlatform';
 import { useState, useRef, useEffect } from 'react';
@@ -17,12 +19,12 @@ export function PlatformSelector() {
     setIsOpen(false);
 
     // Check if we're on a search page
-    const isSearchPage = pathname.includes('/search');
+    const isSearchPage = pathname === '/drama/search';
     const searchQuery = searchParams.get('q');
 
-    if (isSearchPage && searchQuery) {
-      // Redirect to the new platform's search page with the same query
-      router.push(`/drama/${platformId}/search?q=${encodeURIComponent(searchQuery)}`);
+    if (isSearchPage) {
+      const queryParam = searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : '';
+      router.push(`/drama/search?platform=${encodeURIComponent(platformId)}${queryParam}`);
     } else if (pathname !== '/drama') {
       // If we're on a detail page or other page, go back to drama home
       router.push('/drama');

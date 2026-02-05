@@ -1,6 +1,6 @@
 'use client';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { useMovieBoxDetail, useMovieBoxSources, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
@@ -23,6 +23,7 @@ function WatchContent() {
   const [currentEpisode, setCurrentEpisode] = useState(episodeParam);
   const [selectedQuality, setSelectedQuality] = useState(0);
   const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
+  const lastSavedTimeRef = useRef(0);
 
   const { data: detailData, isLoading: isLoadingDetail } = useMovieBoxDetail(subjectId);
   const isMovie = detailData?.subject?.subjectType === 1;
@@ -118,6 +119,8 @@ function WatchContent() {
     // Ideally VideoPlayer should pass duration too, or we get it from metadata (subject.duration * 60).
     const duration = detailData?.subject?.duration ? detailData.subject.duration * 60 : 0;
     if (duration > 0) {
+      if (time - lastSavedTimeRef.current < 10) return;
+      lastSavedTimeRef.current = time;
       saveProgress(time, duration);
     }
   };

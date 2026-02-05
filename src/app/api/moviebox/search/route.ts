@@ -3,6 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api") + "/moviebox";
 
+const ALLOWED_SUBJECT_TYPES = new Set([1, 2]);
+
+function filterSubjects(subjects: any[] | undefined) {
+  if (!Array.isArray(subjects)) return subjects;
+  return subjects.filter((item) => typeof item?.subjectType === "number" && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
+}
+
+function filterCounts(counts: any[] | undefined) {
+  if (!Array.isArray(counts)) return counts;
+  return counts.filter((item) => typeof item?.subjectType === "number" && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -25,7 +37,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = await safeJson(response);
+    const data = await safeJson<any>(response);
+    if (Array.isArray(data?.items)) {
+      data.items = filterSubjects(data.items);
+    }
+    if (Array.isArray(data?.counts)) {
+      data.counts = filterCounts(data.counts);
+    }
     return encryptedResponse(data);
   } catch (error) {
     console.error("API Error:", error);

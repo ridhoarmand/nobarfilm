@@ -27,6 +27,9 @@ export function MeloloHome() {
 
   const { data: trendingData, isLoading: loadingTrending, error: errorTrending } = useMeloloTrending();
 
+  const trendingBooks = (trendingData?.books || []).filter((book, index, list) => list.findIndex((item) => item.book_id === book.book_id) === index);
+  const latestBooks = (latestData?.books || []).filter((book, index, list) => list.findIndex((item) => item.book_id === book.book_id) === index);
+
   if (errorLatest || errorTrending) {
     return <UnifiedErrorDisplay onRetry={() => window.location.reload()} />;
   }
@@ -43,11 +46,11 @@ export function MeloloHome() {
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Trending Section */}
-      {trendingData?.books && trendingData.books.length > 0 && (
+      {trendingBooks.length > 0 && (
         <HorizontalMediaSlider
           title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Sedang Hangat</h2>}
         >
-          {trendingData.books.map((book, index) => (
+          {trendingBooks.map((book, index) => (
             <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
                 title={book.book_name}
@@ -63,11 +66,11 @@ export function MeloloHome() {
       )}
 
       {/* Latest Section */}
-      {latestData?.books && latestData.books.length > 0 && (
+      {latestBooks.length > 0 && (
         <HorizontalMediaSlider
           title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Rilis Baru</h2>}
         >
-          {latestData.books.map((book, index) => (
+          {latestBooks.map((book, index) => (
             <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
                 title={book.book_name}
@@ -85,7 +88,7 @@ export function MeloloHome() {
       {/* Infinite Scroll Section */}
       <InfiniteMeloloSection title="Lainnya" />
 
-      {!loadingLatest && !loadingTrending && !latestData?.books?.length && !trendingData?.books?.length && (
+      {!loadingLatest && !loadingTrending && !latestBooks.length && !trendingBooks.length && (
         <div className="text-center py-20 text-muted-foreground">Tidak ada konten tersedia saat ini.</div>
       )}
     </div>

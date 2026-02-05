@@ -1,4 +1,6 @@
-'use client';import Link from 'next/link';
+'use client';
+
+import Link from 'next/link';
 import { Search, Menu, X, User, LogOut, Settings, Film, Tv, Clapperboard } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -33,8 +35,7 @@ export function Navbar() {
 
       // Check if we are in drama section
       if (pathname.startsWith('/drama')) {
-        // Route to platform-specific search based on current platform
-        router.push(`/drama/${currentPlatform}/search?q=${encodeURIComponent(searchQuery)}`);
+        router.push(`/drama/search?platform=${encodeURIComponent(currentPlatform)}&q=${encodeURIComponent(searchQuery)}`);
       } else {
         // Default to movie/moviebox search
         router.push(`/movie/search?q=${encodeURIComponent(searchQuery)}`);
@@ -136,7 +137,7 @@ export function Navbar() {
               <button
                 onClick={() => {
                   if (pathname.startsWith('/drama')) {
-                    router.push(`/drama/${currentPlatform}/search`);
+                    router.push(`/drama/search?platform=${encodeURIComponent(currentPlatform)}`);
                   } else {
                     router.push('/movie/search');
                   }

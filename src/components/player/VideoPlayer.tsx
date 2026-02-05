@@ -370,10 +370,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
         </div>
       )}
 
-      {/* Mobile Hint */}
-      <div className="absolute top-4 inset-x-0 flex justify-center z-40 pointer-events-none sm:hidden opacity-0 animate-pulse">
-        <span className="text-[10px] text-white/50 bg-black/40 px-2 rounded">Slide vertically for volume • Slide horizontally to seek (fullscreen mode)</span>
-      </div>
+      {/* Mobile Hint removed (not used) */}
     </div>
   );
 }

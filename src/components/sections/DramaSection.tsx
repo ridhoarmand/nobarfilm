@@ -78,7 +78,7 @@ export function DramaSection({ title, dramas, isLoading, error, onRetry }: Drama
           const badgeColor = isPopular ? '#E52E2E' : drama.corner?.color || '#e5a00d';
 
           return (
-            <div key={drama.bookId || `drama-${index}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
+            <div key={`${drama.bookId || 'drama'}-${index}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
                 index={index}
                 title={drama.bookName}
