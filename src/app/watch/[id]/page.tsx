@@ -1,11 +1,10 @@
 'use client';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense, useMemo } from 'react';
-import { useDetail, useSources, useGenerateStreamLink } from '@/lib/hooks/useMovieBox';
-import { useWatchHistory } from '@/lib/hooks/useWatchHistory';
+import { useMovieBoxDetail, useMovieBoxSources, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
+import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
-import { movieBoxAPI } from '@/lib/api/moviebox';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -25,14 +24,14 @@ function WatchContent() {
   const [selectedQuality, setSelectedQuality] = useState(0);
   const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
 
-  const { data: detailData, isLoading: isLoadingDetail } = useDetail(subjectId);
-  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useSources(subjectId, currentSeason, currentEpisode);
+  const { data: detailData, isLoading: isLoadingDetail } = useMovieBoxDetail(subjectId);
+  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(subjectId, currentSeason, currentEpisode);
 
   // Derive selected source URL
   const selectedSourceUrl = sourcesData?.downloads?.[selectedQuality]?.url;
 
   // Use cached stream generation
-  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useGenerateStreamLink(selectedSourceUrl);
+  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(selectedSourceUrl || '');
 
   const streamUrl = streamData?.streamUrl;
   const streamError = streamErrorData?.message || (sourcesData?.downloads?.length === 0 ? 'No video sources available' : null);
@@ -68,7 +67,7 @@ function WatchContent() {
   };
 
   // Watch History Hook
-  const { saveProgress } = useWatchHistory({
+  const { saveProgress } = useMovieBoxWatchHistory({
     subjectId,
     subjectType: detailData?.subject?.subjectType || 1, // Default Movie
     title: detailData?.subject?.title || 'Unknown Title',

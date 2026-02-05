@@ -1,5 +1,5 @@
 'use client';import { useState, useEffect } from 'react';
-import { useHomepage, useTrending } from '@/lib/hooks/useMovieBox';
+import { useMovieBoxHomepage, useMovieBoxTrending } from '@/hooks/useMovieBox';
 import { Hero, HeroSlide } from '@/components/home/Hero';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -9,12 +9,12 @@ import { SectionSlider } from '@/components/shared/SectionSlider';
 import { MovieCard } from '@/components/shared/MovieCard';
 
 export default function MoviePage() {
-  const { data: homeData, isLoading: isHomeLoading, error: homeError } = useHomepage();
+  const { data: homeData, isLoading: isHomeLoading, error: homeError } = useMovieBoxHomepage();
 
   // Trending State for Infinite Scroll
   const [trendingPage, setTrendingPage] = useState(0);
   const [trendingMovies, setTrendingMovies] = useState<Subject[]>([]);
-  const { data: trendingData, isLoading: isTrendingLoading, isFetching: isTrendingFetching } = useTrending(trendingPage);
+  const { data: trendingData, isLoading: isTrendingLoading, isFetching: isTrendingFetching } = useMovieBoxTrending(trendingPage);
 
   // Append new trending movies when data arrives
   useEffect(() => {

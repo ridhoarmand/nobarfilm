@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSearch } from '@/lib/hooks/useMovieBox';
+import { useMovieBoxSearch } from '@/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MovieCard } from '@/components/shared/MovieCard';
@@ -18,7 +18,7 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(queryParam);
   const [currentPage, setCurrentPage] = useState(pageParam);
 
-  const { data, isLoading, error } = useSearch(debouncedQuery, currentPage);
+  const { data, isLoading, error } = useMovieBoxSearch(debouncedQuery, currentPage);
 
   // Debounce search query (wait 700ms after user stops typing)
   useEffect(() => {

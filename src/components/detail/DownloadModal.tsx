@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { X, Download as DownloadIcon, Film, FileText } from 'lucide-react';
-import { useSources, useDetail } from '@/lib/hooks/useMovieBox';
+import { useMovieBoxSources, useMovieBoxDetail } from '@/hooks/useMovieBox';
 import toast from 'react-hot-toast';
 
 interface DownloadModalProps {
@@ -18,8 +18,8 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, seasonNumber,
   const [selectedSubtitle, setSelectedSubtitle] = useState<number | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const { data: sourcesData, isLoading } = useSources(subjectId, seasonNumber || 0, episodeNumber || 0);
-  const { data: detailData } = useDetail(subjectId);
+  const { data: sourcesData, isLoading } = useMovieBoxSources(subjectId, seasonNumber || 0, episodeNumber || 0);
+  const { data: detailData } = useMovieBoxDetail(subjectId);
 
   if (!isOpen) return null;
 

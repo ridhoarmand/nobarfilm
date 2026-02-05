@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useDetail } from '@/lib/hooks/useMovieBox';
+import { useMovieBoxDetail } from '@/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CastList } from '@/components/detail/CastList';
@@ -25,7 +25,7 @@ export default function DetailPage() {
     setIsDownloadModalOpen(true);
   };
 
-  const { data, isLoading, error } = useDetail(subjectId);
+  const { data, isLoading, error } = useMovieBoxDetail(subjectId);
 
   if (isLoading) {
     return (

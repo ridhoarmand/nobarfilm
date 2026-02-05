@@ -1,116 +1,100 @@
 # 🎬 NobarFilm
 
-Platform streaming film yang mirip Netflix dengan fitur nonton bareng (Watch Party).
-Project ini dibuat menggunakan Next.js App Router terbaru, fokus pada performa dan user experience yang native-like.
+Platform streaming dengan fitur nonton bareng (watch party). Mendukung berbagai sumber konten seperti MovieBox, ReelShort, DramaBox, NetShort, FlickReels, FreeReels, dan Melolo.
 
----
+## Fitur
 
-## Fitur Utama
+- **Multi-platform streaming** - Support MovieBox, ReelShort, DramaBox, NetShort, FlickReels, FreeReels, Melolo
+- **Download manager** - Download film/series dengan progress tracking
+- **Watch party** - Nonton bareng secara real-time dengan sinkronisasi otomatis (pause, play, skip)
+- **PWA** - Dapat diinstall sebagai aplikasi native
+- **Watch history** - Melanjutkan playback dari posisi terakhir (memerlukan login)
+- **Multi-quality** - Pilihan kualitas video dari 360p hingga 1080p
 
-### 🎥 Streaming & Download
-- **Nonton Sepuasnya** - Akses ribuan film dan series dari berbagai sumber.
-- **Download Manager** - Bisa download film dan subtitle (background process), ada indikator progress real-time.
-- **Save Data** - Support PWA (Progressive Web App), bisa diinstall di HP/Desktop.
-- **Smart Quality** - Pilihan resolusi dari 360p hingga 1080p.
+## Tech Stack
 
-### 👥 Nonton Bareng (Nobar)
-- **Real-time Sync** - Nonton bareng teman dengan delay hampir nol.
-- **Live Chat** - Ngobrol langsung saat nonton.
-- **Room System** - Buat room private dan undang teman pakai kode.
+- Next.js 16 (App Router)
+- TypeScript
+- TailwindCSS
+- React Query (TanStack Query)
+- Plyr (video player)
+- Socket.IO (watch party sync)
+- Supabase (auth & database)
 
-### 🛠️ Tech Stack
-- **Framework**: Next.js 16 (App Router)
-- **UI**: TailwindCSS, Lucide Icons, React Hot Toast
-- **State**: Zustand (untuk Download Manager & Global State)
-- **Real-time**: Socket.io
-- **Deployment**: Docker & Portainer (CI/CD via GitHub Actions)
+## Install & Setup
 
----
+### Prerequisites
+- Node.js 18+
+- npm atau yarn
 
-## Cara Install & Jalankan
+### Development
 
-### Syarat
-Pastikan sudah install Node.js (v18+) dan Git.
-
-### 1. Clone Project
 ```bash
+# Clone repo
 git clone https://github.com/ridhoarmand/nobarfilm.git
 cd nobarfilm
-```
 
-### 2. Install Dependencies
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. Setup Environment
-Copy file `.env.example` ke `.env.local`:
-```bash
+# Copy environment variables
 cp .env.example .env.local
-```
-Lalu isi variabel yang dibutuhkan (API Endpoint, dll).
+# Edit .env.local sesuai kebutuhan
 
-### 4. Jalankan (Dev Mode)
-```bash
+# Run dev server
 npm run dev
+
+# Run socket server
+npm run socket
 ```
-Buka browser di `http://localhost:3000`.
 
----
+Buka browser di `http://localhost:3000`
 
-## Deployment (Docker & CI/CD)
+### Build Production
 
-Project ini sudah siap deploy menggunakan Docker.
-
-### Cara Deploy Manual
 ```bash
-# Build image
-docker build -t nobarfilm .
+npm run build
+npm start
+```
 
-# Jalankan container
+## Deployment
+
+### Docker
+
+```bash
+docker build -t nobarfilm .
 docker run -d -p 3000:3000 nobarfilm
 ```
 
-### CI/CD Otomatis (GitHub Actions)
-Kami menggunakan flow GitOps sederhana:
-1. Push code ke branch `main`.
-2. GitHub Actions otomatis build Docker Image -> Push ke Docker Hub.
-3. Webhook men-trigger Portainer untuk pull image baru.
+### Docker Compose
 
-**File penting:**
-- `.github/workflows/deploy.yml`: Konfigurasi CI/CD.
-- `docker-compose.prod.yml`: Konfigurasi untuk production server.
+```bash
+docker-compose up -d
+```
 
----
+## Project Structure
 
-## Struktur Folder
-- `/src/app` - Halaman website (Next.js App Router).
-- `/src/components` - Komponen UI (Navbar, Modal, Player, dll).
-- `/src/lib` - Logika bisnis, hook, dan utility (termasuk Download Manager).
-- `/src/types` - Definisi TypeScript.
+```
+src/
+├── app/                  # Next.js App Router pages
+│   ├── api/             # API routes (proxy ke upstream APIs)
+│   ├── drama/           # Drama platform pages
+│   ├── movie/           # Movie pages
+│   ├── watch/           # Watch page (MovieBox)
+│   └── watch-party/     # Watch party rooms
+├── components/          # React components
+│   ├── player/         # Video player & hooks
+│   ├── layout/         # Navbar, Footer
+│   └── ...
+├── hooks/              # Custom hooks (useMovieBox, useDramaBox, etc)
+├── lib/                # Utils & helpers
+└── types/              # TypeScript types
+```
 
----
+## Notes
 
-## 🎯 Roadmap & Status
+- Watch party memerlukan Socket.IO server (lihat `src/server/socket-server.ts`)
+- Authentication dan watch history menggunakan Supabase
+- Video sources di-proxy melalui Next.js API routes untuk menghindari CORS
 
-Berikut adalah status pengembangan fitur saat ini:
-
-- [x] **Homepage** (Trending, Top Picks)
-- [x] **Pencarian** (Movies & Series)
-- [x] **Halaman Detail** (Info Cast, Season/Episode)
-- [x] **Streaming Player** (Support Multi-quality)
-- [x] **Download Manager** (Background process, Toast notification)
-- [x] **PWA Support** (Installable App)
-- [x] **CI/CD Pipeline** (Docker & GitHub Actions)
-- [ ] **Watch Party System** (Room, Sync, Chat)
-- [ ] **User Auth** (Login/Register untuk simpan history)
-- [ ] **Watch History & Favorites**
-- [ ] **Chromecast / AirPlay Support**
-
----
-
-**Note Development:**
-Project ini masih dalam tahap pengembangan aktif. Beberapa fitur mungkin berubah sewaktu-waktu.
-Jika menemukan bug, silakan report di Issues.
-
-Selamat menonton! 🍿
+Project ini dibuat untuk pembelajaran dan eksperimen. Jika menemukan bug atau memiliki saran, silakan buat issue atau pull request.

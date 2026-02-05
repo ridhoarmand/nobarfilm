@@ -24,9 +24,9 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { usePartySync } from '@/components/player/hooks/usePartySync';
 import { ChatPanel } from '@/components/watch-party/ChatPanel';
 import { WatchPartyParticipant, ChatMessage } from '@/types/watch-party';
-import { Users, Copy, Check, Share2, ChevronRight, Loader2, Play } from 'lucide-react';
+import { Users, Copy, Check, Share2, ChevronRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
-import { useSources, useGenerateStreamLink } from '@/lib/hooks/useMovieBox';
+import { useMovieBoxSources, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
 import toast from 'react-hot-toast';
 
 export default function WatchPartyRoom() {
@@ -79,10 +79,10 @@ export default function WatchPartyRoom() {
 
   // Auto-join if user is host
   useEffect(() => {
-    if (room && user && room.host_id === user.id && !hasJoined) {
+    if (room && user && room.host_id === user.id) {
       setHasJoined(true);
     }
-  }, [room, user, hasJoined]);
+  }, [room, user]);
 
   // Memoize options to prevent re-creation on every render
   const plyrOptions = useMemo(
@@ -131,7 +131,7 @@ export default function WatchPartyRoom() {
 
     socket.on('user-joined', (user) => {
       setParticipants((prev) => {
-        const exists = prev.find((p) => p.id === user.id);
+        const exists = prev.find((p) => p.user_id === user.user_id);
         if (exists) return prev;
         return [...prev, user];
       });
@@ -153,7 +153,7 @@ export default function WatchPartyRoom() {
     });
 
     socket.on('user-left', (userId) => {
-      const leaver = participants.find((p) => p.user_id === userId);
+      const leaver = participants.find((p) => p.user_id === userId || p.id === userId);
       if (leaver) {
         // Add system message to chat
         setMessages((prev) => [
@@ -171,7 +171,7 @@ export default function WatchPartyRoom() {
         ]);
         toast(`${leaver.display_name} left`, { icon: '👋', position: 'top-left', duration: 2000 });
       }
-      setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
+      setParticipants((prev) => prev.filter((p) => p.user_id !== userId && p.id !== userId));
       setPeersBuffering((prev) => prev.filter((id) => id !== userId));
     });
 
@@ -221,7 +221,7 @@ export default function WatchPartyRoom() {
   const currentEpisode = isMovie ? 0 : room?.current_episode || 1;
 
   // 1. Fetch Sources
-  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useSources(subjectId, currentSeason, currentEpisode);
+  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(subjectId, currentSeason, currentEpisode);
 
   // Get selected source URL based on quality
   // Default to 0 or selected
@@ -241,7 +241,7 @@ export default function WatchPartyRoom() {
   );
 
   // 3. Generate Stream URL (Cached)
-  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useGenerateStreamLink(selectedSourceUrl);
+  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(subjectId, currentSeason, currentEpisode, selectedQuality);
 
   const streamUrl = streamData?.streamUrl;
   const streamError = streamErrorData?.message || (sourcesData?.downloads?.length === 0 ? 'No video sources available' : null);
@@ -411,21 +411,12 @@ export default function WatchPartyRoom() {
 
                     {/* Visual Central Pause/Play Indicator on Click (Optional enhancement) */}
                   </div>
-                  {/* AUTOPLAY BLOCKER OVERLAY */}
+                  {/* AUTOPLAY BLOCKER OVERLAY - Remove manual button, auto sync now handles it */}
                   {playError && (
                     <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm">
                       <div className="text-center">
-                        <p className="text-white mb-4 font-semibold text-lg">Click to Sync Playback</p>
-                        <button
-                          onClick={() => {
-                            playerRef.current?.plyr?.play();
-                            resolvePlayError();
-                          }}
-                          className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold flex items-center gap-2 transition transform hover:scale-105"
-                        >
-                          <Play className="w-5 h-5 fill-current" />
-                          JOIN STREAM
-                        </button>
+                        <p className="text-white mb-4 font-semibold text-lg">Syncing Playback...</p>
+                        <Loader2 className="w-8 h-8 animate-spin text-red-600 mx-auto" />
                       </div>
                     </div>
                   )}
@@ -434,7 +425,7 @@ export default function WatchPartyRoom() {
                   {peersBuffering.length > 0 && !playError && (
                     <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-700 flex items-center gap-3 z-40 animate-pulse">
                       <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                      <span className="text-xs text-white font-medium">Waiting for {participants.find((p) => p.id === peersBuffering[0])?.display_name || 'others'}...</span>
+                      <span className="text-xs text-white font-medium">Waiting for {participants.find((p) => p.user_id === peersBuffering[0] || p.id === peersBuffering[0])?.display_name || 'others'}...</span>
                     </div>
                   )}
                 </div>

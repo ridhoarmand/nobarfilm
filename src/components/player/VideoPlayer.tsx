@@ -39,6 +39,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
   const [isClient, setIsClient] = useState(false);
   // Gesture State
   const [brightness, setBrightness] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [showFeedback, setShowFeedback] = useState<{ Icon: React.ComponentType<any>; text: string } | null>(null);
   const feedbackTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -60,30 +61,24 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
       if (!playerInstance) return;
 
       const isDramaShort = subjectType === SubjectType.Short;
-      const isFullscreen = playerInstance.fullscreen.active;
+      const _isFullscreen = playerInstance.fullscreen.active;
+      setIsFullscreen(_isFullscreen);
 
+      if (!_isFullscreen) {
+        // Exit fullscreen: unlock orientation
+        if (screen.orientation && typeof (screen.orientation as unknown as { unlock: () => void }).unlock === 'function') {
+          (screen.orientation as unknown as { unlock: () => void }).unlock();
+        }
+        return;
+      }
+
+      // Entering fullscreen: lock orientation based on content type
       try {
-        if (isFullscreen && !isDramaShort) {
-          // Not a drama short: Force landscape orientation
-          if (screen.orientation && (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock) {
-            await (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock('landscape').catch(() => {});
-          }
-        } else if (isFullscreen && isDramaShort) {
-          // Drama short: Keep portrait orientation
-          if (screen.orientation && (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock) {
-            await (screen.orientation as unknown as { lock: (orientation: string) => Promise<void> }).lock('portrait').catch(() => {});
-          }
-        } else if (!isFullscreen) {
-          // Exit fullscreen: Unlock orientation to allow natural rotation
-          if (screen.orientation && (screen.orientation as unknown as { unlock: () => void }).unlock) {
-            (screen.orientation as unknown as { unlock: () => void }).unlock();
-          }
-          // Small delay then try to unlock again to ensure it takes effect
-          setTimeout(() => {
-            if (screen.orientation && (screen.orientation as unknown as { unlock: () => void }).unlock) {
-              (screen.orientation as unknown as { unlock: () => void }).unlock();
-            }
-          }, 100);
+        const orientationLock = isDramaShort ? 'portrait' : 'landscape';
+        if (screen.orientation && typeof (screen.orientation as unknown as { lock: (o: string) => Promise<void> }).lock === 'function') {
+          await (screen.orientation as unknown as { lock: (o: string) => Promise<void> }).lock(orientationLock).catch(() => {
+            // Silently fail if orientation lock not supported
+          });
         }
       } catch {
         // Silently fail if orientation API not supported
@@ -232,6 +227,9 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
 
   // Touch Handlers (Gesture)
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Only allow advanced gestures in fullscreen mode
+    if (!isFullscreen) return;
+
     // Ignore controls safely using closest check on HTMLElement
     const target = e.target as HTMLElement;
     if (!target || typeof target.closest !== 'function' || target.closest('.plyr__controls')) return;
@@ -249,7 +247,8 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart.current || !plyrRef.current?.plyr) return;
+    // Only handle advanced gestures in fullscreen
+    if (!isFullscreen || !touchStart.current || !plyrRef.current?.plyr) return;
 
     // Prevent default to avoid browser zoom/scroll
     e.preventDefault();
@@ -286,17 +285,20 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current || !plyrRef.current?.plyr) return;
+    if (!touchStart.current) {
+      touchStart.current = null;
+      return;
+    }
 
+    // Only detect tap for control toggle (don't pause on tap)
     const now = Date.now();
     const deltaX = Math.abs(e.changedTouches[0].clientX - touchStart.current.x);
     const deltaY = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
     const timeDiff = now - touchStart.current.time;
 
-    // Detect Tap (Low movement, short time)
+    // Detect Tap (Low movement, short time) - just clear state, don't pause
     if (deltaX < 10 && deltaY < 10 && timeDiff < 300) {
-      // Single tap to toggle play
-      plyrRef.current.plyr.togglePlay();
+      // Tap gesture detected - controls will auto-show/hide via Plyr, no pause action
     }
 
     touchStart.current = null;
@@ -370,7 +372,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
 
       {/* Mobile Hint */}
       <div className="absolute top-4 inset-x-0 flex justify-center z-40 pointer-events-none sm:hidden opacity-0 animate-pulse">
-        <span className="text-[10px] text-white/50 bg-black/40 px-2 rounded">Tap to play • Slide vertically for volume • Slide horizontally to seek</span>
+        <span className="text-[10px] text-white/50 bg-black/40 px-2 rounded">Slide vertically for volume • Slide horizontally to seek (fullscreen mode)</span>
       </div>
     </div>
   );

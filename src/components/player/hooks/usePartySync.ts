@@ -67,20 +67,23 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
       },
     });
 
-    // Listen for room state
+    // Listen for room state (fired when user joins to sync current playback state)
     newSocket.on('room-state', (data) => {
       console.log('📦 Received room-state:', data);
       onRoomStateUpdate?.(data);
 
-      if (data.playback.isPlaying && playerRef.current?.plyr) {
-        // Calculate drift (if timestamp provided)
-        const now = Date.now();
-        const drift = (now - data.playback.timestamp) / 1000;
-        const targetTime = data.playback.currentPosition + (data.playback.isPlaying ? drift : 0);
+      if (!playerRef.current?.plyr) return;
 
-        isRemoteUpdate.current = true;
-        playerRef.current.plyr.currentTime = targetTime;
+      // Calculate drift (time elapsed since last update on server)
+      const now = Date.now();
+      const drift = (now - data.playback.timestamp) / 1000;
+      const targetTime = data.playback.currentPosition + (data.playback.isPlaying ? drift : 0);
 
+      isRemoteUpdate.current = true;
+      playerRef.current.plyr.currentTime = targetTime;
+
+      if (data.playback.isPlaying) {
+        // Room is playing - auto play
         const playPromise = playerRef.current.plyr.play();
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
@@ -88,11 +91,14 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
             setPlayError(true);
           });
         }
-
-        setTimeout(() => {
-          isRemoteUpdate.current = false;
-        }, 500);
+      } else {
+        // Room is paused - auto pause
+        playerRef.current.plyr.pause();
       }
+
+      setTimeout(() => {
+        isRemoteUpdate.current = false;
+      }, 500);
     });
 
     newSocket.on('play', ({ time, userId }) => {
@@ -130,12 +136,6 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
         playerRef.current.plyr.currentTime = time;
         setTimeout(() => (isRemoteUpdate.current = false), 500);
       }
-    });
-
-    newSocket.on('chat-message', (data) => {
-      // Handled via separate listener on page, OR we can dispatch here if needed
-      // But wait, the previous code didn't have chat listener here?
-      // The errors were on existing lines.
     });
 
     // ... logic continues ...
@@ -187,7 +187,9 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
     // Check periodically for plyr instance or depend on ref (ref doesn't trigger effect)
     // Best way using plyr-react is often hooking into 'ready' event if possible,
     // or polling briefly until mounted.
+    let isCleanedUp = false;
     const interval = setInterval(() => {
+      if (isCleanedUp) return; // Prevent race condition
       if (playerRef.current?.plyr) {
         attachPlayerListeners();
         clearInterval(interval);
@@ -196,6 +198,7 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
 
     return () => {
       console.log('🔌 Disconnecting Socket (Cleanup)');
+      isCleanedUp = true;
       clearInterval(interval);
       newSocket.disconnect(); // Use local var to ensure cleanup of THIS socket
       if (playerRef.current?.plyr) {

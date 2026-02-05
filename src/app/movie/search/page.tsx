@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Search, Film, AlertCircle } from 'lucide-react';
-import { useSearch } from '@/lib/hooks/useMovieBox';
+import { useMovieBoxSearch } from '@/hooks/useMovieBox';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 
@@ -15,7 +15,7 @@ function MovieSearchContent() {
   const query = searchParams.get('q') || '';
   const [searchInput, setSearchInput] = useState(query);
 
-  const { data, isLoading, isError, error, refetch } = useSearch(query, 1);
+  const { data, isLoading, isError, error, refetch } = useMovieBoxSearch(query, 1);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
