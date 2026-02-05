@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(
       `${UPSTREAM_API}/search?query=${encodeURIComponent(query)}&page=${page}`,
-      { cache: 'no-store' }
+      { next: { revalidate: 300 } }
     );
 
     if (!response.ok) {

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const page = searchParams.get("page") || "1";
     
     const response = await fetch(`${UPSTREAM_API}/foryou?page=${page}`, {
-      cache: 'no-store',
+      next: { revalidate: 900 },
     });
     if (!response.ok) {
       return NextResponse.json(

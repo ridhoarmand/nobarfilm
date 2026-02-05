@@ -100,11 +100,25 @@ export default function DramaBoxWatchPage() {
 
   // Get video URL with selected quality
   const getVideoUrl = () => {
-    if (!currentEpisodeData || !defaultCdn) return '';
+    if (!currentEpisodeData || !defaultCdn) {
+      console.warn('Missing episode data or CDN');
+      return '';
+    }
+
+    // Validate CDN has video paths
+    if (!defaultCdn.videoPathList || defaultCdn.videoPathList.length === 0) {
+      console.error('CDN has no video paths');
+      return '';
+    }
 
     const videoPath = defaultCdn.videoPathList.find((v) => v.quality === quality) || defaultCdn.videoPathList.find((v) => v.isDefault === 1) || defaultCdn.videoPathList[0];
 
-    return videoPath?.videoPath || '';
+    if (!videoPath || !videoPath.videoPath) {
+      console.error('No valid video path found for quality:', quality);
+      return '';
+    }
+
+    return videoPath.videoPath;
   };
 
   const handleVideoEnded = () => {
@@ -220,27 +234,27 @@ export default function DramaBoxWatchPage() {
           onClick={resetHideTimer}
         >
           <div className={cn(
-            "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
+            "flex items-center gap-2 pointer-events-auto bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full border border-white/10 shadow-lg transition-all duration-300",
             showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
           )}>
             <button
               onClick={() => { currentEpisode > 0 && handleEpisodeChange(currentEpisode - 1); resetHideTimer(); }}
               disabled={currentEpisode <= 0}
-              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
 
-            <span className="text-white/80 font-medium text-[10px] tabular-nums px-1">
+            <span className="text-white/90 font-medium text-sm tabular-nums px-2">
               {currentEpisode + 1}/{totalEpisodes}
             </span>
 
             <button
               onClick={() => { currentEpisode < totalEpisodes - 1 && handleEpisodeChange(currentEpisode + 1); resetHideTimer(); }}
               disabled={currentEpisode >= totalEpisodes - 1}
-              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>

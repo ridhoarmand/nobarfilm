@@ -1,17 +1,20 @@
 import { safeJson, encryptedResponse } from "@/lib/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 
-const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api") + "/dramabox";
+const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api") + "/moviebox";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const classify = searchParams.get("classify") || "terbaru";
-  const page = searchParams.get("page") || "1";
+  const url = searchParams.get("url");
+
+  if (!url) {
+    return NextResponse.json({ error: "Missing url" }, { status: 400 });
+  }
 
   try {
     const response = await fetch(
-      `${UPSTREAM_API}/dubindo?classify=${classify}&page=${page}`,
-      { next: { revalidate: 900 },}
+      `${UPSTREAM_API}/generate-link-stream-video?url=${encodeURIComponent(url)}`,
+      { cache: "no-store" }
     );
 
     if (!response.ok) {
@@ -22,14 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await safeJson(response);
-    
-    // Filter out items without bookId to prevent blank cards
-    // Note: data is directly an array for dubindo
-    const filteredData = Array.isArray(data) 
-      ? data.filter((item: any) => item && item.bookId) 
-      : [];
-
-    return encryptedResponse(filteredData);
+    return encryptedResponse(data);
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
@@ -38,4 +34,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

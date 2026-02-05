@@ -11,7 +11,7 @@ export async function GET(
 
   try {
     const response = await fetch(`${UPSTREAM_API}/detail?subjectId=${subjectId}`, {
-      cache: 'no-store',
+      next: { revalidate: 600 },
     });
 
     if (!response.ok) {

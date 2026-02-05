@@ -10,7 +10,7 @@ export const movieBoxQueryKeys = {
   trending: (page: number) => ['moviebox', 'trending', page] as const,
   search: (query: string, page: number) => ['moviebox', 'search', query, page] as const,
   detail: (subjectId: string) => ['moviebox', 'detail', subjectId] as const,
-  sources: (subjectId: string, season: number, episode: number) => ['moviebox', 'sources', subjectId, season, episode] as const,
+  sources: (subjectId: string, season: number | null, episode: number | null) => ['moviebox', 'sources', subjectId, season, episode] as const,
 };
 
 /**
@@ -20,7 +20,9 @@ export function useMovieBoxHomepage(options?: Omit<UseQueryOptions<HomepageRespo
   return useQuery<HomepageResponse, ApiError>({
     queryKey: movieBoxQueryKeys.homepage,
     queryFn: () => fetchJson<HomepageResponse>(`${API_BASE}/homepage`),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
     ...options,
   });
 }
@@ -83,10 +85,21 @@ export function useMovieBoxDetail(subjectId: string, options?: Omit<UseQueryOpti
 /**
  * Hook to fetch playback sources
  */
-export function useMovieBoxSources(subjectId: string, season: number = 0, episode: number = 1, options?: Omit<UseQueryOptions<SourcesResponse, ApiError>, 'queryKey' | 'queryFn'>) {
+export function useMovieBoxSources(
+  subjectId: string,
+  season?: number,
+  episode?: number,
+  options?: Omit<UseQueryOptions<SourcesResponse, ApiError>, 'queryKey' | 'queryFn'>,
+) {
+  const query = new URLSearchParams();
+  if (typeof season === 'number') query.set('season', season.toString());
+  if (typeof episode === 'number') query.set('episode', episode.toString());
+  const queryString = query.toString();
+  const url = `${API_BASE}/sources/${subjectId}${queryString ? `?${queryString}` : ''}`;
+
   return useQuery<SourcesResponse, ApiError>({
-    queryKey: movieBoxQueryKeys.sources(subjectId, season, episode),
-    queryFn: () => fetchJson<SourcesResponse>(`${API_BASE}/sources/${subjectId}?season=${season}&episode=${episode}`),
+    queryKey: movieBoxQueryKeys.sources(subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null),
+    queryFn: () => fetchJson<SourcesResponse>(url),
     enabled: !!subjectId, // Only fetch if subjectId is provided
     staleTime: 1000 * 60 * 2, // 2 minutes (URLs expire, need fresh data)
     gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
@@ -100,15 +113,21 @@ export function useMovieBoxSources(subjectId: string, season: number = 0, episod
  */
 export function useMovieBoxPlaybackUrl(
   subjectId: string,
-  season: number = 0,
-  episode: number = 1,
+  season?: number,
+  episode?: number,
   quality: number = 0,
   options?: Omit<UseQueryOptions<{ streamUrl: string; captions: any[] }, ApiError>, 'queryKey' | 'queryFn'>,
 ) {
+  const query = new URLSearchParams();
+  if (typeof season === 'number') query.set('season', season.toString());
+  if (typeof episode === 'number') query.set('episode', episode.toString());
+  const queryString = query.toString();
+  const url = `${API_BASE}/sources/${subjectId}${queryString ? `?${queryString}` : ''}`;
+
   return useQuery<{ streamUrl: string; captions: any[] }, ApiError>({
-    queryKey: ['moviebox', 'playback', subjectId, season, episode, quality] as const,
+    queryKey: ['moviebox', 'playback', subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null, quality] as const,
     queryFn: async () => {
-      const sources = await fetchJson<SourcesResponse>(`${API_BASE}/sources/${subjectId}?season=${season}&episode=${episode}`);
+      const sources = await fetchJson<SourcesResponse>(url);
       
       if (!sources.downloads || sources.downloads.length === 0) {
         throw new Error('No playback sources available');
@@ -117,8 +136,13 @@ export function useMovieBoxPlaybackUrl(
       // Select quality (default to first available)
       const selectedSource = sources.downloads[quality] || sources.downloads[0];
 
+      // Generate stream URL via API proxy
+      const streamResponse = await fetchJson<{ streamUrl?: string }>(
+        `${API_BASE}/generate-link-stream-video?url=${encodeURIComponent(selectedSource.url)}`,
+      );
+
       return {
-        streamUrl: selectedSource.url,
+        streamUrl: streamResponse?.streamUrl || selectedSource.url,
         captions: sources.captions || [],
       };
     },

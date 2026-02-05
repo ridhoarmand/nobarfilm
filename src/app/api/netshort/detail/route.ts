@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response = await fetch(`${UPSTREAM_API}/allepisode?shortPlayId=${shortPlayId}`, {
-      cache: 'no-store',});
+      next: { revalidate: 600 },});
 
     if (!response.ok) {
       return encryptedResponse(

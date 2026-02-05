@@ -15,7 +15,7 @@ export async function GET(
   try {
     const response = await fetch(
       `${UPSTREAM_API}/sources?subjectId=${subjectId}&season=${season}&episode=${episode}`,
-      { cache: 'no-store' }
+      { next: { revalidate: 600 } }
     );
 
     if (!response.ok) {

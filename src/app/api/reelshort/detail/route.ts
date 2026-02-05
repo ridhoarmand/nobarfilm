@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(
       `${UPSTREAM_API}/detail?bookId=${encodeURIComponent(bookId)}`,
       {
-        cache: 'no-store',
+        next: { revalidate: 600 },
       }
     );
 

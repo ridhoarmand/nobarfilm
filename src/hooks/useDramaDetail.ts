@@ -36,7 +36,9 @@ export function useDramaDetail(bookId: string) {
     queryKey: ["drama", "detail", bookId],
     queryFn: () => fetchDramaDetail(bookId),
     enabled: !!bookId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -45,6 +47,8 @@ export function useEpisodes(bookId: string) {
     queryKey: ["drama", "episodes", bookId],
     queryFn: () => fetchAllEpisodes(bookId),
     enabled: !!bookId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
+    refetchOnWindowFocus: false,
   });
 }

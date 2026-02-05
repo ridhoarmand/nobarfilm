@@ -6,7 +6,7 @@ const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sanse
 export async function GET() {
   try {
     const response = await fetch(`${UPSTREAM_API}/theaters`, {
-      cache: 'no-store',
+      next: { revalidate: 900 },
     });
 
     if (!response.ok) {

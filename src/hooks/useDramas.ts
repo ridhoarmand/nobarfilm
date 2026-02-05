@@ -19,7 +19,9 @@ export function useInfiniteForYouDramas() {
         if (!lastPage || lastPage.length === 0 || allPages.length >= 100) return undefined;
         return allPages.length + 1;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -33,7 +35,9 @@ export function useInfiniteReelShortDramas() {
         if (!lastPage || lastPage.length === 0 || allPages.length >= 100) return undefined;
         return allPages.length + 1;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -43,7 +47,9 @@ export function useForYouDramas() {
   return useQuery({
     queryKey: ["dramas", "foryou"],
     queryFn: () => fetchJson<Drama[]>(`${API_BASE}/foryou`),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -51,7 +57,9 @@ export function useLatestDramas() {
   return useQuery({
     queryKey: ["dramas", "latest"],
     queryFn: () => fetchJson<Drama[]>(`${API_BASE}/latest`),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -59,7 +67,9 @@ export function useTrendingDramas() {
   return useQuery({
     queryKey: ["dramas", "trending"],
     queryFn: () => fetchJson<Drama[]>(`${API_BASE}/trending`),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -81,7 +91,9 @@ export function useDubindoDramas() {
   return useQuery({
     queryKey: ["dramas", "dubindo"],
     queryFn: () => fetchJson<Drama[]>(`${API_BASE}/dubindo`),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
   });
 }
 

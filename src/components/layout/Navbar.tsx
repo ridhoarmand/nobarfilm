@@ -132,9 +132,21 @@ export function Navbar() {
             </div>
 
             {/* Mobile Search Icon */}
-            <Link href="/browse" className="lg:hidden p-2 text-gray-300 hover:text-white transition">
-              <Search className="w-5 h-5" />
-            </Link>
+            {!pathname.includes('/search') && (
+              <button
+                onClick={() => {
+                  if (pathname.startsWith('/drama')) {
+                    router.push(`/drama/${currentPlatform}/search`);
+                  } else {
+                    router.push('/movie/search');
+                  }
+                }}
+                className="lg:hidden p-2 text-gray-300 hover:text-white transition"
+                aria-label="Search"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            )}
 
             {/* Mobile Menu Button */}
             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-gray-300 hover:text-white transition">

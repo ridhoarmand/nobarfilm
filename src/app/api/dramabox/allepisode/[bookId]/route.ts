@@ -16,7 +16,7 @@ export async function GET(
   // If API fetch -> proxy to upstream
   try {
     const response = await fetch(`${UPSTREAM_API}/allepisode?bookId=${bookId}`, {
-      cache: 'no-store',
+      next: { revalidate: 600 }, // Cache for 10 minutes
     });
 
     if (!response.ok) {

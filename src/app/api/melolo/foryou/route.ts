@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     
     // Melolo uses offset-based pagination
     const response = await fetch(`${UPSTREAM_API}/foryou?offset=${offset}`, {
-      cache: 'no-store',
+      next: { revalidate: 900 },
     });
 
     if (!response.ok) {

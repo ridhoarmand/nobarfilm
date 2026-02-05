@@ -25,26 +25,59 @@ function WatchContent() {
   const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
 
   const { data: detailData, isLoading: isLoadingDetail } = useMovieBoxDetail(subjectId);
-  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(subjectId, currentSeason, currentEpisode);
+  const isMovie = detailData?.subject?.subjectType === 1;
+  const isSeries = detailData?.subject?.subjectType === 2;
 
-  // Derive selected source URL
-  const selectedSourceUrl = sourcesData?.downloads?.[selectedQuality]?.url;
+  const sourcesSeason = isMovie ? 0 : currentSeason;
+  const sourcesEpisode = isMovie ? 0 : currentEpisode;
+
+  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(
+    subjectId,
+    sourcesSeason,
+    sourcesEpisode,
+  );
 
   // Use cached stream generation
-  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(selectedSourceUrl || '');
+  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(
+    subjectId,
+    sourcesSeason,
+    sourcesEpisode,
+    selectedQuality,
+  );
 
   const streamUrl = streamData?.streamUrl;
   const streamError = streamErrorData?.message || (sourcesData?.downloads?.length === 0 ? 'No video sources available' : null);
 
+  // Normalize season/episode for movie vs series
+  useEffect(() => {
+    if (!detailData?.subject) return;
+
+    if (isMovie) {
+      if (currentSeason !== 0) setCurrentSeason(0);
+      if (currentEpisode !== 0) setCurrentEpisode(0);
+      return;
+    }
+
+    if (isSeries) {
+      if (currentSeason < 1) setCurrentSeason(1);
+      if (currentEpisode < 1) setCurrentEpisode(1);
+    }
+  }, [detailData?.subject?.subjectType, isMovie, isSeries, currentSeason, currentEpisode]);
+
   // Update URL when season/episode changes
   useEffect(() => {
+    if (isMovie) {
+      router.replace(`/watch/${subjectId}`, { scroll: false });
+      return;
+    }
+
     const query = new URLSearchParams();
     if (currentSeason > 0) query.set('season', currentSeason.toString());
-    if (currentEpisode > 1) query.set('episode', currentEpisode.toString());
+    if (currentEpisode > 0) query.set('episode', currentEpisode.toString());
     const queryString = query.toString();
     const newUrl = `/watch/${subjectId}${queryString ? `?${queryString}` : ''}`;
     router.replace(newUrl, { scroll: false });
-  }, [currentSeason, currentEpisode, subjectId, router]);
+  }, [currentSeason, currentEpisode, subjectId, router, isMovie]);
 
   const handleEpisodeChange = (newEpisode: number) => {
     setCurrentEpisode(newEpisode);
@@ -113,8 +146,6 @@ function WatchContent() {
     [streamUrl, subtitles, detailData?.subject?.cover?.url],
   );
 
-  const isMovie = detailData?.subject?.subjectType === 1;
-  const isSeries = detailData?.subject?.subjectType === 2;
   const currentSeasonData = detailData?.resource?.seasons?.find((s) => s.se === currentSeason);
 
   if (isLoadingDetail) {
@@ -236,28 +267,28 @@ function WatchContent() {
 
                 {/* Episode Navigation (Series only) */}
                 {isSeries && currentSeasonData && (
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <button
                         onClick={handlePreviousEpisode}
                         disabled={currentEpisode <= 1}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm"
+                        className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-xs sm:text-sm"
                       >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                         <span>Previous Episode</span>
                       </button>
 
-                      <span className="text-gray-300 font-semibold">
+                      <span className="text-gray-300 font-semibold text-sm sm:text-base text-center">
                         Ep {currentEpisode} of {currentSeasonData.maxEp}
                       </span>
 
                       <button
                         onClick={handleNextEpisode}
                         disabled={currentEpisode >= currentSeasonData.maxEp}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm"
+                        className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-xs sm:text-sm"
                       >
                         <span>Next Episode</span>
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
                   </div>

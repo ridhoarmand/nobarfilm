@@ -228,21 +228,21 @@ export default function FreeReelsWatchPage() {
             <button
               onClick={() => { handleEpisodeChange(currentEpisodeIndex - 1); resetHideTimer(); }}
               disabled={currentEpisodeIndex <= 0}
-              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
 
-            <span className="text-white/80 font-medium text-[10px] tabular-nums px-1">
+            <span className="text-white/90 font-medium text-sm tabular-nums px-2">
               {currentEpisodeData ? (currentEpisodeData.index || currentEpisodeIndex) + 1 : 1}/{totalEpisodes}
             </span>
 
             <button
               onClick={() => { handleEpisodeChange(currentEpisodeIndex + 1); resetHideTimer(); }}
               disabled={currentEpisodeIndex >= totalEpisodes - 1}
-              className="p-1 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>
