@@ -1,9 +1,8 @@
 'use client';
-
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFlickReelsDetail } from '@/hooks/useFlickReels';
-import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
@@ -15,34 +14,11 @@ export default function FlickReelsWatchPage() {
   const bookId = params.bookId as string;
   const initialVideoId = params.videoId as string;
 
-  // Use separate state for active ID to allow instant UI updates
   const [activeVideoId, setActiveVideoId] = useState(initialVideoId);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [videoReady, setVideoReady] = useState(false);
-  const [warmupError, setWarmupError] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  // Stable timestamp that only changes with episode or retry
-  const videoTimestamp = useRef(Date.now());
-  // Track if this is initial load (should wait for warmup) vs auto-next (should be seamless)
-  const isInitialLoad = useRef(true);
-  
-  // Auto-hide controls
-  const [showControls, setShowControls] = useState(true);
-  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  const resetHideTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
-  }, []);
-
-  useEffect(() => {
-    resetHideTimer();
-    return () => {
-      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    };
-  }, [resetHideTimer]);
 
   const { data, isLoading, error, refetch } = useFlickReelsDetail(bookId);
 
@@ -52,9 +28,8 @@ export default function FlickReelsWatchPage() {
       setActiveVideoId(params.videoId as string);
       setRetryCount(0);
       setVideoReady(false);
-      setWarmupError(false);
     }
-  }, [params.videoId]);
+  }, [params.videoId, activeVideoId]);
 
   // Derived state
   const episodes = useMemo(() => data?.episodes || [], [data]);
@@ -70,98 +45,56 @@ export default function FlickReelsWatchPage() {
 
   const totalEpisodes = episodes.length;
 
-  // Update video src - combines warmup and src update
-  // For initial load: wait for warmup before setting src
-  // For auto-next: set src immediately, warmup runs in background
-  useEffect(() => {
-    if (!currentEpisodeData?.raw?.videoUrl) return;
-
-    // Update timestamp when video changes
-    videoTimestamp.current = Date.now();
-
+  // MEMOIZED video source - prevents API spam
+  const videoSource = useMemo(() => {
+    if (!currentEpisodeData?.raw?.videoUrl) return null;
     const videoUrl = currentEpisodeData.raw.videoUrl;
-    const newSrc = `/api/proxy/video?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent('https://www.flickreels.com/')}&_t=${videoTimestamp.current}`;
-    const warmupUrl = `/api/proxy/warmup?url=${encodeURIComponent(videoUrl)}`;
-
-    if (isInitialLoad.current) {
-      // Initial load: wait for warmup before playing
-      setVideoReady(false);
-      setWarmupError(false);
-
-      fetch(warmupUrl)
-        .then((res) => res.json())
-        .then((data) => {
-          console.log('[Warmup] Initial load:', data.success ? 'success' : 'failed');
-          setVideoReady(true);
-          if (!data.success) setWarmupError(true);
-
-          // Mark that initial load is done
-          isInitialLoad.current = false;
-        })
-        .catch((err) => {
-          console.error('[Warmup] Error:', err);
-          setVideoReady(true);
-          setWarmupError(true);
-          isInitialLoad.current = false;
-        });
-    } else {
-      // Auto-next: update src immediately, warmup in background
-      if (videoRef.current) {
-        videoRef.current.src = newSrc;
-        videoRef.current.load();
-        videoRef.current.play().catch(() => {});
-
-        // Fire warmup in background (don't await)
-        fetch(warmupUrl).catch(() => {});
-      }
-    }
+    const proxiedUrl = `/api/proxy/video?url=${encodeURIComponent(videoUrl)}&referer=${encodeURIComponent('https://www.flickreels.com/')}&_t=${retryCount}`;
+    const type = (videoUrl.includes('hls') || videoUrl.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4') as 'application/x-mpegurl' | 'video/mp4';
+    return { src: proxiedUrl, type };
   }, [currentEpisodeData?.raw?.videoUrl, retryCount]);
 
-  // Set initial video src after warmup completes (only for initial load)
+  // Warmup effect
   useEffect(() => {
-    if (!videoReady || !currentEpisodeData?.raw?.videoUrl || !videoRef.current) return;
+    if (!currentEpisodeData?.raw?.videoUrl) return;
+    setVideoReady(false);
 
-    const newSrc = `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.raw.videoUrl)}&referer=${encodeURIComponent('https://www.flickreels.com/')}&_t=${videoTimestamp.current}`;
-
-    // Check if src needs update
-    if (videoRef.current.src !== newSrc && !videoRef.current.src.endsWith(newSrc.split('?')[1])) {
-      videoRef.current.src = newSrc;
-      videoRef.current.load();
-      videoRef.current.play().catch(() => {});
-
-      // Mark initial load as done after we've set the src
-      if (isInitialLoad.current) {
-        isInitialLoad.current = false;
-      }
-    }
-  }, [videoReady, currentEpisodeData?.raw?.videoUrl]);
+    const warmupUrl = `/api/proxy/warmup?url=${encodeURIComponent(currentEpisodeData.raw.videoUrl)}`;
+    fetch(warmupUrl)
+      .then((res) => res.json())
+      .then(() => setVideoReady(true))
+      .catch(() => setVideoReady(true));
+  }, [currentEpisodeData?.raw?.videoUrl, retryCount]);
 
   // Handlers
-  const handleEpisodeChange = (episodeId: string, preserveFullscreen = false) => {
-    if (episodeId === activeVideoId) {
+  const handleEpisodeChange = useCallback(
+    (episodeId: string, preserveFullscreen = false) => {
+      if (episodeId === activeVideoId) {
+        setShowEpisodeList(false);
+        return;
+      }
+
+      setActiveVideoId(episodeId);
+      setRetryCount(0);
       setShowEpisodeList(false);
-      return;
-    }
 
-    setActiveVideoId(episodeId);
-    setRetryCount(0); // Reset retry count when changing episodes
-    setShowEpisodeList(false);
+      const epIndex = episodes.findIndex((e) => e.id === episodeId) + 1;
+      if (preserveFullscreen) {
+        router.replace(`/drama/watch/flickreels/${bookId}/${episodeId}?ep=${epIndex}`, { scroll: false });
+      } else {
+        router.push(`/drama/watch/flickreels/${bookId}/${episodeId}?ep=${epIndex}`);
+      }
+    },
+    [activeVideoId, bookId, episodes, router],
+  );
 
-    const epIndex = episodes.findIndex((e) => e.id === episodeId) + 1;
-    if (preserveFullscreen) {
-      router.replace(`/drama/watch/flickreels/${bookId}/${episodeId}?ep=${epIndex}`, { scroll: false });
-    } else {
-      router.push(`/drama/watch/flickreels/${bookId}/${episodeId}?ep=${epIndex}`);
-    }
-  };
-
-  const handleVideoEnded = () => {
+  const handleVideoEnded = useCallback(() => {
+    if (!autoPlayNext) return;
     const nextIndex = currentIndex + 1;
     if (nextIndex < totalEpisodes) {
-      // Video element stays mounted, so fullscreen is preserved automatically
       handleEpisodeChange(episodes[nextIndex].id, true);
     }
-  };
+  }, [autoPlayNext, currentIndex, totalEpisodes, episodes, handleEpisodeChange]);
 
   if (isLoading) {
     return (
@@ -169,7 +102,7 @@ export default function FlickReelsWatchPage() {
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
         <div className="text-center space-y-2">
           <h3 className="text-white font-medium text-lg">Memuat video...</h3>
-          <p className="text-white/60 text-sm">Mohon tunggu sebentar, data sedang diambil.</p>
+          <p className="text-white/60 text-sm">Mohon tunggu sebentar.</p>
         </div>
       </div>
     );
@@ -191,62 +124,48 @@ export default function FlickReelsWatchPage() {
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
-      {/* Header - Fixed Overlay */}
+      {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
         <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
-
         <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
           <Link href={`/drama/flickreels/${bookId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
-            <span className="text-primary font-bold hidden sm:inline shadow-black drop-shadow-md">NobarDrama</span>
+            <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
           </Link>
-
           <div className="text-center flex-1 px-2 min-w-0">
-            <h1 className="text-white font-bold truncate text-xs sm:text-base drop-shadow-md">{drama.title}</h1>
-            <p className="text-white/60 text-[10px] sm:text-xs drop-shadow-md">{currentEpisodeData ? `Episode ${currentEpisodeData.index + 1}` : 'Episode ?'}</p>
+            <h1 className="text-white font-bold truncate text-xs sm:text-base">{drama.title}</h1>
+            <p className="text-white/60 text-[10px] sm:text-xs">{currentEpisodeData ? `Episode ${currentEpisodeData.index + 1}` : 'Episode ?'}</p>
           </div>
-
           <button onClick={() => setShowEpisodeList(!showEpisodeList)} className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10">
-            <List className="w-6 h-6 drop-shadow-md" />
+            <List className="w-6 h-6" />
           </button>
         </div>
       </div>
 
       {/* Main Video Area */}
       <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
-        <div className="relative w-full h-full flex items-center justify-center">
-          {/* Always render video element to preserve fullscreen state */}
-          {currentEpisodeData?.raw?.videoUrl && videoReady ? (
-            <VideoPlayer
-              src={`/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.raw.videoUrl)}&referer=${encodeURIComponent('https://www.flickreels.com/')}&_t=${videoTimestamp.current}`}
-              poster={currentEpisodeData.raw.chapter_cover}
-              onEnded={handleVideoEnded}
-              subjectType={SubjectType.Short}
-              initialTime={0}
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center z-20 flex-col gap-2">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
-              {!videoReady && currentEpisodeData && <span className="text-white/60 text-sm">Preparing video...</span>}
+        <div className="relative w-full h-full flex items-center justify-center group">
+          {/* Loading Overlay */}
+          {!videoReady && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/80 backdrop-blur-sm animate-in fade-in">
+              <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+              <p className="text-white font-medium">Preparing video...</p>
             </div>
+          )}
+
+          {/* Player */}
+          {videoSource && (
+            <VideoPlayer src={videoSource} poster={currentEpisodeData?.raw?.chapter_cover} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} autoPlay={autoPlayNext} />
           )}
         </div>
 
-        {/* Navigation Controls Overlay - Bottom (Auto-hide) */}
-        <div 
-          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
-          onPointerMove={resetHideTimer}
-          onClick={resetHideTimer}
-        >
-          <div className={cn(
-            "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
-            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-          )}>
+        {/* Navigation Controls - ALWAYS VISIBLE */}
+        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
+          <div className="flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg">
             <button
               onClick={() => {
                 const prev = episodes[currentIndex - 1];
                 if (prev) handleEpisodeChange(prev.id);
-                resetHideTimer();
               }}
               disabled={currentIndex <= 0}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
@@ -259,10 +178,16 @@ export default function FlickReelsWatchPage() {
             </span>
 
             <button
+              onClick={() => setAutoPlayNext(!autoPlayNext)}
+              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
+            >
+              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
+            </button>
+
+            <button
               onClick={() => {
                 const next = episodes[currentIndex + 1];
                 if (next) handleEpisodeChange(next.id);
-                resetHideTimer();
               }}
               disabled={currentIndex >= totalEpisodes - 1}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"

@@ -1,11 +1,7 @@
-version: '3.8'
-
 services:
   nobarfilm:
     container_name: nobarfilm
-    # Option 1: Build from Git (Portainer method)
     image: ridhoarmand/nobarfilm:latest
-    # build: . # Uncomment for local build
     
     restart: unless-stopped
     ports:
@@ -13,13 +9,17 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      # Add other env vars here or via env_file
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "--tries=1", "http://127.0.0.1:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
-      - nobar-net
-      - nginx-proxy-manager_default
+      - proxy-tier
 
   socket-server:
-    container_name: nobarfilm_socket
+    container_name: nobarfilm-socket
     image: ridhoarmand/nobarfilm:latest
     restart: unless-stopped
     command: node dist/server/socket-server.js
@@ -28,14 +28,16 @@ services:
     environment:
       - NODE_ENV=production
       - SOCKET_PORT=4000
-      - CLIENT_URL=${CLIENT_URL} 
-      # Change CLIENT_URL to your production domain
+      - CLIENT_URL=${CLIENT_URL}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "--tries=1", "http://127.0.0.1:4000/socket.io/?EIO=4&transport=polling"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
-      - nobar-net
-      - nginx-proxy-manager_default
+      - proxy-tier
 
 networks:
-  nobar-net:
-    driver: bridge
-  nginx-proxy-manager_default:
+  proxy-tier:
     external: true

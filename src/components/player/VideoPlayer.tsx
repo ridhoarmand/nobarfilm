@@ -1,23 +1,15 @@
-'use client';
-import { useEffect, useRef, useState, useMemo } from 'react';
-import dynamic from 'next/dynamic';
-import 'plyr-react/plyr.css';
-import { FastForward, Rewind, Volume2, Loader2 } from 'lucide-react';
+'use client';import { useEffect, useRef, useState, useMemo, forwardRef, useCallback } from 'react';
+import { MediaPlayer, MediaProvider, Track, Poster, useMediaState, type MediaPlayerInstance, type MediaSrc } from '@vidstack/react';
+import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/layouts/default';
+import '@vidstack/react/player/styles/default/theme.css';
+import '@vidstack/react/player/styles/default/layouts/video.css';
+import { FastForward, Rewind, Volume2 } from 'lucide-react';
 import { SubjectType } from '@/types/api';
-import Hls from 'hls.js';
 import { cn } from '@/lib/utils';
-
-const Plyr = dynamic(() => import('plyr-react').then((mod) => mod.Plyr), {
-  ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
-      <Loader2 className="w-10 h-10 animate-spin text-primary" />
-    </div>
-  ),
-});
+import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 
 interface VideoPlayerProps {
-  src: string;
+  src: MediaSrc | string;
   subtitles?: Array<{
     kind: string;
     label: string;
@@ -28,19 +20,32 @@ interface VideoPlayerProps {
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number) => void;
-  subjectType?: SubjectType; // To detect drama shorts
-  initialTime?: number; // Initial playback position (for quality changes)
+  subjectType?: SubjectType;
+  initialTime?: number;
+  autoPlay?: boolean;
 }
 
-export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, subjectType, initialTime = 0 }: VideoPlayerProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const plyrRef = useRef<{ plyr: any } | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+/**
+ * Optimized Video Player for Movie and Drama.
+ * - Persistent playback speed via usePlaybackSpeed hook
+ * - Auto-resume after seek
+ * - Gesture controls (brightness/volume)
+ * - No party sync logic (use PartyPlayer for that)
+ */
+export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ src, subtitles = [], poster, onEnded, onProgress, subjectType, initialTime = 0, autoPlay }, ref) => {
+  const localRef = useRef<MediaPlayerInstance>(null);
+  const player = (ref as React.RefObject<MediaPlayerInstance>) || localRef;
+
   const [isClient, setIsClient] = useState(false);
+  const isFullscreen = useMediaState('fullscreen', player);
+
+  // Speed persistence
+  const { speedRef, setSpeed, applyToPlayer } = usePlaybackSpeed();
+  const isSwitchingSource = useRef(false);
+  const lastSrcRef = useRef<string | null>(null);
+
   // Gesture State
   const [brightness, setBrightness] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [showFeedback, setShowFeedback] = useState<{ Icon: React.ComponentType<any>; text: string } | null>(null);
   const feedbackTimeout = useRef<NodeJS.Timeout | null>(null);
   const touchStart = useRef<{ x: number; y: number; time: number; val: number } | null>(null);
@@ -49,316 +54,176 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
     setIsClient(true);
   }, []);
 
-  // Screen Rotation Handler for Fullscreen
+  // Track source changes
+  const currentSrc = useMemo(() => {
+    if (!src) return null;
+    return typeof src === 'string' ? src : (src as any).src;
+  }, [src]);
+
   useEffect(() => {
-    if (!isClient) return;
-
-    const player = plyrRef.current?.plyr;
-    if (!player || typeof player.on !== 'function') return;
-
-    const handleFullscreenChange = async () => {
-      const playerInstance = plyrRef.current?.plyr;
-      if (!playerInstance) return;
-
-      const isDramaShort = subjectType === SubjectType.Short;
-      const _isFullscreen = playerInstance.fullscreen.active;
-      setIsFullscreen(_isFullscreen);
-
-      if (!_isFullscreen) {
-        // Exit fullscreen: unlock orientation
-        if (screen.orientation && typeof (screen.orientation as unknown as { unlock: () => void }).unlock === 'function') {
-          (screen.orientation as unknown as { unlock: () => void }).unlock();
-        }
-        return;
-      }
-
-      // Entering fullscreen: lock orientation based on content type
-      try {
-        const orientationLock = isDramaShort ? 'portrait' : 'landscape';
-        if (screen.orientation && typeof (screen.orientation as unknown as { lock: (o: string) => Promise<void> }).lock === 'function') {
-          await (screen.orientation as unknown as { lock: (o: string) => Promise<void> }).lock(orientationLock).catch(() => {
-            // Silently fail if orientation lock not supported
-          });
-        }
-      } catch {
-        // Silently fail if orientation API not supported
-      }
-    };
-
-    player.on('enterfullscreen', handleFullscreenChange);
-    player.on('exitfullscreen', handleFullscreenChange);
-
-    return () => {
-      if (typeof player.off === 'function') {
-        player.off('enterfullscreen', handleFullscreenChange);
-        player.off('exitfullscreen', handleFullscreenChange);
-      }
-    };
-  }, [isClient, subjectType]);
+    if (currentSrc && currentSrc !== lastSrcRef.current) {
+      isSwitchingSource.current = true;
+      lastSrcRef.current = currentSrc;
+    }
+  }, [currentSrc]);
 
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const player = plyrRef.current?.plyr;
-      if (!player) return;
+      if (!player.current) return;
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
 
       switch (e.key.toLowerCase()) {
-        case 'f':
-          player.fullscreen.toggle();
-          break;
-        case 'k':
-        case ' ':
-          e.preventDefault();
-          player.togglePlay();
-          break;
         case 'arrowright':
-          player.forward(10);
+          player.current.currentTime += 10;
           displayFeedback(FastForward, '+10s');
           break;
         case 'arrowleft':
-          player.rewind(10);
+          player.current.currentTime -= 10;
           displayFeedback(Rewind, '-10s');
-          break;
-        case 'm':
-          player.muted = !player.muted;
-          displayFeedback(Volume2, player.muted ? 'Muted' : 'Unmuted');
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [player]);
 
-  // Refs for stable callbacks
-  const onEndedRef = useRef(onEnded);
-  const onProgressRef = useRef(onProgress);
-
+  // Auto-play on source change
   useEffect(() => {
-    onEndedRef.current = onEnded;
-    onProgressRef.current = onProgress;
-  }, [onEnded, onProgress]);
-
-  // Safe Player Init & HLS Setup
-  useEffect(() => {
-    if (!isClient) return;
-
-    let hls: Hls | null = null;
-    let cleanupListeners: (() => void) | null = null;
-    let initTimer: NodeJS.Timeout | null = null;
-
-    const initPlayer = () => {
-      const player = plyrRef.current?.plyr;
-      if (!player || typeof player.on !== 'function') {
-        // Retry if player not ready
-        initTimer = setTimeout(initPlayer, 50);
-        return;
-      }
-
-      const isM3U8 = src.includes('.m3u8');
-
-      const setupListeners = () => {
-        const handleEnded = () => onEndedRef.current && onEndedRef.current();
-        const handleTimeUpdate = (event: { detail?: { plyr?: { currentTime?: number } } }) => {
-          const time = event?.detail?.plyr?.currentTime;
-          if (typeof time === 'number' && onProgressRef.current) {
-            onProgressRef.current(time);
-          }
-        };
-
-        player.on('ended', handleEnded);
-        player.on('timeupdate', handleTimeUpdate);
-
-        return () => {
-          try {
-            if (player) {
-              player.off('ended', handleEnded);
-              player.off('timeupdate', handleTimeUpdate);
-            }
-          } catch {
-            // Player might be destroyed already, ignore
-          }
-        };
-      };
-
-      if (isM3U8 && Hls.isSupported()) {
-        hls = new Hls();
-        hls.loadSource(src);
-        hls.attachMedia(player.media);
-        (window as unknown as { hls: Hls }).hls = hls;
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (initialTime > 0) player.currentTime = initialTime;
-        });
-
-        cleanupListeners = setupListeners();
-      } else {
-        // MP4 flow
-        if (initialTime > 0) {
-          player.once('ready', () => {
-            player.currentTime = initialTime;
-          });
-        }
-        cleanupListeners = setupListeners();
-      }
-
-      // Ensure volume
-      player.volume = 1;
-    };
-
-    // Start initialization attempt
-    initPlayer();
-
-    return () => {
-      if (initTimer) clearTimeout(initTimer);
-      if (cleanupListeners) cleanupListeners();
-      if (hls) hls.destroy();
-    };
-  }, [src, isClient, initialTime]); // Removed onEnded, onProgress from dependencies
+    if (player.current && src && autoPlay) {
+      const timer = setTimeout(() => {
+        player.current?.play().catch(() => {});
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [src, autoPlay, player]);
 
   // Helpers
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const displayFeedback = (Icon: React.ComponentType<any>, text: string) => {
+  const displayFeedback = useCallback((Icon: React.ComponentType<any>, text: string) => {
     setShowFeedback({ Icon, text });
     if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
     feedbackTimeout.current = setTimeout(() => setShowFeedback(null), 800);
-  };
+  }, []);
 
-  // Touch Handlers (Gesture)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Only allow advanced gestures in fullscreen mode
-    if (!isFullscreen) return;
+  // Gesture handlers
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!player.current) return;
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      touchStart.current = {
+        x: clientX,
+        y: clientY,
+        time: Date.now(),
+        val: clientX < window.innerWidth / 2 ? brightness : player.current.volume,
+      };
+    },
+    [brightness, player],
+  );
 
-    // Ignore controls safely using closest check on HTMLElement
-    const target = e.target as HTMLElement;
-    if (!target || typeof target.closest !== 'function' || target.closest('.plyr__controls')) return;
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStart.current || !player.current) return;
+      const deltaY = touchStart.current.y - e.touches[0].clientY;
+      const deltaX = touchStart.current.x - e.touches[0].clientX;
 
-    const player = plyrRef.current?.plyr;
-    const clientX = e.touches[0].clientX;
-    const clientY = e.touches[0].clientY;
+      if (Math.abs(deltaY) < 15 && Math.abs(deltaX) < 15) return;
 
-    touchStart.current = {
-      x: clientX,
-      y: clientY,
-      time: Date.now(),
-      val: clientX < window.innerWidth / 2 ? brightness : player?.volume || 1,
-    };
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // Only handle advanced gestures in fullscreen
-    if (!isFullscreen || !touchStart.current || !plyrRef.current?.plyr) return;
-
-    // Prevent default to avoid browser zoom/scroll
-    e.preventDefault();
-
-    // Ignore small movements (avoid blocking scroll for tiny jitters)
-    const deltaY = touchStart.current.y - e.touches[0].clientY;
-    const deltaX = touchStart.current.x - e.touches[0].clientX;
-    if (Math.abs(deltaY) < 15 && Math.abs(deltaX) < 15) return;
-
-    const player = plyrRef.current.plyr;
-
-    if (Math.abs(deltaY) > Math.abs(deltaX)) {
-      // Vertical swipe: Volume/Brightness
-      const sensitivity = 0.005;
-
-      if (touchStart.current.x < window.innerWidth / 2) {
-        // LEFT: Brightness
-        const newBright = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0.2), 1.5);
-        setBrightness(newBright);
-      } else {
-        // RIGHT: Volume
-        const newVol = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0), 1);
-        player.volume = newVol;
-        displayFeedback(Volume2, `${Math.round(newVol * 100)}%`);
+      if (Math.abs(deltaY) > Math.abs(deltaX)) {
+        const sensitivity = 0.005;
+        if (touchStart.current.x < window.innerWidth / 2) {
+          const newBright = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0.2), 1.5);
+          setBrightness(newBright);
+        } else {
+          const newVol = Math.min(Math.max(touchStart.current.val + deltaY * sensitivity, 0), 1);
+          player.current.volume = newVol;
+          displayFeedback(Volume2, `${Math.round(newVol * 100)}%`);
+        }
       }
-    } else {
-      // Horizontal swipe: Seek
-      const sensitivity = 0.5; // Adjust sensitivity for seek
-      const seekAmount = deltaX * sensitivity;
-      const newTime = Math.max(0, Math.min(player.duration, player.currentTime + seekAmount));
-      player.currentTime = newTime;
-      displayFeedback(seekAmount > 0 ? FastForward : Rewind, `${seekAmount > 0 ? '+' : ''}${Math.round(seekAmount)}s`);
-    }
-  };
+    },
+    [player, displayFeedback],
+  );
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current) {
-      touchStart.current = null;
-      return;
-    }
-
-    // Only detect tap for control toggle (don't pause on tap)
-    const now = Date.now();
-    const deltaX = Math.abs(e.changedTouches[0].clientX - touchStart.current.x);
-    const deltaY = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
-    const timeDiff = now - touchStart.current.time;
-
-    // Detect Tap (Low movement, short time) - just clear state, don't pause
-    if (deltaX < 10 && deltaY < 10 && timeDiff < 300) {
-      // Tap gesture detected - controls will auto-show/hide via Plyr, no pause action
-    }
-
+  const handleTouchEnd = useCallback(() => {
     touchStart.current = null;
-  };
+  }, []);
 
-  // Memoized Props
-  const videoSrc = useMemo(
-    () => ({
-      type: 'video' as const,
-      sources: [{ src, type: src.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4' }],
-      poster,
-      tracks: subtitles.map((sub, index) => ({
-        kind: 'captions' as const,
-        label: sub.label,
-        srcLang: sub.srcLang,
-        src: sub.src,
-        default: sub.default || index === 0,
-      })),
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [src, poster, JSON.stringify(subtitles)],
+  // Player event handlers
+  const handleCanPlay = useCallback(() => {
+    applyToPlayer(player.current);
+    setTimeout(() => {
+      isSwitchingSource.current = false;
+    }, 1000);
+  }, [applyToPlayer, player]);
+
+  const handleRateChange = useCallback(
+    (rate: number) => {
+      if (!isSwitchingSource.current) {
+        setSpeed(rate);
+      }
+    },
+    [setSpeed],
   );
 
-  const options = useMemo(
-    () => ({
-      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
-      settings: ['captions', 'quality', 'speed'],
-      quality: { default: 720, options: [360, 480, 720, 1080] },
-      captions: { active: true, language: 'in_id', update: true },
-      autoplay: true,
-      fullscreen: { enabled: true, fallback: true, iosNative: true }, // critical for mobile
-    }),
-    [],
+  const handleSeeked = useCallback(() => {
+    // Auto-resume after seek
+    if (player.current && autoPlay) {
+      player.current.play().catch(() => {});
+    }
+  }, [player, autoPlay]);
+
+  const tracks = useMemo(
+    () => subtitles.map((sub, i) => <Track key={String(i)} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
+    [subtitles],
   );
+
+  const containerClasses = useMemo(() => {
+    const baseClasses = 'relative w-full bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto transition-all duration-500';
+
+    if (isFullscreen) {
+      return cn(baseClasses, 'w-full h-full rounded-none max-w-none max-h-none');
+    }
+
+    if (subjectType === SubjectType.Short) {
+      return cn(baseClasses, 'w-full h-full md:w-auto');
+    }
+
+    return cn(baseClasses, 'max-w-7xl aspect-video');
+  }, [isFullscreen, subjectType]);
+
+  if (!isClient) return <div className="aspect-video bg-black rounded-xl" />;
 
   return (
-    <div
-      ref={wrapperRef}
-      className={cn(
-        'relative w-full bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto transition-all duration-500',
-        subjectType === SubjectType.Short ? 'max-w-[400px] aspect-[9/16] md:aspect-[9/16]' : 'max-w-7xl aspect-video',
-      )}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className={containerClasses} data-fullscreen={isFullscreen} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       {/* Brightness Overlay */}
-      <div className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-100 mix-blend-multiply bg-black" style={{ opacity: Math.max(0, 1 - brightness) }} />
-      <div className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-100 mix-blend-overlay bg-white" style={{ opacity: Math.max(0, brightness - 1) }} />
+      <div className="absolute inset-0 pointer-events-none z-20 transition-opacity duration-100 mix-blend-multiply bg-black" style={{ opacity: Math.max(0, 1 - brightness) }} />
+      <div className="absolute inset-0 pointer-events-none z-20 transition-opacity duration-100 mix-blend-overlay bg-white" style={{ opacity: Math.max(0, brightness - 1) }} />
 
-      {/* Plyr Instance */}
-      <div className="relative z-0 h-full">
-        {!isClient ? (
-          <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-            <Loader2 className="w-10 h-10 animate-spin text-red-600" />
-          </div>
-        ) : (
-          <Plyr ref={plyrRef} source={videoSrc} options={options} />
-        )}
-      </div>
+      <MediaPlayer
+        ref={player}
+        src={src}
+        className="w-full h-full"
+        title="NobarFilm Player"
+        currentTime={initialTime > 0 ? initialTime : undefined}
+        onEnd={onEnded}
+        onTimeUpdate={(detail) => onProgress?.(detail.currentTime)}
+        onCanPlay={handleCanPlay}
+        onRateChange={handleRateChange}
+        onSeeked={handleSeeked}
+        autoplay={autoPlay}
+        streamType="on-demand"
+        playsInline
+        crossOrigin
+        fullscreenOrientation="none"
+        logLevel="silent"
+      >
+        <MediaProvider>
+          {poster && <Poster className="vds-poster object-contain" src={poster} alt="Poster" />}
+          {tracks}
+        </MediaProvider>
+        <DefaultVideoLayout icons={defaultLayoutIcons} />
+      </MediaPlayer>
 
       {/* Visual Feedback */}
       {showFeedback && (
@@ -369,8 +234,7 @@ export function VideoPlayer({ src, subtitles = [], poster, onEnded, onProgress, 
           </div>
         </div>
       )}
-
-      {/* Mobile Hint removed (not used) */}
     </div>
   );
-}
+});
+VideoPlayer.displayName = 'VideoPlayer';

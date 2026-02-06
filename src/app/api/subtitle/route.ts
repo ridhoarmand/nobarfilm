@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
-
 // Helper function to convert SRT to VTT
 function srtToVtt(srtContent: string): string {
   // Replace comma with dot in timestamps (00:00:00,000 --> 00:00:00.000)
@@ -20,15 +18,18 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch subtitle content from external server
-    const response = await axios.get(url, {
-      responseType: 'text',
+    const response = await fetch(url, {
       headers: {
         // Mimic a browser to avoid some blocking
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
     });
 
-    const srtContent = response.data;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch subtitle: ${response.status} ${response.statusText}`);
+    }
+
+    const srtContent = await response.text();
 
     // Convert to WebVTT
     const vttContent = srtToVtt(srtContent);

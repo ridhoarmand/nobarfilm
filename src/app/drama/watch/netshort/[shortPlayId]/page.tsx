@@ -1,12 +1,10 @@
 'use client';
-
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNetShortDetail } from '@/hooks/useNetShort';
-import { ChevronLeft, ChevronRight, Loader2, AlertCircle, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, AlertCircle, List, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import Hls from 'hls.js';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SubjectType } from '@/types/api';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
@@ -20,30 +18,7 @@ export default function NetShortWatchPage() {
 
   const [currentEpisode, setCurrentEpisode] = useState(1);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-hide controls after 3 seconds
-  const resetHideTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
-  }, []);
-
-  // Initial timer and cleanup
-  useEffect(() => {
-    resetHideTimer();
-    return () => {
-      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    };
-  }, [resetHideTimer]);
-
-  // Debug log state (kept internal for now, can be exposed if needed)
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-  const addLog = (msg: string) => {
-    console.log(msg);
-    // setDebugLog(prev => [...prev.slice(-4), msg]);
-  };
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
 
   // Get episode from URL
   useEffect(() => {
@@ -53,65 +28,86 @@ export default function NetShortWatchPage() {
     }
   }, [searchParams]);
 
-  // Fetch detail with all episodes
   const { data, isLoading, error } = useNetShortDetail(shortPlayId || '');
 
-  // Get current episode data
-  const currentEpisodeData = data?.episodes?.find((ep) => ep.episodeNo === currentEpisode);
+  const currentEpisodeData = useMemo(() => {
+    return data?.episodes?.find((ep) => ep.episodeNo === currentEpisode);
+  }, [data?.episodes, currentEpisode]);
 
-  // Handle video ended - auto next episode
+  // MEMOIZED video source
+  const videoSource = useMemo(() => {
+    if (!currentEpisodeData?.videoUrl) return null;
+    const type = (currentEpisodeData.videoUrl.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4') as 'application/x-mpegurl' | 'video/mp4';
+    return { src: currentEpisodeData.videoUrl, type };
+  }, [currentEpisodeData?.videoUrl]);
+
+  // MEMOIZED subtitles
+  const subtitles = useMemo(() => {
+    if (!currentEpisodeData?.subtitleUrl) return [];
+    return [
+      {
+        kind: 'subtitles',
+        label: 'Indonesia',
+        srcLang: 'id',
+        src: `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.subtitleUrl)}`,
+        default: true,
+      },
+    ];
+  }, [currentEpisodeData?.subtitleUrl]);
+
   const handleVideoEnded = useCallback(() => {
-    if (!data?.episodes) return;
+    if (!data?.episodes || !autoPlayNext) return;
     const nextEp = currentEpisode + 1;
     const nextEpisodeData = data.episodes.find((ep) => ep.episodeNo === nextEp);
-
     if (nextEpisodeData) {
       setCurrentEpisode(nextEp);
       router.replace(`/drama/watch/netshort/${shortPlayId}?ep=${nextEp}`, { scroll: false });
     }
-  }, [currentEpisode, data?.episodes, shortPlayId]);
+  }, [currentEpisode, data?.episodes, shortPlayId, autoPlayNext, router]);
 
-  const goToEpisode = (ep: number) => {
-    if (ep === currentEpisode) {
+  const goToEpisode = useCallback(
+    (ep: number) => {
+      if (ep === currentEpisode) {
+        setShowEpisodeList(false);
+        return;
+      }
+      setCurrentEpisode(ep);
+      router.replace(`/drama/watch/netshort/${shortPlayId}?ep=${ep}`, { scroll: false });
       setShowEpisodeList(false);
-      return;
-    }
-    setCurrentEpisode(ep);
-    router.replace(`/drama/watch/netshort/${shortPlayId}?ep=${ep}`, { scroll: false });
-    setShowEpisodeList(false);
-  };
+    },
+    [currentEpisode, router, shortPlayId],
+  );
 
   const totalEpisodes = data?.totalEpisodes || 1;
 
   return (
     <main className="fixed inset-0 bg-black flex flex-col">
-      {/* Header - Fixed Overlay */}
+      {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
         <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
-
         <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
           <Link href={`/drama/netshort/${shortPlayId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
-            <span className="text-primary font-bold hidden sm:inline shadow-black drop-shadow-md">NobarDrama</span>
+            <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
           </Link>
-
           <div className="text-center flex-1 px-2 min-w-0">
-            <h1 className="text-white font-bold truncate text-xs sm:text-base drop-shadow-md">{data?.title || 'Loading...'}</h1>
-            <p className="text-white/60 text-[10px] sm:text-xs drop-shadow-md">Episode {currentEpisode}</p>
+            <h1 className="text-white font-bold truncate text-xs sm:text-base">{data?.title || 'Loading...'}</h1>
+            <p className="text-white/60 text-[10px] sm:text-xs">Episode {currentEpisode}</p>
           </div>
-
           <button onClick={() => setShowEpisodeList(!showEpisodeList)} className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10">
-            <List className="w-6 h-6 drop-shadow-md" />
+            <List className="w-6 h-6" />
           </button>
         </div>
       </div>
 
       {/* Main Video Area */}
       <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
-        <div className="relative w-full h-full flex items-center justify-center">
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center z-20">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <div className="relative w-full h-full flex items-center justify-center bg-black group">
+          {/* Loading */}
+          {(isLoading || !currentEpisodeData) && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/80 backdrop-blur-sm animate-in fade-in">
+              <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+              <p className="text-white font-medium">Memuat Episode {currentEpisode}...</p>
             </div>
           )}
 
@@ -125,46 +121,27 @@ export default function NetShortWatchPage() {
             </div>
           )}
 
-          {currentEpisodeData?.videoUrl && (
+          {/* Player */}
+          {videoSource && (
             <VideoPlayer
-              src={currentEpisodeData.videoUrl}
-              subtitles={
-                currentEpisodeData.subtitleUrl
-                  ? [
-                      {
-                        kind: 'subtitles',
-                        label: 'Indonesia',
-                        srcLang: 'id',
-                        src: `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.subtitleUrl)}`,
-                        default: true,
-                      },
-                    ]
-                  : []
-              }
+              src={videoSource}
+              subtitles={subtitles}
               onEnded={handleVideoEnded}
               onProgress={(time) => {
-                if (time > 5) {
-                  saveProgress('netshort', shortPlayId, currentEpisode, time);
-                }
+                if (time > 5) saveProgress('netshort', shortPlayId, currentEpisode, time);
               }}
               subjectType={SubjectType.Short}
               initialTime={getProgress('netshort', shortPlayId, currentEpisode)}
+              autoPlay={autoPlayNext}
             />
           )}
         </div>
 
-        {/* Navigation Controls Overlay - Bottom (Auto-hide) */}
-        <div 
-          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
-          onPointerMove={resetHideTimer}
-          onClick={resetHideTimer}
-        >
-          <div className={cn(
-            "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
-            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-          )}>
+        {/* Navigation Controls - ALWAYS VISIBLE */}
+        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
+          <div className="flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg">
             <button
-              onClick={() => { currentEpisode > 1 && goToEpisode(currentEpisode - 1); resetHideTimer(); }}
+              onClick={() => currentEpisode > 1 && goToEpisode(currentEpisode - 1)}
               disabled={currentEpisode <= 1}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
@@ -176,7 +153,14 @@ export default function NetShortWatchPage() {
             </span>
 
             <button
-              onClick={() => { currentEpisode < totalEpisodes && goToEpisode(currentEpisode + 1); resetHideTimer(); }}
+              onClick={() => setAutoPlayNext(!autoPlayNext)}
+              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
+            >
+              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
+            </button>
+
+            <button
+              onClick={() => currentEpisode < totalEpisodes && goToEpisode(currentEpisode + 1)}
               disabled={currentEpisode >= totalEpisodes}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
@@ -205,10 +189,10 @@ export default function NetShortWatchPage() {
                 <button
                   key={episode.episodeId}
                   onClick={() => goToEpisode(episode.episodeNo)}
-                  className={`
-                    aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
-                    ${episode.episodeNo === currentEpisode ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
-                  `}
+                  className={cn(
+                    'aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all',
+                    episode.episodeNo === currentEpisode ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white',
+                  )}
                 >
                   {episode.episodeNo}
                 </button>

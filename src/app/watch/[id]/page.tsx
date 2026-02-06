@@ -1,12 +1,13 @@
-'use client';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+'use client';import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { useMovieBoxDetail, useMovieBoxSources, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
+import { type MediaPlayerInstance } from '@vidstack/react';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 function WatchContent() {
   const params = useParams();
@@ -22,8 +23,10 @@ function WatchContent() {
   const [currentSeason, setCurrentSeason] = useState(seasonParam);
   const [currentEpisode, setCurrentEpisode] = useState(episodeParam);
   const [selectedQuality, setSelectedQuality] = useState(0);
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
   const lastSavedTimeRef = useRef(0);
+  const playerRef = useRef<MediaPlayerInstance>(null);
 
   const { data: detailData, isLoading: isLoadingDetail } = useMovieBoxDetail(subjectId);
   const isMovie = detailData?.subject?.subjectType === 1;
@@ -32,19 +35,10 @@ function WatchContent() {
   const sourcesSeason = isMovie ? 0 : currentSeason;
   const sourcesEpisode = isMovie ? 0 : currentEpisode;
 
-  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(
-    subjectId,
-    sourcesSeason,
-    sourcesEpisode,
-  );
+  const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(subjectId, sourcesSeason, sourcesEpisode);
 
   // Use cached stream generation
-  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(
-    subjectId,
-    sourcesSeason,
-    sourcesEpisode,
-    selectedQuality,
-  );
+  const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(subjectId, sourcesSeason, sourcesEpisode, selectedQuality);
 
   const streamUrl = streamData?.streamUrl;
   const streamError = streamErrorData?.message || (sourcesData?.downloads?.length === 0 ? 'No video sources available' : null);
@@ -142,12 +136,26 @@ function WatchContent() {
   // Memoize video source to prevent flickering on focus/re-render
   const videoSource = useMemo(
     () => ({
-      src: streamUrl,
+      src: streamUrl
+        ? {
+            src: `/api/proxy/video?url=${encodeURIComponent(streamUrl)}`,
+            type: 'video/mp4',
+          }
+        : '',
       subtitles,
       poster: detailData?.subject?.cover?.url || '',
     }),
     [streamUrl, subtitles, detailData?.subject?.cover?.url],
   );
+
+  // Cleanup on unmount to prevent navigation lag
+  useEffect(() => {
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.pause();
+      }
+    };
+  }, []);
 
   const currentSeasonData = detailData?.resource?.seasons?.find((s) => s.se === currentSeason);
 
@@ -222,24 +230,30 @@ function WatchContent() {
                       </div>
                     </div>
                   </div>
-                ) : isLoadingStream || !streamUrl ? (
-                  <div className="aspect-video w-full bg-zinc-900 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
-                      <p className="text-white font-medium">{isLoadingSources ? 'Loading sources...' : 'Preparing stream...'}</p>
-                      <p className="text-sm text-gray-400 mt-2">This may take a few seconds...</p>
-                    </div>
-                  </div>
                 ) : (
-                  <VideoPlayer
-                    src={videoSource.src || ''}
-                    subtitles={videoSource.subtitles}
-                    poster={videoSource.poster}
-                    onEnded={handleNextEpisode}
-                    onProgress={handleProgress}
-                    initialTime={savedTime}
-                    subjectType={detailData.subject.subjectType}
-                  />
+                  <div className="relative aspect-video w-full bg-black overflow-hidden group">
+                    {/* Persistent Loading Overlay to prevent unmounting and keep fullscreen */}
+                    {(isLoadingStream || !streamUrl) && (
+                      <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-300">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+                          <p className="text-white font-medium">Preparing next episode...</p>
+                          <p className="text-xs text-gray-400 mt-2">Please wait a moment</p>
+                        </div>
+                      </div>
+                    )}
+                    <VideoPlayer
+                      ref={playerRef}
+                      src={(videoSource.src as any) || ''}
+                      subtitles={videoSource.subtitles}
+                      poster={videoSource.poster}
+                      onEnded={() => autoPlayNext && handleNextEpisode()}
+                      onProgress={handleProgress}
+                      initialTime={savedTime}
+                      subjectType={detailData.subject.subjectType}
+                      autoPlay={autoPlayNext}
+                    />
+                  </div>
                 )}
               </div>
 
@@ -285,14 +299,27 @@ function WatchContent() {
                         Ep {currentEpisode} of {currentSeasonData.maxEp}
                       </span>
 
-                      <button
-                        onClick={handleNextEpisode}
-                        disabled={currentEpisode >= currentSeasonData.maxEp}
-                        className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-xs sm:text-sm"
-                      >
-                        <span>Next Episode</span>
-                        <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setAutoPlayNext(!autoPlayNext)}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border',
+                            autoPlayNext ? 'bg-red-600/10 border-red-500/50 text-red-500 hover:bg-red-600/20' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700',
+                          )}
+                        >
+                          {autoPlayNext ? <Zap className="w-3.5 h-3.5" /> : <ZapOff className="w-3.5 h-3.5" />}
+                          <span className="hidden xs:inline">Autoplay {autoPlayNext ? 'ON' : 'OFF'}</span>
+                        </button>
+
+                        <button
+                          onClick={handleNextEpisode}
+                          disabled={currentEpisode >= currentSeasonData.maxEp}
+                          className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed font-medium text-xs sm:text-sm shadow-lg shadow-red-600/20"
+                        >
+                          <span>Next Episode</span>
+                          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -331,19 +358,14 @@ function WatchContent() {
                 {detailData.subject.imdbRatingValue && (
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider">IMDb Rating</p>
-                    <p className="text-white font-semibold flex items-center gap-1">
-                      ⭐ {parseFloat(String(detailData.subject.imdbRatingValue)).toFixed(1)}/10
-                    </p>
+                    <p className="text-white font-semibold flex items-center gap-1">⭐ {parseFloat(String(detailData.subject.imdbRatingValue)).toFixed(1)}/10</p>
                   </div>
                 )}
               </div>
 
               {/* Back Button */}
               <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => router.push(`/movie/${subjectId}`)}
-                  className="w-full px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl transition font-semibold text-sm"
-                >
+                <button onClick={() => router.push(`/movie/${subjectId}`)} className="w-full px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl transition font-semibold text-sm">
                   ← Back to Details
                 </button>
               </div>

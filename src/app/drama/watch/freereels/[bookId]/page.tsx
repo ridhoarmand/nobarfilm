@@ -1,12 +1,10 @@
 'use client';
-
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useFreeReelsDetail } from '@/hooks/useFreeReels';
-import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import Hls from 'hls.js';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SubjectType } from '@/types/api';
 
@@ -16,44 +14,21 @@ export default function FreeReelsWatchPage() {
   const router = useRouter();
   const bookId = params.bookId as string;
 
-  // State synced with URL search param 'ep'
   const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [videoQuality, setVideoQuality] = useState<'h264' | 'h265'>('h264');
-  const [useProxy, setUseProxy] = useState(true); // Default to true to avoid CORS issues
-  
-  // Auto-hide controls
-  const [showControls, setShowControls] = useState(true);
-  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  const resetHideTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
-  }, []);
-
-  useEffect(() => {
-    resetHideTimer();
-    return () => {
-      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    };
-  }, [resetHideTimer]);
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
 
   const { data, isLoading, error } = useFreeReelsDetail(bookId);
 
-  // Sync state from URL params
   useEffect(() => {
     const epParam = searchParams.get('ep');
     if (epParam) {
-      const epIndex = parseInt(epParam, 10) - 1; // URL is 1-based, internal is 0-based
-      if (!isNaN(epIndex) && epIndex >= 0) {
-        setCurrentEpisodeIndex(epIndex);
-        // setUseProxy(false); // REMOVED: Keep proxy active
-      }
+      const epIndex = parseInt(epParam, 10) - 1;
+      if (!isNaN(epIndex) && epIndex >= 0) setCurrentEpisodeIndex(epIndex);
     }
   }, [searchParams]);
 
-  // Derived state
   const drama = data?.data;
   const episodes = useMemo(() => drama?.episodes || [], [drama]);
   const totalEpisodes = episodes.length;
@@ -62,62 +37,55 @@ export default function FreeReelsWatchPage() {
     return episodes[currentEpisodeIndex] || episodes[0] || null;
   }, [episodes, currentEpisodeIndex]);
 
-  // Determine current video URL based on quality selection
-  const currentVideoUrl = useMemo(() => {
-    if (!currentEpisodeData) return '';
+  // MEMOIZED video source
+  const videoSource = useMemo(() => {
+    if (!currentEpisodeData) return null;
     let sourceUrl = '';
     if (videoQuality === 'h265' && currentEpisodeData.external_audio_h265_m3u8) {
       sourceUrl = currentEpisodeData.external_audio_h265_m3u8;
     } else {
       sourceUrl = currentEpisodeData.external_audio_h264_m3u8 || currentEpisodeData.videoUrl || '';
     }
-
-    // We will inject the subtitle URL into the video proxy call if available
-    // This allows the proxy to rewrite the manifest to include the subtitle intrinsically
-    if (currentEpisodeData.subtitleUrl && currentEpisodeData.originalAudioLanguage !== 'id-ID') {
-      // We use a special convention: append &sub=... to the proxy URL
-      // But here we return the raw source. The proxy wrapping happens in the effect.
-      return sourceUrl;
-    }
-
-    return sourceUrl;
+    if (!sourceUrl) return null;
+    const proxiedUrl = `/api/proxy/video?url=${encodeURIComponent(sourceUrl)}`;
+    const type = (sourceUrl.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4') as 'application/x-mpegurl' | 'video/mp4';
+    return { src: proxiedUrl, type };
   }, [currentEpisodeData, videoQuality]);
 
-  const proxiedSubtitleUrl = useMemo(() => {
-    if (!currentEpisodeData?.subtitleUrl) return '';
-    return `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.subtitleUrl)}`;
-  }, [currentEpisodeData]);
+  // MEMOIZED subtitles
+  const subtitles = useMemo(() => {
+    if (!currentEpisodeData?.subtitleUrl) return [];
+    return [
+      {
+        kind: 'subtitles',
+        label: 'Indonesia',
+        srcLang: 'id',
+        src: `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.subtitleUrl)}`,
+        default: true,
+      },
+    ];
+  }, [currentEpisodeData?.subtitleUrl]);
 
-  // Navigation Handler
-  const handleEpisodeChange = (index: number) => {
-    if (index === currentEpisodeIndex) {
+  const handleEpisodeChange = useCallback(
+    (index: number) => {
+      if (index === currentEpisodeIndex) {
+        setShowEpisodeList(false);
+        return;
+      }
+      const nextEp = index + 1;
       setShowEpisodeList(false);
-      return;
-    }
+      router.push(`/drama/watch/freereels/${bookId}?ep=${nextEp}`);
+    },
+    [currentEpisodeIndex, bookId, router],
+  );
 
-    // Updates URL, which triggers the useEffect above
-    const nextEp = index + 1;
-    setShowEpisodeList(false);
-
-    // Use replace for smoother history, or push? Usually push for navigation.
-    // Netshort uses replace for next episode, but buttons usually push.
-    // Let's use push to allow back button to work.
-    // Verify data in console
-    console.log('Current Ep Data:', currentEpisodeData);
-    console.log('Proxied Subtitle URL:', proxiedSubtitleUrl);
-    console.log('Original Audio:', currentEpisodeData?.originalAudioLanguage);
-
-    router.push(`/drama/watch/freereels/${bookId}?ep=${nextEp}`);
-  };
-
-  const handleVideoEnded = () => {
+  const handleVideoEnded = useCallback(() => {
+    if (!autoPlayNext) return;
     const nextIndex = currentEpisodeIndex + 1;
     if (nextIndex < totalEpisodes) {
-      // Auto-advance
-      const nextEp = nextIndex + 1;
-      router.replace(`/drama/watch/freereels/${bookId}?ep=${nextEp}`); // Replace for auto-advance
+      router.replace(`/drama/watch/freereels/${bookId}?ep=${nextIndex + 1}`);
     }
-  };
+  }, [autoPlayNext, currentEpisodeIndex, totalEpisodes, bookId, router]);
 
   if (isLoading) {
     return (
@@ -145,23 +113,19 @@ export default function FreeReelsWatchPage() {
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
-      {/* Header - Fixed Overlay */}
+      {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
         <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
-
         <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
           <Link href={`/drama/freereels/${bookId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
-            <span className="text-primary font-bold hidden sm:inline shadow-black drop-shadow-md">NobarDrama</span>
+            <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
           </Link>
-
           <div className="text-center flex-1 px-2 min-w-0">
-            <h1 className="text-white font-bold truncate text-xs sm:text-base drop-shadow-md">{drama.title}</h1>
-            <p className="text-white/60 text-[10px] sm:text-xs drop-shadow-md">{currentEpisodeData ? `Episode ${(currentEpisodeData.index || currentEpisodeIndex) + 1}` : 'Episode ?'}</p>
+            <h1 className="text-white font-bold truncate text-xs sm:text-base">{drama.title}</h1>
+            <p className="text-white/60 text-[10px] sm:text-xs">{currentEpisodeData ? `Episode ${(currentEpisodeData.index || currentEpisodeIndex) + 1}` : 'Episode ?'}</p>
           </div>
-
           <div className="flex items-center gap-2">
-            {/* Quality Selector */}
             <div className="flex bg-zinc-800 rounded-lg p-1 border border-white/10 shadow-xl">
               <button
                 onClick={() => setVideoQuality('h264')}
@@ -176,9 +140,8 @@ export default function FreeReelsWatchPage() {
                 H.265
               </button>
             </div>
-
             <button onClick={() => setShowEpisodeList(!showEpisodeList)} className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10">
-              <List className="w-6 h-6 drop-shadow-md" />
+              <List className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -186,47 +149,24 @@ export default function FreeReelsWatchPage() {
 
       {/* Main Video Area */}
       <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
-        <div className="relative w-full h-full flex items-center justify-center">
-          {currentVideoUrl ? (
-            <VideoPlayer
-              src={useProxy ? `/api/proxy/video?url=${encodeURIComponent(currentVideoUrl)}` : currentVideoUrl}
-              subtitles={
-                proxiedSubtitleUrl
-                  ? [
-                      {
-                        kind: 'subtitles',
-                        label: 'Indonesia',
-                        srcLang: 'id',
-                        src: proxiedSubtitleUrl,
-                        default: true,
-                      },
-                    ]
-                  : []
-              }
-              poster={drama.cover}
-              onEnded={handleVideoEnded}
-              subjectType={SubjectType.Short}
-              initialTime={0}
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center z-20 flex-col gap-4">
-              <p className="text-white/60">URL Video tidak ditemukan</p>
+        <div className="relative w-full h-full flex items-center justify-center bg-black group">
+          {!videoSource && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/80 backdrop-blur-sm animate-in fade-in">
+              <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+              <p className="text-white font-medium">Memuat video...</p>
             </div>
+          )}
+
+          {videoSource && (
+            <VideoPlayer src={videoSource} subtitles={subtitles} poster={drama.cover} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} autoPlay={autoPlayNext} />
           )}
         </div>
 
-        {/* Navigation Controls Overlay - Bottom (Auto-hide) */}
-        <div 
-          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
-          onPointerMove={resetHideTimer}
-          onClick={resetHideTimer}
-        >
-          <div className={cn(
-            "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
-            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-          )}>
+        {/* Navigation Controls - ALWAYS VISIBLE */}
+        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
+          <div className="flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg">
             <button
-              onClick={() => { handleEpisodeChange(currentEpisodeIndex - 1); resetHideTimer(); }}
+              onClick={() => handleEpisodeChange(currentEpisodeIndex - 1)}
               disabled={currentEpisodeIndex <= 0}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
@@ -238,11 +178,18 @@ export default function FreeReelsWatchPage() {
             </span>
 
             <button
-              onClick={() => { handleEpisodeChange(currentEpisodeIndex + 1); resetHideTimer(); }}
+              onClick={() => handleEpisodeChange(currentEpisodeIndex + 1)}
               disabled={currentEpisodeIndex >= totalEpisodes - 1}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setAutoPlayNext(!autoPlayNext)}
+              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
+            >
+              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
             </button>
           </div>
         </div>

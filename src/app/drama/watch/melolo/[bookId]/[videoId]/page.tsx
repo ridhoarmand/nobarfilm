@@ -1,9 +1,7 @@
-'use client';
-
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+'use client';import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMeloloDetail, useMeloloStream } from '@/hooks/useMelolo';
-import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Settings, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Settings, Check, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/DropdownMenu';
@@ -20,49 +18,25 @@ export default function MeloloWatchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showEpisodeList, setShowEpisodeList] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [selectedQuality, setSelectedQuality] = useState<VideoQuality | null>(null);
-  
-  // Auto-hide controls
-  const [showControls, setShowControls] = useState(true);
-  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  const resetHideTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
-  }, []);
-
-  useEffect(() => {
-    resetHideTimer();
-    return () => {
-      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    };
-  }, [resetHideTimer]);
-
-  // Internal state for videoId to prevent page unmount/remount on navigation
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [currentVideoId, setCurrentVideoId] = useState(params.videoId || '');
 
-  // Fetch data
   const { data: detailData, isLoading: detailLoading } = useMeloloDetail(params.bookId || '');
   const { data: streamData, isLoading: streamLoading, isFetching: streamFetching } = useMeloloStream(currentVideoId);
 
   const drama = detailData?.data?.video_data;
 
-  // Handle ?ep= param
   useEffect(() => {
     if (drama?.video_list) {
       const ep = parseInt(searchParams.get('ep') || '', 10);
       if (ep >= 1 && ep <= drama.video_list.length) {
         const targetVid = drama.video_list[ep - 1].vid;
-        if (targetVid !== currentVideoId) {
-          setCurrentVideoId(targetVid);
-        }
+        if (targetVid !== currentVideoId) setCurrentVideoId(targetVid);
       }
     }
   }, [searchParams, drama, currentVideoId]);
 
-  // Sync state with params if they change externally
   useEffect(() => {
     if (params.videoId && params.videoId !== currentVideoId) {
       setCurrentVideoId(params.videoId);
@@ -71,7 +45,6 @@ export default function MeloloWatchPage() {
 
   const rawVideoModel = streamData?.data?.video_model;
 
-  // Process video qualities
   const qualities = useMemo(() => {
     if (!rawVideoModel) return [];
     try {
@@ -91,82 +64,56 @@ export default function MeloloWatchPage() {
       Object.entries(videoList).forEach(([key, value]: [string, any]) => {
         if (value?.main_url) {
           try {
-            // Try to decode if base64, otherwise keep as is
             const decoded = atob(value.main_url);
-            // Basic check if it looks like a URL
             const url = decoded.startsWith('http') ? decoded : value.main_url;
-
-            availableQualities.push({
-              name: qualityMap[key] || key,
-              url: url,
-            });
-          } catch (e) {
-            // Fallback if not base64
-            availableQualities.push({
-              name: qualityMap[key] || key,
-              url: value.main_url,
-            });
+            availableQualities.push({ name: qualityMap[key] || key, url });
+          } catch {
+            availableQualities.push({ name: qualityMap[key] || key, url: value.main_url });
           }
         }
       });
 
-      // Sort qualities (highest resolution first assumed by key order, or we can just reverse)
       return availableQualities.reverse();
-    } catch (e) {
-      console.error('Error parsing video model', e);
+    } catch {
       return [];
     }
   }, [rawVideoModel]);
 
-  // Set default quality
   useEffect(() => {
     if (qualities.length > 0) {
-      let nextQuality = null;
-      if (selectedQuality) {
-        nextQuality = qualities.find((q) => q.name === selectedQuality.name);
-      }
-
+      let nextQuality = selectedQuality ? qualities.find((q) => q.name === selectedQuality.name) : null;
       if (!nextQuality) {
-        // Prefer 720p as default if available, then 540p, then 480p, otherwise first
-        nextQuality = qualities.find((q) => q.name === '720p') || qualities.find((q) => q.name === '540p') || qualities.find((q) => q.name === '480p') || qualities[0];
+        nextQuality = qualities.find((q) => q.name === '720p') || qualities.find((q) => q.name === '540p') || qualities[0];
       }
-
-      if (nextQuality && nextQuality.url !== selectedQuality?.url) {
-        setSelectedQuality(nextQuality);
-      }
+      if (nextQuality && nextQuality.url !== selectedQuality?.url) setSelectedQuality(nextQuality);
     }
   }, [qualities, selectedQuality]);
 
-  // Find current episode index
   const currentEpisodeIndex = drama?.video_list?.findIndex((v) => v.vid === currentVideoId) ?? -1;
   const totalEpisodes = drama?.video_list?.length || 0;
 
-  const handleEpisodeChange = (index: number) => {
-    if (!drama?.video_list?.[index]) return;
-    const nextVideoId = drama.video_list[index].vid;
-
-    // Prevent restart if clicking current episode
-    if (nextVideoId === currentVideoId) {
+  const handleEpisodeChange = useCallback(
+    (index: number) => {
+      if (!drama?.video_list?.[index]) return;
+      const nextVideoId = drama.video_list[index].vid;
+      if (nextVideoId === currentVideoId) {
+        setShowEpisodeList(false);
+        return;
+      }
+      setCurrentVideoId(nextVideoId);
+      router.replace(`/drama/watch/melolo/${params.bookId}/${nextVideoId}?ep=${index + 1}`, { scroll: false });
       setShowEpisodeList(false);
-      return;
-    }
+    },
+    [drama?.video_list, currentVideoId, params.bookId, router],
+  );
 
-    // Update internal state
-    setCurrentVideoId(nextVideoId);
-
-    // Update URL with episode number
-    router.replace(`/drama/watch/melolo/${params.bookId}/${nextVideoId}?ep=${index + 1}`, { scroll: false });
-
-    setShowEpisodeList(false);
-  };
-
-  const handleVideoEnded = () => {
+  const handleVideoEnded = useCallback(() => {
+    if (!autoPlayNext) return;
     if (currentEpisodeIndex !== -1 && currentEpisodeIndex < totalEpisodes - 1) {
       handleEpisodeChange(currentEpisodeIndex + 1);
     }
-  };
+  }, [autoPlayNext, currentEpisodeIndex, totalEpisodes, handleEpisodeChange]);
 
-  // Guard: If logic fails completely and we have no data after loading
   if (!detailLoading && !drama) {
     return (
       <main className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
@@ -181,27 +128,24 @@ export default function MeloloWatchPage() {
 
   return (
     <main className="fixed inset-0 bg-black flex flex-col">
-      {/* Header Overlay */}
+      {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
         <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
         <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
           <Link href={`/drama/melolo/${params.bookId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
-            <span className="text-primary font-bold hidden sm:inline shadow-black drop-shadow-md">NobarDrama</span>
+            <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
           </Link>
-
           <div className="text-center flex-1 px-2 min-w-0">
-            <h1 className="text-white font-bold truncate text-xs sm:text-base drop-shadow-md">{drama?.series_title || 'Loading...'}</h1>
-            <p className="text-white/60 text-[10px] sm:text-xs drop-shadow-md">Episode {currentEpisodeIndex !== -1 ? currentEpisodeIndex + 1 : '...'}</p>
+            <h1 className="text-white font-bold truncate text-xs sm:text-base">{drama?.series_title || 'Loading...'}</h1>
+            <p className="text-white/60 text-[10px] sm:text-xs">Episode {currentEpisodeIndex !== -1 ? currentEpisodeIndex + 1 : '...'}</p>
           </div>
-
           <div className="flex items-center gap-2">
-            {/* Quality Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10 flex items-center gap-1">
-                  <Settings className="w-6 h-6 drop-shadow-md" />
-                  <span className="text-xs font-bold drop-shadow-md hidden sm:inline">{selectedQuality?.name || '...'}</span>
+                  <Settings className="w-6 h-6" />
+                  <span className="text-xs font-bold hidden sm:inline">{selectedQuality?.name || '...'}</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="z-[100] bg-zinc-900 border-zinc-800">
@@ -217,9 +161,8 @@ export default function MeloloWatchPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
             <button onClick={() => setShowEpisodeList(!showEpisodeList)} className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10">
-              <List className="w-6 h-6 drop-shadow-md" />
+              <List className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -228,41 +171,24 @@ export default function MeloloWatchPage() {
       {/* Video Player */}
       <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
         <div className="relative w-full h-full flex items-center justify-center">
-          {/* 
-                 Video Element:
-                 We remove the 'key' to allow the VIDEO element to be reused across renders.
-                 This is CRITICAL for maintaining Fullscreen status.
-                 We also use a ref to manually update if needed, though React src prop update usually suffices.
-             */}
           {selectedQuality ? (
-            <VideoPlayer src={selectedQuality.url} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} />
+            <VideoPlayer src={selectedQuality.url} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} autoPlay={autoPlayNext} />
           ) : (
-            // Fallback while initializing first time quality
             <div className="w-full h-full flex items-center justify-center text-white/50">{streamLoading ? '' : 'Video unavailable'}</div>
           )}
 
-          {/* Loading Overlay */}
           {(streamLoading || streamFetching || detailLoading) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-30 pointer-events-none">
-              <Loader2 className="w-12 h-12 animate-spin text-primary drop-shadow-md" />
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
             </div>
           )}
         </div>
 
-        {/* Navigation Controls (Auto-hide) */}
-        <div 
-          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
-          onPointerMove={resetHideTimer}
-          onClick={resetHideTimer}
-        >
-          <div
-            className={cn(
-              "flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg transition-all duration-300",
-              showControls && !showEpisodeList ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-            )}
-          >
+        {/* Navigation Controls - ALWAYS VISIBLE */}
+        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
+          <div className="flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg">
             <button
-              onClick={() => { currentEpisodeIndex > 0 && handleEpisodeChange(currentEpisodeIndex - 1); resetHideTimer(); }}
+              onClick={() => currentEpisodeIndex > 0 && handleEpisodeChange(currentEpisodeIndex - 1)}
               disabled={currentEpisodeIndex <= 0}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
@@ -274,11 +200,18 @@ export default function MeloloWatchPage() {
             </span>
 
             <button
-              onClick={() => { currentEpisodeIndex < totalEpisodes - 1 && handleEpisodeChange(currentEpisodeIndex + 1); resetHideTimer(); }}
+              onClick={() => currentEpisodeIndex < totalEpisodes - 1 && handleEpisodeChange(currentEpisodeIndex + 1)}
               disabled={currentEpisodeIndex >= totalEpisodes - 1}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setAutoPlayNext(!autoPlayNext)}
+              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
+            >
+              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -303,10 +236,10 @@ export default function MeloloWatchPage() {
                 <button
                   key={video.vid}
                   onClick={() => handleEpisodeChange(idx)}
-                  className={`
-                    aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
-                    ${idx === currentEpisodeIndex ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
-                  `}
+                  className={cn(
+                    'aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all',
+                    idx === currentEpisodeIndex ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white',
+                  )}
                 >
                   {idx + 1}
                 </button>

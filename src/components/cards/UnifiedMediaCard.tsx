@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import { Play } from 'lucide-react';
 
@@ -37,7 +36,7 @@ export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadg
       {/* Visual Container */}
       <div className="aspect-[2/3] relative overflow-hidden rounded-xl bg-muted/20">
         <img
-          src={cover.includes('.heic') ? `https://wsrv.nl/?url=${encodeURIComponent(cover)}&output=jpg` : cover}
+          src={cover.startsWith('/') ? cover : `/api/proxy/image?url=${encodeURIComponent(cover)}`}
           alt={title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           loading="lazy"

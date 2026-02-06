@@ -1,45 +1,41 @@
-import { useEffect, useRef, useState } from 'react';import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ClientToServerEvents, ServerToClientEvents } from '@/types/watch-party';
-import { APITypes } from 'plyr-react';
+import { MediaPlayerInstance } from '@vidstack/react';
+import toast from 'react-hot-toast';
 
 const getSocketUrl = () => {
   if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
   if (typeof window !== 'undefined') {
-    // Dynamically use the same hostname as the web app, but port 4000
     return `${window.location.protocol}//${window.location.hostname}:4000`;
   }
   return 'http://localhost:4000';
 };
 
-export function usePartySync(roomCode: string, playerRef: React.RefObject<APITypes | null>, onRoomStateUpdate?: (data: any) => void, enabled: boolean = true) {
+export function usePartySync(roomCode: string, playerRef: React.RefObject<MediaPlayerInstance | null>, onRoomStateUpdate?: (data: any) => void, enabled: boolean = true) {
   const [socket, setSocket] = useState<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
   const [playError, setPlayError] = useState(false);
-  const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null); // Keep ref for internal strict access
+  const [isRoomPlaying, setIsRoomPlaying] = useState(false);
+  const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
+  const roomPlayingRef = useRef(false);
   const { user, profile } = useAuth();
   const isRemoteUpdate = useRef(false);
 
-  // Use ref to hold latest user/profile data for the socket payload
-  // This allows us to omit 'user' and 'profile' objects from the useEffect deps
+  // Keep latest user data for reconnection
   const userRef = useRef({ user, profile });
   useEffect(() => {
     userRef.current = { user, profile };
   }, [user, profile]);
 
   useEffect(() => {
-    // Wait for user and enabled flag
     if (!roomCode || !user?.id || !enabled) return;
 
-    // Use Refs for data to avoid re-connection on profile updates
-    const currentUser = userRef.current.user || user; // Fallback
+    const currentUser = userRef.current.user || user;
     const currentProfile = userRef.current.profile;
-
     const userName = currentProfile?.full_name || currentUser.email?.split('@')[0] || 'Guest';
     const userAvatar = currentProfile?.avatar_url;
-
-    // Initialize socket connection
     const socketUrl = getSocketUrl();
-    console.log('🔌 Connecting to Socket Server at:', socketUrl);
 
     const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
@@ -52,12 +48,6 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
       console.log('✅ Socket Connected!', newSocket.id);
     });
 
-    newSocket.on('connect_error', (err) => {
-      console.error('❌ Socket Connection Error:', err.message);
-    });
-
-    // Join room
-    console.log('🚀 Emitting join-room for:', roomCode, currentUser.id);
     newSocket.emit('join-room', {
       roomCode,
       user: {
@@ -67,176 +57,159 @@ export function usePartySync(roomCode: string, playerRef: React.RefObject<APITyp
       },
     });
 
-    // Listen for room state (fired when user joins to sync current playback state)
+    // --- INCOMING EVENTS ---
+
     newSocket.on('room-state', (data) => {
-      console.log('📦 Received room-state:', data);
       onRoomStateUpdate?.(data);
+      setIsRoomPlaying(data.playback.isPlaying);
+      roomPlayingRef.current = data.playback.isPlaying;
 
-      if (!playerRef.current?.plyr) return;
+      if (!playerRef.current) return;
 
-      // Calculate drift (time elapsed since last update on server)
       const now = Date.now();
       const drift = (now - data.playback.timestamp) / 1000;
-      const targetTime = data.playback.currentPosition + (data.playback.isPlaying ? drift : 0);
+      const targetTime = Math.max(0, data.playback.currentPosition + (data.playback.isPlaying ? drift : 0));
 
       isRemoteUpdate.current = true;
-      playerRef.current.plyr.currentTime = targetTime;
+      if (playerRef.current) {
+        playerRef.current.currentTime = targetTime;
 
-      if (data.playback.isPlaying) {
-        // Room is playing - auto play
-        const playPromise = playerRef.current.plyr.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((error) => {
-            console.warn('Autoplay blocked by browser:', error);
-            setPlayError(true);
+        if (data.playback.isPlaying) {
+          playerRef.current.play().catch((err) => {
+            if (err.name === 'NotAllowedError') {
+              setPlayError(true);
+            }
           });
+        } else {
+          playerRef.current.pause();
         }
-      } else {
-        // Room is paused - auto pause
-        playerRef.current.plyr.pause();
       }
 
       setTimeout(() => {
         isRemoteUpdate.current = false;
-      }, 500);
+      }, 2000);
     });
 
     newSocket.on('play', ({ time, userId }) => {
-      console.log('Socket PLAY', time);
+      setIsRoomPlaying(true);
+      roomPlayingRef.current = true;
       if (userId === newSocket.id) return;
-      if (playerRef.current?.plyr) {
+      if (playerRef.current) {
         isRemoteUpdate.current = true;
-        if (Math.abs(playerRef.current.plyr.currentTime - time) > 0.5) {
-          playerRef.current.plyr.currentTime = time;
+        if (Math.abs(playerRef.current.currentTime - time) > 1) {
+          playerRef.current.currentTime = time;
         }
-        const playPromise = playerRef.current.plyr.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => setPlayError(true));
-        }
-        setTimeout(() => (isRemoteUpdate.current = false), 500);
+        playerRef.current.play().catch((err) => {
+          if (err.name === 'NotAllowedError') {
+            setPlayError(true);
+          }
+        });
+        setTimeout(() => (isRemoteUpdate.current = false), 2000);
       }
     });
 
     newSocket.on('pause', ({ time, userId }) => {
-      console.log('Socket PAUSE', time);
+      setIsRoomPlaying(false);
+      roomPlayingRef.current = false;
       if (userId === newSocket.id) return;
-      if (playerRef.current?.plyr) {
+      if (playerRef.current) {
         isRemoteUpdate.current = true;
-        playerRef.current.plyr.currentTime = time;
-        playerRef.current.plyr.pause();
-        setTimeout(() => (isRemoteUpdate.current = false), 500);
+        playerRef.current.currentTime = time;
+        playerRef.current.pause();
+        setTimeout(() => (isRemoteUpdate.current = false), 2000);
       }
     });
 
     newSocket.on('seek', ({ time, userId }) => {
-      console.log('Socket SEEK', time);
       if (userId === newSocket.id) return;
-      if (playerRef.current?.plyr) {
+      if (playerRef.current) {
         isRemoteUpdate.current = true;
-        playerRef.current.plyr.currentTime = time;
-        setTimeout(() => (isRemoteUpdate.current = false), 500);
+        playerRef.current.currentTime = time;
+
+        // Auto-play if room is playing
+        if (roomPlayingRef.current) {
+          playerRef.current.play().catch((err) => {
+            if (err.name === 'NotAllowedError') {
+              setPlayError(true);
+            }
+          });
+        }
+
+        setTimeout(() => (isRemoteUpdate.current = false), 2000);
       }
     });
 
-    // ... logic continues ...
-
-    // listeners...
-
-    // ATTACH OUTGOING EVENT LISTENERS TO PLAYER
-    // We do this inside the same effect or a separate one, ensuring playerRef is ready
-    const attachPlayerListeners = () => {
-      const player = playerRef.current?.plyr;
-      if (!player || typeof player.on !== 'function') return;
-
-      const onPlay = () => {
-        if (!isRemoteUpdate.current && socketRef.current) {
-          console.log('▶️ Local Play', player.currentTime);
-          setPlayError(false); // Clear error on intentional play
-          socketRef.current.emit('play', { roomCode, time: player.currentTime });
-        }
-      };
-
-      const onPause = () => {
-        if (!isRemoteUpdate.current && socketRef.current) {
-          console.log('⏸️ Local Pause', player.currentTime);
-          socketRef.current.emit('pause', { roomCode, time: player.currentTime });
-        }
-      };
-
-      const onSeeked = () => {
-        if (!isRemoteUpdate.current && socketRef.current) {
-          console.log('⏩ Local Seek', player.currentTime);
-          setTimeout(() => {
-            socketRef.current?.emit('seek', { roomCode, time: player.currentTime });
-          }, 50);
-        }
-      };
-
-      // Ensure we don't duplicate listeners
-      if (typeof player.off === 'function') {
-        player.off('play', onPlay);
-        player.off('pause', onPause);
-        player.off('seeked', onSeeked);
-      }
-
-      player.on('play', onPlay);
-      player.on('pause', onPause);
-      player.on('seeked', onSeeked);
-    };
-
-    // Check periodically for plyr instance or depend on ref (ref doesn't trigger effect)
-    // Best way using plyr-react is often hooking into 'ready' event if possible,
-    // or polling briefly until mounted.
-    let isCleanedUp = false;
-    const interval = setInterval(() => {
-      if (isCleanedUp) return; // Prevent race condition
-      if (playerRef.current?.plyr) {
-        attachPlayerListeners();
-        clearInterval(interval);
-      }
-    }, 500);
-
     return () => {
-      console.log('🔌 Disconnecting Socket (Cleanup)');
-      isCleanedUp = true;
-      clearInterval(interval);
-      newSocket.disconnect(); // Use local var to ensure cleanup of THIS socket
-      if (playerRef.current?.plyr) {
-        // plyr cleanup if needed, though plyr-react manages instance usually
-        // playerRef.current.plyr.off(...)
-      }
+      newSocket.disconnect();
     };
-  }, [roomCode, user?.id, enabled]); // ONLY depend on ID and enabled flag
+  }, [roomCode, user?.id, enabled]);
 
-  return {
-    socket, // Return state variable so parent re-renders when it's set
-    playError, // Expose error state
-    resolvePlayError: () => setPlayError(false), // Helper to clear error manually
-    emitPlay: (time: number) => {
-      setPlayError(false); // Clear error on intentional play
-      if (!isRemoteUpdate.current && socketRef.current) {
-        socketRef.current.emit('play', { roomCode, time });
-      }
-    },
-    emitPause: (time: number) => {
-      if (!isRemoteUpdate.current && socketRef.current) {
-        socketRef.current.emit('pause', { roomCode, time });
-      }
-    },
-    emitSeek: (time: number) => {
+  // --- OUTGOING EVENT HANDLERS ---
+
+  const handleLocalPlay = useCallback(() => {
+    if (!isRemoteUpdate.current && socketRef.current && playerRef.current) {
+      setPlayError(false);
+      setIsRoomPlaying(true);
+      socketRef.current.emit('play', { roomCode, time: playerRef.current.currentTime });
+    }
+  }, [roomCode]);
+
+  const handleLocalPause = useCallback(() => {
+    if (!isRemoteUpdate.current && socketRef.current && playerRef.current) {
+      setIsRoomPlaying(false);
+      socketRef.current.emit('pause', { roomCode, time: playerRef.current.currentTime });
+      // Clear buffering state on pause to prevent stuck overlays for others
+      socketRef.current.emit('buffering', { roomCode, isBuffering: false });
+    }
+  }, [roomCode]);
+
+  const handleLocalSeek = useCallback(
+    (time: number) => {
       if (!isRemoteUpdate.current && socketRef.current) {
         socketRef.current.emit('seek', { roomCode, time });
+
+        // Add chat notification for skip to satisfy "user skip muncul di chat"
+        const minutes = Math.floor(time / 60);
+        const seconds = Math.floor(time % 60);
+        const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        socketRef.current.emit('chat-message', {
+          roomCode,
+          message: `jumped to ${timeStr}`,
+        });
       }
     },
-    emitBuffering: (isBuffering: boolean) => {
-      if (socketRef.current) {
-        socketRef.current.emit('buffering', { roomCode, isBuffering });
-      }
+    [roomCode],
+  );
+
+  const handleLocalWaiting = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.emit('buffering', { roomCode, isBuffering: true });
+    }
+  }, [roomCode]);
+
+  const handleLocalPlaying = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.emit('buffering', { roomCode, isBuffering: false });
+    }
+  }, [roomCode]);
+
+  const emitMessage = useCallback(
+    (message: string) => {
+      socketRef.current?.emit('chat-message', { roomCode, message });
     },
-    emitMessage: (message: string) => {
-      if (socketRef.current) {
-        socketRef.current.emit('chat-message', { roomCode, message });
-      }
-    },
+    [roomCode],
+  );
+
+  return {
+    socket,
+    playError,
+    isRoomPlaying,
+    resolvePlayError: () => setPlayError(false),
+    emitMessage,
+    handleLocalPlay,
+    handleLocalPause,
+    handleLocalSeek,
+    handleLocalWaiting,
+    handleLocalPlaying,
   };
 }

@@ -1,9 +1,8 @@
 'use client';
-
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useDramaDetail, useEpisodes } from '@/hooks/useDramaDetail';
-import { ChevronLeft, ChevronRight, Loader2, Settings, List, AlertCircle, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Settings, List, AlertCircle, Check, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/DropdownMenu';
@@ -11,12 +10,10 @@ import type { DramaDetailDirect, DramaDetailResponseLegacy } from '@/types/drama
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { SubjectType } from '@/types/api';
 
-// Helper to check if response is new format
 function isDirectFormat(data: unknown): data is DramaDetailDirect {
   return data !== null && typeof data === 'object' && 'bookId' in data && 'coverWap' in data;
 }
 
-// Helper to check if response is legacy format
 function isLegacyFormat(data: unknown): data is DramaDetailResponseLegacy {
   return data !== null && typeof data === 'object' && 'data' in data && (data as DramaDetailResponseLegacy).data?.book !== undefined;
 }
@@ -29,49 +26,31 @@ export default function DramaBoxWatchPage() {
   const [currentEpisode, setCurrentEpisode] = useState(0);
   const [quality, setQuality] = useState(720);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [showControls, setShowControls] = useState(true);
-  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-hide controls after 3 seconds
-  const resetHideTimer = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
-  }, []);
-
-  // Initial timer and cleanup
-  useEffect(() => {
-    resetHideTimer();
-    return () => {
-      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
-    };
-  }, [resetHideTimer]);
+  const [autoPlayNext, setAutoPlayNext] = useState(true);
 
   const { data: detailData, isLoading: detailLoading } = useDramaDetail(bookId || '');
   const { data: episodes, isLoading: episodesLoading } = useEpisodes(bookId || '');
 
-  // Initialize from URL params - ensure it's reactive
   useEffect(() => {
     const ep = parseInt(searchParams.get('ep') || '1', 10);
     if (ep >= 1 && episodes && ep <= episodes.length) {
-      setCurrentEpisode(ep - 1); // 1-indexed to 0-indexed
+      setCurrentEpisode(ep - 1);
     }
   }, [searchParams, episodes]);
 
-  // Update URL when episode changes
-  const handleEpisodeChange = (index: number) => {
-    if (index === currentEpisode) {
+  const handleEpisodeChange = useCallback(
+    (index: number) => {
+      if (index === currentEpisode) {
+        setShowEpisodeList(false);
+        return;
+      }
+      setCurrentEpisode(index);
       setShowEpisodeList(false);
-      return;
-    }
-    setCurrentEpisode(index);
-    setShowEpisodeList(false);
-    // Use replace to avoid polluting history on every episode click
-    router.replace(`/drama/watch/dramabox/${bookId}?ep=${index + 1}`, { scroll: false });
-  };
+      router.replace(`/drama/watch/dramabox/${bookId}?ep=${index + 1}`, { scroll: false });
+    },
+    [currentEpisode, bookId, router],
+  );
 
-  // All useMemo hooks must be called BEFORE any early returns
   const currentEpisodeData = useMemo(() => {
     if (!episodes) return null;
     return episodes[currentEpisode] || null;
@@ -84,54 +63,37 @@ export default function DramaBoxWatchPage() {
 
   const availableQualities = useMemo(() => {
     const list = defaultCdn?.videoPathList?.map((v) => v.quality).filter((q): q is number => typeof q === 'number');
-
     const unique = Array.from(new Set(list && list.length ? list : [720]));
     return unique.sort((a, b) => b - a);
   }, [defaultCdn]);
 
-  // Keep selected quality valid for the current episode
   useEffect(() => {
     if (!availableQualities.length) return;
     if (!availableQualities.includes(quality)) {
       setQuality(availableQualities[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableQualities]);
+  }, [availableQualities, quality]);
 
-  // Get video URL with selected quality
-  const getVideoUrl = () => {
-    if (!currentEpisodeData || !defaultCdn) {
-      console.warn('Missing episode data or CDN');
-      return '';
-    }
-
-    // Validate CDN has video paths
-    if (!defaultCdn.videoPathList || defaultCdn.videoPathList.length === 0) {
-      console.error('CDN has no video paths');
-      return '';
-    }
+  // MEMOIZED video source
+  const videoSource = useMemo(() => {
+    if (!currentEpisodeData || !defaultCdn) return null;
+    if (!defaultCdn.videoPathList || defaultCdn.videoPathList.length === 0) return null;
 
     const videoPath = defaultCdn.videoPathList.find((v) => v.quality === quality) || defaultCdn.videoPathList.find((v) => v.isDefault === 1) || defaultCdn.videoPathList[0];
+    if (!videoPath?.videoPath) return null;
 
-    if (!videoPath || !videoPath.videoPath) {
-      console.error('No valid video path found for quality:', quality);
-      return '';
-    }
+    const url = `/api/proxy/video?url=${encodeURIComponent(videoPath.videoPath)}`;
+    const type = (videoPath.videoPath.includes('.m3u8') ? 'application/x-mpegurl' : 'video/mp4') as 'application/x-mpegurl' | 'video/mp4';
+    return { src: url, type };
+  }, [currentEpisodeData, defaultCdn, quality]);
 
-    return videoPath.videoPath;
-  };
-
-  const handleVideoEnded = () => {
-    if (!episodes) return;
+  const handleVideoEnded = useCallback(() => {
+    if (!episodes || !autoPlayNext) return;
     const next = currentEpisode + 1;
-    if (next < episodes.length) {
-      handleEpisodeChange(next);
-    }
-  };
+    if (next < episodes.length) handleEpisodeChange(next);
+  }, [episodes, autoPlayNext, currentEpisode, handleEpisodeChange]);
 
-  // Handle both new and legacy API formats
   let book: { bookId: string; bookName: string } | null = null;
-
   if (detailData) {
     if (isDirectFormat(detailData)) {
       book = { bookId: detailData.bookId, bookName: detailData.bookName };
@@ -142,20 +104,18 @@ export default function DramaBoxWatchPage() {
 
   const totalEpisodes = episodes?.length || 0;
 
-  // Loading state
   if (detailLoading || episodesLoading) {
     return (
       <main className="fixed inset-0 bg-black flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
         <div className="text-center space-y-2">
           <h3 className="text-white font-medium text-lg">Memuat video...</h3>
-          <p className="text-white/60 text-sm">Mohon tunggu sebentar, data sedang diambil.</p>
+          <p className="text-white/60 text-sm">Mohon tunggu sebentar.</p>
         </div>
       </main>
     );
   }
 
-  // Error state
   if (!book || !episodes) {
     return (
       <main className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
@@ -170,30 +130,24 @@ export default function DramaBoxWatchPage() {
 
   return (
     <main className="fixed inset-0 bg-black flex flex-col">
-      {/* Header - Fixed Overlay with improved visibility */}
+      {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
-        {/* Solid background for readability */}
         <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
-
         <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
-          {/* Header content unchanged... */}
           <Link href={`/drama/dramabox/${bookId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
-            <span className="text-primary font-bold hidden sm:inline shadow-black drop-shadow-md">NobarDrama</span>
+            <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
           </Link>
-
           <div className="text-center flex-1 px-2 min-w-0">
-            <h1 className="text-white font-bold truncate text-xs sm:text-base drop-shadow-md">{book.bookName}</h1>
-            <p className="text-white/60 text-[10px] sm:text-xs drop-shadow-md">{currentEpisodeData?.chapterName || `Episode ${currentEpisode + 1}`}</p>
+            <h1 className="text-white font-bold truncate text-xs sm:text-base">{book.bookName}</h1>
+            <p className="text-white/60 text-[10px] sm:text-xs">{currentEpisodeData?.chapterName || `Episode ${currentEpisode + 1}`}</p>
           </div>
-
           <div className="flex items-center gap-2">
-            {/* Quality Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10 flex items-center gap-1">
-                  <Settings className="w-5 h-5 drop-shadow-md" />
-                  <span className="text-xs font-bold drop-shadow-md hidden sm:inline">{quality}p</span>
+                  <Settings className="w-5 h-5" />
+                  <span className="text-xs font-bold hidden sm:inline">{quality}p</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="z-[100] bg-zinc-900 border-zinc-800">
@@ -205,10 +159,8 @@ export default function DramaBoxWatchPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Episode List Toggle */}
             <button onClick={() => setShowEpisodeList(!showEpisodeList)} className="p-2 text-white/90 hover:text-white transition-colors rounded-full hover:bg-white/10">
-              <List className="w-6 h-6 drop-shadow-md" />
+              <List className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -216,29 +168,22 @@ export default function DramaBoxWatchPage() {
 
       {/* Main Video Area */}
       <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
-        {/* Video Player Area */}
-        <div className="relative w-full h-full flex items-center justify-center p-0 md:p-4">
-          {currentEpisodeData ? (
-            <VideoPlayer src={getVideoUrl()} poster={currentEpisodeData.chapterImg} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center z-20">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <div className="relative w-full h-full flex items-center justify-center p-0 md:p-4 group">
+          {(detailLoading || episodesLoading || !currentEpisodeData) && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/80 backdrop-blur-sm animate-in fade-in">
+              <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+              <p className="text-white font-medium">{episodesLoading ? 'Memuat Data...' : `Menyiapkan Episode ${currentEpisode + 1}...`}</p>
             </div>
           )}
+
+          {videoSource && <VideoPlayer src={videoSource} poster={currentEpisodeData?.chapterImg} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} autoPlay={autoPlayNext} />}
         </div>
 
-        {/* Navigation Controls Overlay - Bottom (Auto-hide) */}
-        <div 
-          className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom"
-          onPointerMove={resetHideTimer}
-          onClick={resetHideTimer}
-        >
-          <div className={cn(
-            "flex items-center gap-2 pointer-events-auto bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full border border-white/10 shadow-lg transition-all duration-300",
-            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-          )}>
+        {/* Navigation Controls - ALWAYS VISIBLE */}
+        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
+          <div className="flex items-center gap-2 pointer-events-auto bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full border border-white/10 shadow-lg">
             <button
-              onClick={() => { currentEpisode > 0 && handleEpisodeChange(currentEpisode - 1); resetHideTimer(); }}
+              onClick={() => currentEpisode > 0 && handleEpisodeChange(currentEpisode - 1)}
               disabled={currentEpisode <= 0}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
@@ -250,7 +195,14 @@ export default function DramaBoxWatchPage() {
             </span>
 
             <button
-              onClick={() => { currentEpisode < totalEpisodes - 1 && handleEpisodeChange(currentEpisode + 1); resetHideTimer(); }}
+              onClick={() => setAutoPlayNext(!autoPlayNext)}
+              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
+            >
+              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
+            </button>
+
+            <button
+              onClick={() => currentEpisode < totalEpisodes - 1 && handleEpisodeChange(currentEpisode + 1)}
               disabled={currentEpisode >= totalEpisodes - 1}
               className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
             >
@@ -279,10 +231,10 @@ export default function DramaBoxWatchPage() {
                 <button
                   key={episode.chapterId}
                   onClick={() => handleEpisodeChange(idx)}
-                  className={`
-                    aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
-                    ${idx === currentEpisode ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
-                  `}
+                  className={cn(
+                    'aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all',
+                    idx === currentEpisode ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white',
+                  )}
                 >
                   {idx + 1}
                 </button>

@@ -1,13 +1,12 @@
 name: Build and Push Docker Image
-
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
   workflow_dispatch:
 
 env:
   # Ganti dengan nama repository di Docker Hub
-  IMAGE_NAME: nobarfilm 
+  IMAGE_NAME: nobarfilm
 
 jobs:
   build-and-push:
@@ -28,7 +27,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push
+      - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .

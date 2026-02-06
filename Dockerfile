@@ -1,16 +1,21 @@
-# 1. Install dependencies only when needed
-FROM node:20-alpine AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# 1. Base image with shared dependencies
+FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# 2. Install dependencies only when needed
+FROM base AS deps
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install && npm cache clean --force
 
-# 2. Rebuild the source code only when needed
-FROM node:20-alpine AS builder
-WORKDIR /app
+# 3. Install production dependencies only (for smaller image)
+FROM base AS prod-deps
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev --ignore-scripts && npm cache clean --force
+
+# 4. Rebuild the source code only when needed
+FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -33,8 +38,11 @@ ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 RUN npm run build
 RUN npm run build:socket
 
-# 3. Production image, copy all the files and run next
-FROM node:20-alpine AS runner
+# Remove node_modules from standalone to avoid layer duplication with prod-deps
+RUN rm -rf .next/standalone/node_modules
+
+# 5. Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -44,18 +52,22 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
+
+# Copy standalone build from builder (WITHOUT node_modules)
+# This copies package.json, server.js, and the .next folder structure
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
 # Copy socket server build artifacts
 COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
-# Copy package.json to run scripts if needed, though we run node direct
-COPY --from=builder /app/package.json ./package.json 
-# We need node_modules for socket server dependencies (socket.io) not bundled in standalone?
-# Next.js standalone includes necessary deps for the app, but maybe not for the separate socket server if not imported?
-# Ideally, we should copy node_modules or install prod deps.
-# Standalone only traces Next.js files. 
-# Let's copy node_modules to be safe for the socket server.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy production dependencies (Primary source of truth for deps)
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+
+
+# Copy package.json (already in standalone, but ensuring correctness)
+COPY --from=builder /app/package.json ./package.json
 
 USER nextjs
 

@@ -1,16 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ServiceWorkerRegistration } from '@/components/providers/ServiceWorkerRegistration';
 import { DownloadManager } from '@/components/download/DownloadManager';
 import { ClientToaster } from '@/components/layout/ClientToaster';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-});
 
 export const metadata: Metadata = {
   title: 'NobarFilm - Watch Together',
@@ -39,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <ServiceWorkerRegistration />
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
