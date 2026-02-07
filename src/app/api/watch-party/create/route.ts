@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';import { createClient } from '@/lib/supabase/server';
 import { CreatePartyPayload } from '@/types/watch-party';
 
 export async function POST(request: NextRequest) {
@@ -25,6 +24,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Check for existing active room by this user for the same content
+    const { data: existingRoom } = await supabase
+      .from('watch_party_rooms')
+      .select('id, room_code, expires_at')
+      .eq('host_id', userId)
+      .eq('subject_id', body.subject_id)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    // If user already has an active room for this content, return it
+    if (existingRoom) {
+      console.log(`[Room Dedup] Returning existing room ${existingRoom.room_code} for user ${userId}`);
+      return NextResponse.json({
+        success: true,
+        roomId: existingRoom.id,
+        roomCode: existingRoom.room_code,
+        reused: true, // Flag to indicate this is a reused room
+      });
+    }
+
+    // Clean up user's old expired rooms for this content
+    await supabase.from('watch_party_rooms').delete().eq('host_id', userId).eq('subject_id', body.subject_id).lt('expires_at', new Date().toISOString());
+
     // Call Supabase function to create room
     const { data, error } = await supabase.rpc('create_watch_party_room', {
       p_host_id: userId,
@@ -47,6 +70,7 @@ export async function POST(request: NextRequest) {
       success: true,
       roomId: result.res_room_id,
       roomCode: result.res_room_code,
+      reused: false,
     });
   } catch (error: any) {
     console.error('Error in create watch party:', error);

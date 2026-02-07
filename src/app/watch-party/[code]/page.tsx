@@ -23,11 +23,17 @@ export default function WatchPartyRoom() {
 
   const [room, setRoom] = useState<any>(null);
   const [participants, setParticipants] = useState<WatchPartyParticipant[]>([]);
+  const participantsRef = useRef<WatchPartyParticipant[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasJoined, setHasJoined] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState(0);
   const [peersBuffering, setPeersBuffering] = useState<string[]>([]);
+
+  // Keep participantsRef updated
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
 
   // Protect Route
   useEffect(() => {
@@ -68,13 +74,123 @@ export default function WatchPartyRoom() {
     if (data.chatHistory) setMessages(data.chatHistory);
   }, []);
 
-  // Sync Hook
-  const { socket, emitMessage, playError, isRoomPlaying, resolvePlayError, handleLocalPlay, handleLocalPause, handleLocalSeek, handleLocalWaiting, handleLocalPlaying } = usePartySync(
+  // --- REMOTE EVENT CALLBACKS (called by usePartySync when others act) ---
+
+  const handleRemotePlay = useCallback((time: number, userId: string) => {
+    console.log('[Page] Remote PLAY received, controlling player at:', time);
+    if (!playerRef.current) {
+      console.log('[Page] No playerRef, cannot control player!');
+      return;
+    }
+    // Sync time if significant drift
+    if (Math.abs(playerRef.current.currentTime - time) > 1) {
+      playerRef.current.currentTime = time;
+    }
+    playerRef.current.play().catch((err) => {
+      console.log('[Page] Play failed:', err.name);
+      if (err.name === 'NotAllowedError') {
+        setPlayError(true);
+      }
+    });
+  }, []);
+
+  const handleRemotePause = useCallback((time: number, userId: string) => {
+    console.log('[Page] Remote PAUSE received, controlling player at:', time);
+    if (!playerRef.current) {
+      console.log('[Page] No playerRef, cannot control player!');
+      return;
+    }
+    playerRef.current.currentTime = time;
+    playerRef.current.pause();
+  }, []);
+
+  const handleRemoteSeek = useCallback((time: number, userId: string) => {
+    console.log('[Page] Remote SEEK received, controlling player to:', time);
+    if (!playerRef.current) {
+      console.log('[Page] No playerRef, cannot control player!');
+      return;
+    }
+    playerRef.current.currentTime = time;
+    // Note: Auto-play after seek will be handled by the play event that follows
+  }, []);
+
+  const handleInitialSync = useCallback((time: number, isPlaying: boolean) => {
+    console.log(`[Page] Initial sync to ${time}s, isPlaying: ${isPlaying}`);
+
+    const doSync = () => {
+      if (!playerRef.current) {
+        console.log('[Page] Player not ready for initial sync, retrying...');
+        setTimeout(doSync, 500);
+        return;
+      }
+
+      playerRef.current.currentTime = time;
+
+      if (isPlaying) {
+        playerRef.current.play().catch((err) => {
+          console.log('[Page] Initial play failed:', err.name);
+          if (err.name === 'NotAllowedError') {
+            setPlayError(true);
+          }
+        });
+      } else {
+        playerRef.current.pause();
+      }
+    };
+
+    doSync();
+  }, []);
+
+  // State for playError (needs to be defined before callbacks that use it)
+  const [playErrorState, setPlayError] = useState(false);
+
+  // Sync Hook with callbacks
+  const { socket, emitMessage, emitPlay, emitPause, emitSeek, emitBuffering, playError, isRoomPlaying, resolvePlayError, isRemoteUpdate } = usePartySync(
     roomCode,
-    playerRef,
-    handleRoomStateUpdate,
+    {
+      onRemotePlay: handleRemotePlay,
+      onRemotePause: handleRemotePause,
+      onRemoteSeek: handleRemoteSeek,
+      onInitialSync: handleInitialSync,
+      onRoomStateUpdate: handleRoomStateUpdate,
+    },
     hasJoined,
   );
+
+  // --- LOCAL EVENT HANDLERS (when THIS user acts) ---
+
+  const handleLocalPlay = useCallback(() => {
+    if (isRemoteUpdate.current) return; // Prevent loop
+    const time = playerRef.current?.currentTime || 0;
+    console.log('[Page] Local PLAY, emitting at:', time);
+    emitPlay(time);
+  }, [emitPlay]);
+
+  const handleLocalPause = useCallback(() => {
+    if (isRemoteUpdate.current) return; // Prevent loop
+    const time = playerRef.current?.currentTime || 0;
+    console.log('[Page] Local PAUSE, emitting at:', time);
+    emitPause(time);
+  }, [emitPause]);
+
+  const handleLocalSeek = useCallback(
+    (seekedTime?: number) => {
+      if (isRemoteUpdate.current) return; // Prevent loop
+      const time = seekedTime ?? playerRef.current?.currentTime ?? 0;
+      console.log('[Page] Local SEEK, emitting to:', time);
+      emitSeek(time);
+    },
+    [emitSeek],
+  );
+
+  // DISABLED: Buffering events were causing sync issues
+  const handleLocalWaiting = useCallback(() => {
+    // emitBuffering(true);
+  }, []);
+
+  const handleLocalPlaying = useCallback(() => {
+    // emitBuffering(false);
+  }, []);
 
   // Socket Events for UI
   useEffect(() => {
@@ -136,27 +252,80 @@ export default function WatchPartyRoom() {
           return prev.filter((id) => id !== userId);
         }
       });
-
-      if (isBuffering && !playerRef.current?.paused) {
-        playerRef.current?.pause();
-      }
+      // Note: Don't auto-pause here - let the overlay handle it visually
+      // Auto-resume is handled in useEffect when peersBuffering clears
     });
 
-    socket.on('seek', ({ time, userId }) => {
+    // Play event - add info to chat
+    socket.on('play', ({ time, userId, displayName }) => {
       if (userId === socket.id) return;
-      const actor = participants.find((p) => p.user_id === userId || p.id === userId);
       const minutes = Math.floor(time / 60);
       const seconds = Math.floor(time % 60);
       const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
       setMessages((prev) => [
         ...prev,
         {
-          id: `system-${Date.now()}`,
+          id: `action-${Date.now()}`,
           room_id: '',
-          user_id: 'system',
-          display_name: 'System',
-          message: `${actor?.display_name || 'Someone'} jumped to ${timeStr}`,
+          user_id: 'action',
+          display_name: displayName,
+          message: `▶️ started playing at ${timeStr}`,
+          avatar_url: null,
+          timestamp: new Date().toISOString(),
+        } as unknown as ChatMessage,
+      ]);
+    });
+
+    // Pause event - add info to chat
+    socket.on('pause', ({ time, userId, displayName }) => {
+      if (userId === socket.id) return;
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `action-${Date.now()}`,
+          room_id: '',
+          user_id: 'action',
+          display_name: displayName,
+          message: `⏸️ paused at ${timeStr}`,
+          avatar_url: null,
+          timestamp: new Date().toISOString(),
+        } as unknown as ChatMessage,
+      ]);
+    });
+
+    // Seek event - add info to chat
+    socket.on('seek', ({ time, userId, displayName }) => {
+      if (userId === socket.id) return;
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `action-${Date.now()}`,
+          room_id: '',
+          user_id: 'action',
+          display_name: displayName,
+          message: `⏩ jumped to ${timeStr}`,
+          avatar_url: null,
+          timestamp: new Date().toISOString(),
+        } as unknown as ChatMessage,
+      ]);
+    });
+
+    // User action notifications (skip forward/backward, etc.)
+    socket.on('user-action', ({ displayName, action, message }) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `action-${Date.now()}`,
+          room_id: '',
+          user_id: 'action',
+          display_name: displayName,
+          message: message,
           avatar_url: null,
           timestamp: new Date().toISOString(),
         } as unknown as ChatMessage,
@@ -168,7 +337,10 @@ export default function WatchPartyRoom() {
       socket.off('user-left');
       socket.off('chat-message');
       socket.off('buffering');
+      socket.off('play');
+      socket.off('pause');
       socket.off('seek');
+      socket.off('user-action');
     };
   }, [socket, participants]);
 
@@ -179,12 +351,16 @@ export default function WatchPartyRoom() {
     };
   }, []);
 
-  // Auto-Resume when buffering clears
-  useEffect(() => {
-    if (hasJoined && isRoomPlaying && peersBuffering.length === 0 && playerRef.current?.paused && !playError) {
-      playerRef.current?.play().catch(() => {});
-    }
-  }, [peersBuffering, hasJoined, playError, isRoomPlaying]);
+  // DISABLED: Buffering-based sync was causing issues (User 1 pauses when User 2 joins)
+  // Sync is now only based on explicit play/pause/seek events
+  // useEffect(() => {
+  //   if (!hasJoined || !playerRef.current) return;
+  //   if (peersBuffering.length > 0 && isRoomPlaying && !playerRef.current.paused) {
+  //     playerRef.current.pause();
+  //   } else if (peersBuffering.length === 0 && isRoomPlaying && playerRef.current.paused && !playError) {
+  //     playerRef.current.play().catch(() => {});
+  //   }
+  // }, [peersBuffering, hasJoined, playError, isRoomPlaying]);
 
   const copyLink = () => {
     const url = `${window.location.origin}/watch-party/${roomCode}`;
@@ -346,13 +522,13 @@ export default function WatchPartyRoom() {
               )}
             </div>
 
-            {/* Controls Bar */}
-            <div className="hidden md:flex items-center justify-between px-6 py-4 bg-zinc-900/50 border-t border-zinc-800/50">
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-white truncate">{room?.title}</h1>
+            {/* Controls Bar - visible on all devices */}
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 bg-zinc-900/50 border-t border-zinc-800/50">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-sm md:text-xl font-bold text-white truncate">{room?.title}</h1>
                 <p className="text-xs text-zinc-400">Room: {roomCode}</p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 md:gap-4">
                 {sourcesData?.downloads && sourcesData.downloads.length > 0 && (
                   <select className="bg-zinc-800 text-xs text-white border border-zinc-700 rounded px-2 py-1" value={selectedQuality} onChange={(e) => setSelectedQuality(parseInt(e.target.value))}>
                     {sourcesData.downloads.map((s, i) => (
@@ -362,15 +538,19 @@ export default function WatchPartyRoom() {
                     ))}
                   </select>
                 )}
-                <button onClick={copyLink} className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-semibold transition">
-                  <Share2 className="w-4 h-4" /> Invite
+                <button
+                  onClick={copyLink}
+                  className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs md:text-sm font-semibold transition"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Invite</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Chat */}
-          <div className="flex-1 lg:flex-none lg:w-80 min-h-0 bg-zinc-900 border border-zinc-800 relative z-10 lg:rounded-xl overflow-hidden shadow-xl">
+          {/* Chat - improved mobile height */}
+          <div className="h-64 lg:h-auto lg:flex-none lg:w-80 min-h-0 bg-zinc-900 border border-zinc-800 relative z-10 rounded-xl overflow-hidden shadow-xl">
             <ChatPanel roomCode={roomCode} messages={messages} onSendMessage={emitMessage} participantCount={participants.length} className="h-full" />
           </div>
         </div>

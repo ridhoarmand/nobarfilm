@@ -1,4 +1,5 @@
-export interface WatchPartyRoom {  id: string;
+export interface WatchPartyRoom {
+  id: string;
   room_code: string;
   host_id: string;
 
@@ -78,12 +79,13 @@ export interface ServerToClientEvents {
   'room-state': (data: { participants: WatchPartyParticipant[]; playback: PartyPlaybackState; chatHistory?: ChatMessage[] }) => void;
   'user-joined': (participant: WatchPartyParticipant) => void;
   'user-left': (userId: string) => void;
-  play: (data: { time: number; userId: string }) => void;
-  pause: (data: { time: number; userId: string }) => void;
-  seek: (data: { time: number; userId: string }) => void;
+  play: (data: { time: number; userId: string; displayName: string }) => void;
+  pause: (data: { time: number; userId: string; displayName: string }) => void;
+  seek: (data: { time: number; userId: string; displayName: string }) => void;
   buffering: (data: { userId: string; isBuffering: boolean }) => void;
   'chat-message': (message: ChatMessage) => void;
   'host-transferred': (data: { newHostId: string }) => void;
+  'user-action': (data: { userId: string; displayName: string; action: string; message: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -95,4 +97,6 @@ export interface ClientToServerEvents {
   buffering: (data: { roomCode: string; isBuffering: boolean }) => void;
   'chat-message': (data: { roomCode: string; message: string }) => void;
   'transfer-host': (data: { roomCode: string; newHostId: string }) => void;
+  'sync-position': (data: { roomCode: string; time: number; isPlaying: boolean }) => void;
+  'user-action': (data: { roomCode: string; action: string; message: string }) => void;
 }

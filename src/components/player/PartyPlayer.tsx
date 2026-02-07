@@ -1,5 +1,4 @@
-'use client';
-import { useEffect, useRef, useMemo, forwardRef, useCallback } from 'react';
+'use client';import { useEffect, useRef, useMemo, forwardRef, useCallback } from 'react';
 import { MediaPlayer, MediaProvider, Track, Poster, type MediaPlayerInstance, type MediaSrc } from '@vidstack/react';
 import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/layouts/default';
 import '@vidstack/react/player/styles/default/theme.css';
@@ -85,7 +84,7 @@ export const PartyPlayer = forwardRef<MediaPlayerInstance, PartyPlayerProps>(({ 
   );
 
   const tracks = useMemo(
-    () => subtitles.map((sub, i) => <Track key={String(i)} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
+    () => subtitles.map((sub, i) => <Track key={`track-${sub.srcLang}-${i}`} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
     [subtitles],
   );
 

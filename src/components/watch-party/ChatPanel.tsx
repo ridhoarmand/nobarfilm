@@ -1,5 +1,4 @@
-'use client';
-import { useState, useEffect, useRef, memo } from 'react';
+'use client';import { useState, useEffect, useRef, memo } from 'react';
 import { MessageCircle, Send, X, ChevronRight, Users } from 'lucide-react';
 import { ChatMessage } from '@/types/watch-party';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -105,9 +104,11 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
         ) : (
           messages.map((msg) => {
             const isSystem = (msg as any).is_system || msg.user_id === 'system';
+            const isAction = msg.user_id === 'action';
+
             return (
-              <div key={msg.id} className={`flex gap-2 ${isSystem ? 'justify-center' : ''}`}>
-                {!isSystem && (
+              <div key={msg.id} className={`flex gap-2 ${isSystem || isAction ? 'justify-center' : ''}`}>
+                {!isSystem && !isAction && (
                   <>
                     {/* Avatar */}
                     <div className="flex-shrink-0">
@@ -132,8 +133,13 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
                 )}
                 {isSystem && (
                   <div className="text-center flex-1">
-                    <p className="text-[10px] lg:text-xs text-gray-500 italic px-2 py-1 bg-zinc-800/50 rounded-full inline-block">
-                      ℹ️ {msg.message}
+                    <p className="text-[10px] lg:text-xs text-gray-500 italic px-2 py-1 bg-zinc-800/50 rounded-full inline-block">ℹ️ {msg.message}</p>
+                  </div>
+                )}
+                {isAction && (
+                  <div className="text-center flex-1">
+                    <p className="text-[10px] lg:text-xs text-blue-400 px-2 py-1 bg-blue-900/30 rounded-full inline-block">
+                      <span className="font-medium">{msg.display_name}</span> {msg.message}
                     </p>
                   </div>
                 )}
