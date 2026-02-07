@@ -118,7 +118,7 @@ export const PartyPlayer = forwardRef<MediaPlayerInstance, PartyPlayerProps>(({ 
         streamType="on-demand"
         playsInline
         crossOrigin
-        fullscreenOrientation="none"
+        fullscreenOrientation="landscape"
         logLevel="silent"
       >
         <MediaProvider>

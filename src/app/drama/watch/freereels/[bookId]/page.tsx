@@ -1,12 +1,10 @@
-'use client';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+'use client';import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useFreeReelsDetail } from '@/hooks/useFreeReels';
 import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { VideoPlayer } from '@/components/player/VideoPlayer';
-import { SubjectType } from '@/types/api';
+import { DramaPlayer } from '@/components/player/DramaPlayer';
 
 export default function FreeReelsWatchPage() {
   const params = useParams();
@@ -52,20 +50,6 @@ export default function FreeReelsWatchPage() {
     return { src: proxiedUrl, type };
   }, [currentEpisodeData, videoQuality]);
 
-  // MEMOIZED subtitles
-  const subtitles = useMemo(() => {
-    if (!currentEpisodeData?.subtitleUrl) return [];
-    return [
-      {
-        kind: 'subtitles',
-        label: 'Indonesia',
-        srcLang: 'id',
-        src: `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.subtitleUrl)}`,
-        default: true,
-      },
-    ];
-  }, [currentEpisodeData?.subtitleUrl]);
-
   const handleEpisodeChange = useCallback(
     (index: number) => {
       if (index === currentEpisodeIndex) {
@@ -89,34 +73,33 @@ export default function FreeReelsWatchPage() {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center space-y-4">
+      <main className="fixed inset-0 bg-black flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
         <div className="text-center space-y-2">
           <h3 className="text-white font-medium text-lg">Memuat video...</h3>
           <p className="text-white/60 text-sm">Mohon tunggu sebentar...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error || !drama) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
+      <main className="fixed inset-0 bg-black flex flex-col items-center justify-center p-4">
         <AlertCircle className="w-12 h-12 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-white mb-4">Video tidak ditemukan</h2>
         <Link href="/" className="text-primary hover:underline">
           Kembali ke beranda
         </Link>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col">
+    <main className="fixed inset-0 bg-black flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
-        <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
-        <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
+      <div className="relative h-16 flex-shrink-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-white/5">
+        <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto">
           <Link href={`/drama/freereels/${bookId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
             <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
@@ -148,8 +131,9 @@ export default function FreeReelsWatchPage() {
       </div>
 
       {/* Main Video Area */}
-      <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
-        <div className="relative w-full h-full flex items-center justify-center bg-black group">
+      <div className="flex-1 relative min-h-0 bg-black flex items-center justify-center p-2 sm:p-4">
+        {/* Bounds Wrapper - prevents "kegedean" on desktop */}
+        <div className="h-full max-h-full max-w-full aspect-[9/16] md:max-w-[480px] relative">
           {!videoSource && (
             <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/80 backdrop-blur-sm animate-in fade-in">
               <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
@@ -157,41 +141,40 @@ export default function FreeReelsWatchPage() {
             </div>
           )}
 
-          {videoSource && (
-            <VideoPlayer src={videoSource} subtitles={subtitles} poster={drama.cover} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} autoPlay={autoPlayNext} />
-          )}
+          {videoSource && <DramaPlayer key={`freereels-player-${currentEpisodeIndex}`} src={videoSource} poster={drama.cover} onEnded={handleVideoEnded} initialTime={0} autoPlay={autoPlayNext} />}
         </div>
+      </div>
 
-        {/* Navigation Controls - ALWAYS VISIBLE */}
-        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
-          <div className="flex items-center gap-1 pointer-events-auto bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full border border-white/10 shadow-lg">
-            <button
-              onClick={() => handleEpisodeChange(currentEpisodeIndex - 1)}
-              disabled={currentEpisodeIndex <= 0}
-              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+      {/* Navigation Controls */}
+      <div className="relative h-24 md:h-20 flex-shrink-0 z-40 flex items-center justify-center px-4 pb-safe-area-bottom pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto bg-zinc-900/80 backdrop-blur-md px-4 py-2.5 rounded-full border border-white/10 shadow-2xl">
+          <button
+            onClick={() => handleEpisodeChange(currentEpisodeIndex - 1)}
+            disabled={currentEpisodeIndex <= 0}
+            className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
 
-            <span className="text-white/90 font-medium text-sm tabular-nums px-2">
-              {currentEpisodeData ? (currentEpisodeData.index || currentEpisodeIndex) + 1 : 1}/{totalEpisodes}
-            </span>
+          <span className="text-white/90 font-bold text-sm tabular-nums px-3 min-w-[60px] text-center">
+            {currentEpisodeData ? (currentEpisodeData.index || currentEpisodeIndex) + 1 : 1} / {totalEpisodes}
+          </span>
 
-            <button
-              onClick={() => handleEpisodeChange(currentEpisodeIndex + 1)}
-              disabled={currentEpisodeIndex >= totalEpisodes - 1}
-              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+          <button
+            onClick={() => setAutoPlayNext(!autoPlayNext)}
+            className={cn('p-2.5 rounded-full transition-all active:scale-90', autoPlayNext ? 'text-primary bg-primary/20 ring-1 ring-primary/30' : 'text-white/40 hover:bg-white/5')}
+            title={autoPlayNext ? 'Autoplay On' : 'Autoplay Off'}
+          >
+            {autoPlayNext ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
+          </button>
 
-            <button
-              onClick={() => setAutoPlayNext(!autoPlayNext)}
-              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
-            >
-              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
-            </button>
-          </div>
+          <button
+            onClick={() => handleEpisodeChange(currentEpisodeIndex + 1)}
+            disabled={currentEpisodeIndex >= totalEpisodes - 1}
+            className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
         </div>
       </div>
 
@@ -226,6 +209,6 @@ export default function FreeReelsWatchPage() {
           </div>
         </>
       )}
-    </div>
+    </main>
   );
 }

@@ -7,8 +7,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/DropdownMenu';
 import type { DramaDetailDirect, DramaDetailResponseLegacy } from '@/types/drama';
-import { VideoPlayer } from '@/components/player/VideoPlayer';
-import { SubjectType } from '@/types/api';
+import { DramaPlayer } from '@/components/player/DramaPlayer';
 
 function isDirectFormat(data: unknown): data is DramaDetailDirect {
   return data !== null && typeof data === 'object' && 'bookId' in data && 'coverWap' in data;
@@ -70,11 +69,10 @@ export default function DramaBoxWatchPage() {
   useEffect(() => {
     if (!availableQualities.length) return;
     if (!availableQualities.includes(quality)) {
-      setQuality(availableQualities[0]);
+      setQuality(availableQualities.includes(720) ? 720 : availableQualities[0]);
     }
   }, [availableQualities, quality]);
 
-  // MEMOIZED video source
   const videoSource = useMemo(() => {
     if (!currentEpisodeData || !defaultCdn) return null;
     if (!defaultCdn.videoPathList || defaultCdn.videoPathList.length === 0) return null;
@@ -129,11 +127,10 @@ export default function DramaBoxWatchPage() {
   }
 
   return (
-    <main className="fixed inset-0 bg-black flex flex-col">
+    <main className="fixed inset-0 bg-black flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-40 h-16 pointer-events-auto">
-        <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-md border-b border-white/5" />
-        <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto pointer-events-auto">
+      <div className="relative h-16 flex-shrink-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-white/5">
+        <div className="relative z-10 flex items-center justify-between h-full px-4 max-w-7xl mx-auto">
           <Link href={`/drama/dramabox/${bookId}`} className="flex items-center gap-2 text-white/90 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
             <span className="text-primary font-bold hidden sm:inline">NobarDrama</span>
@@ -167,8 +164,9 @@ export default function DramaBoxWatchPage() {
       </div>
 
       {/* Main Video Area */}
-      <div className="flex-1 w-full h-full relative bg-black flex flex-col items-center justify-center">
-        <div className="relative w-full h-full flex items-center justify-center p-0 md:p-4 group">
+      <div className="flex-1 relative min-h-0 bg-black flex items-center justify-center p-2 sm:p-4">
+        {/* Bounds Wrapper - fits within available space, 9:16 aspect, max 480px wide */}
+        <div className="h-full max-h-full max-w-full aspect-[9/16] md:max-w-[480px] relative">
           {(detailLoading || episodesLoading || !currentEpisodeData) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/80 backdrop-blur-sm animate-in fade-in">
               <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
@@ -176,39 +174,40 @@ export default function DramaBoxWatchPage() {
             </div>
           )}
 
-          {videoSource && <VideoPlayer src={videoSource} poster={currentEpisodeData?.chapterImg} onEnded={handleVideoEnded} subjectType={SubjectType.Short} initialTime={0} autoPlay={autoPlayNext} />}
+          {videoSource && <DramaPlayer key="dramabox-player" src={videoSource} poster={currentEpisodeData?.chapterImg} onEnded={handleVideoEnded} initialTime={0} autoPlay={autoPlayNext} />}
         </div>
+      </div>
 
-        {/* Navigation Controls - ALWAYS VISIBLE */}
-        <div className="absolute bottom-20 md:bottom-12 left-0 right-0 z-40 pointer-events-none flex justify-center pb-safe-area-bottom">
-          <div className="flex items-center gap-2 pointer-events-auto bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full border border-white/10 shadow-lg">
-            <button
-              onClick={() => currentEpisode > 0 && handleEpisodeChange(currentEpisode - 1)}
-              disabled={currentEpisode <= 0}
-              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+      {/* Navigation Controls */}
+      <div className="relative h-24 md:h-20 flex-shrink-0 z-40 flex items-center justify-center pb-safe-area-bottom pointer-events-none px-4">
+        <div className="flex items-center gap-2 pointer-events-auto bg-zinc-900/80 backdrop-blur-md px-4 py-2.5 rounded-full border border-white/10 shadow-2xl">
+          <button
+            onClick={() => currentEpisode > 0 && handleEpisodeChange(currentEpisode - 1)}
+            disabled={currentEpisode <= 0}
+            className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
 
-            <span className="text-white/90 font-medium text-sm tabular-nums px-2">
-              {currentEpisode + 1}/{totalEpisodes}
-            </span>
+          <span className="text-white/90 font-bold text-sm tabular-nums px-3 min-w-[60px] text-center">
+            {currentEpisode + 1} / {totalEpisodes}
+          </span>
 
-            <button
-              onClick={() => setAutoPlayNext(!autoPlayNext)}
-              className={cn('p-2 rounded-full transition-colors active:scale-95', autoPlayNext ? 'text-primary bg-primary/20 hover:bg-primary/30' : 'text-white/50 hover:bg-white/10')}
-            >
-              {autoPlayNext ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
-            </button>
+          <button
+            onClick={() => setAutoPlayNext(!autoPlayNext)}
+            className={cn('p-2.5 rounded-full transition-all active:scale-90', autoPlayNext ? 'text-primary bg-primary/20 ring-1 ring-primary/30' : 'text-white/40 hover:bg-white/5')}
+            title={autoPlayNext ? 'Autoplay On' : 'Autoplay Off'}
+          >
+            {autoPlayNext ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
+          </button>
 
-            <button
-              onClick={() => currentEpisode < totalEpisodes - 1 && handleEpisodeChange(currentEpisode + 1)}
-              disabled={currentEpisode >= totalEpisodes - 1}
-              className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={() => currentEpisode < totalEpisodes - 1 && handleEpisodeChange(currentEpisode + 1)}
+            disabled={currentEpisode >= totalEpisodes - 1}
+            className="p-2 rounded-full text-white disabled:opacity-30 hover:bg-white/10 transition-colors active:scale-95"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
         </div>
       </div>
 

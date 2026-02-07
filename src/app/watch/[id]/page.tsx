@@ -4,7 +4,7 @@ import { useMovieBoxDetail, useMovieBoxSources, useMovieBoxPlaybackUrl } from '@
 import { type MediaPlayerInstance } from '@vidstack/react';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { Navbar } from '@/components/layout/Navbar';
-import { VideoPlayer } from '@/components/player/VideoPlayer';
+import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { ChevronLeft, ChevronRight, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -242,7 +242,7 @@ function WatchContent() {
                         </div>
                       </div>
                     )}
-                    <VideoPlayer
+                    <MoviePlayer
                       ref={playerRef}
                       src={(videoSource.src as any) || ''}
                       subtitles={videoSource.subtitles}
@@ -250,7 +250,6 @@ function WatchContent() {
                       onEnded={() => autoPlayNext && handleNextEpisode()}
                       onProgress={handleProgress}
                       initialTime={savedTime}
-                      subjectType={detailData.subject.subjectType}
                       autoPlay={autoPlayNext}
                     />
                   </div>

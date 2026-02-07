@@ -47,13 +47,3 @@ jobs:
           accessToken: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
           stackId: 17
           endpointId: 3
-          # Inject Environment Variables into Portainer Stack
-          env: |
-            {
-              "DOCKER_USERNAME": "${{ secrets.DOCKER_USERNAME }}",
-              "CLIENT_URL": "${{ secrets.CLIENT_URL }}",
-              "NEXT_PUBLIC_SUPABASE_URL": "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}",
-              "NEXT_PUBLIC_SUPABASE_ANON_KEY": "${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}",
-              "NEXT_PUBLIC_SOCKET_URL": "${{ secrets.NEXT_PUBLIC_SOCKET_URL }}"
-            }
-          # Using default image update behavior

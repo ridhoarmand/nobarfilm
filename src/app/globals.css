@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -85,58 +84,57 @@
   }
 }
 
-/* Plyr Player Custom Styling */
-@layer components {
-  .plyr {
-    --plyr-color-main: #e50914;
-    --plyr-video-background: #000;
-    --plyr-menu-background: rgba(0, 0, 0, 0.9);
-    --plyr-menu-color: #fff;
-  }
+/* Vidstack Player - Remove internal padding, fill container */
+.media-player,
+.media-player[data-view-type='video'] {
+  --media-controls-padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
 
-  .plyr--video {
-    height: 100% !important;
-    width: 100% !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-  }
+/* Video layout container */
+.media-player .vds-video-layout {
+  --media-controls-padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
 
-  .plyr video {
-    object-fit: contain !important;
-    max-width: 100%;
-    max-height: 100%;
-  }
+/* Media provider should fill container */
+.media-player .vds-media-provider {
+  width: 100% !important;
+  height: 100% !important;
+}
 
-  /* Subtitle Customization - Hardsub Style */
-  .plyr__captions {
-    display: block !important;
-  }
+/* Video element should fill and cover - aggressive selectors */
+.media-player video,
+.media-player video[crossorigin],
+.media-player video[crossorigin=''],
+.media-player .vds-media-provider video,
+video[data-vds],
+video[aria-hidden='true'] {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+}
 
-  .plyr__captions .plyr__caption {
-    background: transparent !important;
-    text-shadow:
-      -1px -1px 0 #000,
-      1px -1px 0 #000,
-      -1px 1px 0 #000,
-      1px 1px 0 #000,
-      2px 2px 4px rgba(0, 0, 0, 0.8);
-    font-weight: 600 !important;
-    font-size: 1.1rem !important;
-    padding: 0 !important;
-    margin-bottom: 30px !important;
-  }
+/* Reset position for fullscreen - let default fullscreen styles work */
+.media-player[data-fullscreen] video,
+.media-player[data-fullscreen='true'] video,
+.media-player:fullscreen video,
+:fullscreen video {
+  position: static !important;
+  object-fit: contain !important;
+}
 
-  /* Force display on all screen sizes */
-  .plyr--hide-controls .plyr__captions {
-    transform: translateY(0) !important;
-  }
-
-  /* Hide volume on mobile */
-  @media (max-width: 768px) {
-    .plyr__volume {
-      display: none !important;
-    }
-  }
+/* Poster should also fill */
+.media-player .vds-poster {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
 }

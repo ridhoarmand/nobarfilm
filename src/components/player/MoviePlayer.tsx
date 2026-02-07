@@ -4,11 +4,10 @@ import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/l
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { FastForward, Rewind, Volume2 } from 'lucide-react';
-import { SubjectType } from '@/types/api';
 import { cn } from '@/lib/utils';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 
-interface VideoPlayerProps {
+interface MoviePlayerProps {
   src: MediaSrc | string;
   subtitles?: Array<{
     kind: string;
@@ -20,19 +19,21 @@ interface VideoPlayerProps {
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number) => void;
-  subjectType?: SubjectType;
   initialTime?: number;
   autoPlay?: boolean;
 }
 
 /**
- * Optimized Video Player for Movie and Drama.
- * - Persistent playback speed via usePlaybackSpeed hook
- * - Auto-resume after seek
+ * Movie Player - Optimized for landscape 16:9 video content.
+ * Features:
+ * - Standard 16:9 aspect ratio
+ * - Fullscreen with landscape orientation
+ * - Watch history tracking via onProgress
+ * - Persistent playback speed
  * - Gesture controls (brightness/volume)
- * - No party sync logic (use PartyPlayer for that)
+ * - Keyboard shortcuts
  */
-export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ src, subtitles = [], poster, onEnded, onProgress, subjectType, initialTime = 0, autoPlay }, ref) => {
+export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ src, subtitles = [], poster, onEnded, onProgress, initialTime = 0, autoPlay }, ref) => {
   const localRef = useRef<MediaPlayerInstance>(null);
   const player = (ref as React.RefObject<MediaPlayerInstance>) || localRef;
 
@@ -40,7 +41,7 @@ export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ 
   const isFullscreen = useMediaState('fullscreen', player);
 
   // Speed persistence
-  const { speedRef, setSpeed, applyToPlayer } = usePlaybackSpeed();
+  const { setSpeed, applyToPlayer } = usePlaybackSpeed();
   const isSwitchingSource = useRef(false);
   const lastSrcRef = useRef<string | null>(null);
 
@@ -167,7 +168,6 @@ export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ 
   );
 
   const handleSeeked = useCallback(() => {
-    // Auto-resume after seek
     if (player.current && autoPlay) {
       player.current.play().catch(() => {});
     }
@@ -179,18 +179,15 @@ export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ 
   );
 
   const containerClasses = useMemo(() => {
-    const baseClasses = 'relative w-full bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto transition-all duration-500';
+    const baseClasses = 'relative bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto transition-all duration-500';
 
     if (isFullscreen) {
       return cn(baseClasses, 'w-full h-full rounded-none max-w-none max-h-none');
     }
 
-    if (subjectType === SubjectType.Short) {
-      return cn(baseClasses, 'w-full h-full md:w-auto');
-    }
-
-    return cn(baseClasses, 'max-w-7xl aspect-video');
-  }, [isFullscreen, subjectType]);
+    // Movie: standard 16:9 aspect ratio
+    return cn(baseClasses, 'w-full max-w-7xl aspect-video');
+  }, [isFullscreen]);
 
   if (!isClient) return <div className="aspect-video bg-black rounded-xl" />;
 
@@ -204,7 +201,7 @@ export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ 
         ref={player}
         src={src}
         className="w-full h-full"
-        title="NobarFilm Player"
+        title="NobarFilm Movie Player"
         currentTime={initialTime > 0 ? initialTime : undefined}
         onEnd={onEnded}
         onTimeUpdate={(detail) => onProgress?.(detail.currentTime)}
@@ -215,7 +212,7 @@ export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ 
         streamType="on-demand"
         playsInline
         crossOrigin
-        fullscreenOrientation="none"
+        fullscreenOrientation="landscape"
         logLevel="silent"
       >
         <MediaProvider>
@@ -237,4 +234,4 @@ export const VideoPlayer = forwardRef<MediaPlayerInstance, VideoPlayerProps>(({ 
     </div>
   );
 });
-VideoPlayer.displayName = 'VideoPlayer';
+MoviePlayer.displayName = 'MoviePlayer';
