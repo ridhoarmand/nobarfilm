@@ -6,12 +6,14 @@ import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Zap, ZapOff } fr
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { DramaPlayer } from '@/components/player/DramaPlayer';
+import { useWatchHistory } from '@/hooks/useWatchHistory';
 
 export default function FlickReelsWatchPage() {
   const params = useParams();
   const router = useRouter();
   const bookId = params.bookId as string;
   const initialVideoId = params.videoId as string;
+  const { saveProgress, getProgress } = useWatchHistory();
 
   const [activeVideoId, setActiveVideoId] = useState(initialVideoId);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
@@ -154,14 +156,7 @@ export default function FlickReelsWatchPage() {
 
           {/* Player */}
           {videoSource && (
-            <DramaPlayer
-              key={`flickreels-player-${activeVideoId}`}
-              src={videoSource}
-              poster={currentEpisodeData?.raw?.chapter_cover}
-              onEnded={handleVideoEnded}
-              initialTime={0}
-              autoPlay={autoPlayNext}
-            />
+            <DramaPlayer key={`flickreels-player-${activeVideoId}`} src={videoSource} poster={currentEpisodeData?.raw?.chapter_cover} onEnded={handleVideoEnded} autoPlay={autoPlayNext} />
           )}
         </div>
       </div>

@@ -1,5 +1,8 @@
-'use client';import { useState, useEffect } from 'react';
+'use client';import { useState, useEffect, useRef } from 'react';
 import { useMovieBoxHomepage, useMovieBoxTrending } from '@/hooks/useMovieBox';
+import { useContinueWatching } from '@/hooks/useContinueWatching';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { useQueryClient } from '@tanstack/react-query';
 import { Hero, HeroSlide } from '@/components/home/Hero';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -7,8 +10,14 @@ import { LoadingPage } from '@/components/shared/LoadingSkeleton';
 import { Subject, BannerItem } from '@/types/api';
 import { SectionSlider } from '@/components/shared/SectionSlider';
 import { MovieCard } from '@/components/shared/MovieCard';
+import { ContinueWatchingCard } from '@/components/shared/ContinueWatchingCard';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function MoviePage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: continueWatchingData } = useContinueWatching();
+  const continueWatchingRef = useRef<HTMLDivElement>(null);
   const { data: homeData, isLoading: isHomeLoading, error: homeError } = useMovieBoxHomepage();
 
   // Trending State for Infinite Scroll
@@ -128,6 +137,40 @@ export default function MoviePage() {
         )}
 
         <div className="relative -mt-12 sm:-mt-20 lg:-mt-20 pb-16 space-y-12">
+          {/* Continue Watching Section */}
+          {user && continueWatchingData && continueWatchingData.length > 0 && (
+            <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto">
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 pl-1 border-l-4 border-red-600">Continue Watching</h2>
+
+              <div className="relative">
+                {/* Prev Button */}
+                <button
+                  onClick={() => continueWatchingRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
+                  aria-label="Previous"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                {/* Slider */}
+                <div ref={continueWatchingRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
+                  {continueWatchingData.map((item) => (
+                    <ContinueWatchingCard key={item.id} item={item} onRemove={() => queryClient.invalidateQueries({ queryKey: ['continue-watching'] })} />
+                  ))}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => continueWatchingRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* 1. Popular Movies (Ranked Slider) */}
           {popularMovies.length > 0 && <SectionSlider title="Popular Movies" items={popularMovies} isRanked={true} />}
 

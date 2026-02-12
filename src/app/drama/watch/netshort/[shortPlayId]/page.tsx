@@ -104,15 +104,7 @@ export default function NetShortWatchPage() {
             </div>
           )}
 
-          {videoSource && (
-            <DramaPlayer
-              key={`netshort-player-${currentEpisode}`}
-              src={videoSource}
-              onEnded={handleVideoEnded}
-              initialTime={getProgress('netshort', shortPlayId, currentEpisode)}
-              autoPlay={autoPlayNext}
-            />
-          )}
+          {videoSource && <DramaPlayer key={`netshort-player-${currentEpisode}`} src={videoSource} onEnded={handleVideoEnded} autoPlay={autoPlayNext} />}
         </div>
       </div>
 

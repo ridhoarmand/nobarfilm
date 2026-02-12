@@ -1,16 +1,19 @@
-'use client';import { useMemo, useState, useEffect, useCallback } from 'react';
+'use client';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useFreeReelsDetail } from '@/hooks/useFreeReels';
 import { ChevronLeft, ChevronRight, Loader2, List, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { DramaPlayer } from '@/components/player/DramaPlayer';
+import { useWatchHistory } from '@/hooks/useWatchHistory';
 
 export default function FreeReelsWatchPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const bookId = params.bookId as string;
+  const { saveProgress, getProgress } = useWatchHistory();
 
   const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
@@ -141,7 +144,27 @@ export default function FreeReelsWatchPage() {
             </div>
           )}
 
-          {videoSource && <DramaPlayer key={`freereels-player-${currentEpisodeIndex}`} src={videoSource} poster={drama.cover} onEnded={handleVideoEnded} initialTime={0} autoPlay={autoPlayNext} />}
+          {videoSource && (
+            <DramaPlayer
+              key={`freereels-player-${currentEpisodeIndex}`}
+              src={videoSource}
+              poster={drama.cover}
+              onEnded={handleVideoEnded}
+              autoPlay={autoPlayNext}
+              tracks={useMemo(() => {
+                if (!currentEpisodeData?.subtitleUrl) return [];
+                return [
+                  {
+                    src: `/api/proxy/video?url=${encodeURIComponent(currentEpisodeData.subtitleUrl)}`,
+                    label: 'Indonesia',
+                    kind: 'subtitles' as const,
+                    srcLang: 'id',
+                    default: true,
+                  },
+                ];
+              }, [currentEpisodeData])}
+            />
+          )}
         </div>
       </div>
 

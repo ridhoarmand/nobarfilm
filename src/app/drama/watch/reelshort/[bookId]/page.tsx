@@ -1,4 +1,5 @@
-'use client';import { useState, useEffect, useMemo, useCallback } from 'react';
+'use client';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Loader2, AlertCircle, List, Settings, Check, Zap, ZapOff } from 'lucide-react';
 import Link from 'next/link';
@@ -7,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/DropdownMenu';
 import { DramaPlayer } from '@/components/player/DramaPlayer';
 import { decryptData } from '@/lib/crypto';
+import { useWatchHistory } from '@/hooks/useWatchHistory';
 
 interface VideoItem {
   url: string;
@@ -50,6 +52,7 @@ export default function ReelShortWatchPage() {
   const searchParams = useSearchParams();
   const bookId = params.bookId;
   const router = useRouter();
+  const { saveProgress, getProgress } = useWatchHistory();
 
   const [currentEpisode, setCurrentEpisode] = useState(1);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
@@ -211,7 +214,7 @@ export default function ReelShortWatchPage() {
             </div>
           )}
 
-          {videoSource && <DramaPlayer key={`reelshort-player-${currentEpisode}`} src={videoSource} onEnded={handleVideoEnded} initialTime={0} autoPlay={autoPlayNext} />}
+          {videoSource && <DramaPlayer key={`reelshort-player-${currentEpisode}`} src={videoSource} onEnded={handleVideoEnded} autoPlay={autoPlayNext} />}
         </div>
       </div>
 

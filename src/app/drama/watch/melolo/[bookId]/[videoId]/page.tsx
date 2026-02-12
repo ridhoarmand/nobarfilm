@@ -41,7 +41,7 @@ export default function MeloloWatchPage() {
   const bookId = params.bookId;
   const videoId = params.videoId;
   const router = useRouter();
-  const { getProgress } = useWatchHistory();
+  const { saveProgress, getProgress } = useWatchHistory();
 
   const [selectedQuality, setSelectedQuality] = useState<string>('');
   const [showEpisodeList, setShowEpisodeList] = useState(false);
@@ -165,9 +165,7 @@ export default function MeloloWatchPage() {
             </div>
           )}
 
-          {videoSource && (
-            <DramaPlayer key={`melolo-player-${videoId}`} src={videoSource} onEnded={handleVideoEnded} initialTime={getProgress('melolo', bookId, episodeNumber)} autoPlay={autoPlayNext} />
-          )}
+          {videoSource && <DramaPlayer key={`melolo-player-${videoId}`} src={videoSource} poster={data?.drama?.cover} onEnded={handleVideoEnded} autoPlay={autoPlayNext} />}
         </div>
       </div>
 

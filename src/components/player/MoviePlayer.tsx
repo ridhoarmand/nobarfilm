@@ -18,7 +18,7 @@ interface MoviePlayerProps {
   }>;
   poster?: string;
   onEnded?: () => void;
-  onProgress?: (time: number) => void;
+  onProgress?: (time: number, duration: number) => void;
   initialTime?: number;
   autoPlay?: boolean;
 }
@@ -150,13 +150,41 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
     touchStart.current = null;
   }, []);
 
-  // Player event handlers
+  // Robust Autoplay Logic (Mute & Play Fallback)
   const handleCanPlay = useCallback(() => {
+    if (!player.current) return;
+
     applyToPlayer(player.current);
     setTimeout(() => {
       isSwitchingSource.current = false;
     }, 1000);
-  }, [applyToPlayer, player]);
+
+    // Initial Time Restoration (if not handled by prop)
+    if (initialTime > 0 && Math.abs(player.current.currentTime - initialTime) > 1) {
+      player.current.currentTime = initialTime;
+    }
+
+    // Autoplay fallback
+    if (autoPlay) {
+      const p = player.current;
+      const attemptPlay = async () => {
+        try {
+          if (p) await p.play();
+        } catch (error) {
+          console.warn('Autoplay failed, retrying muted');
+          if (p) {
+            p.muted = true;
+            try {
+              await p.play();
+            } catch (e) {
+              // Autoplay blocked
+            }
+          }
+        }
+      };
+      attemptPlay();
+    }
+  }, [applyToPlayer, player, initialTime, autoPlay]);
 
   const handleRateChange = useCallback(
     (rate: number) => {
@@ -174,7 +202,7 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
   }, [player, autoPlay]);
 
   const tracks = useMemo(
-    () => subtitles.map((sub, i) => <Track key={String(i)} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
+    () => subtitles.map((sub, i) => <Track key={`track-${sub.srcLang}-${i}`} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
     [subtitles],
   );
 
@@ -203,12 +231,16 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
         className="w-full h-full"
         title="NobarFilm Movie Player"
         currentTime={initialTime > 0 ? initialTime : undefined}
-        onEnd={onEnded}
-        onTimeUpdate={(detail) => onProgress?.(detail.currentTime)}
+        onEnded={onEnded}
+        onTimeUpdate={(detail) => {
+          // Prevent resetting parent state to 0 on source change (resolution switch)
+          if (detail.currentTime < 0.5 && initialTime > 10) return;
+          onProgress?.(detail.currentTime, player.current?.state.duration || 0);
+        }}
         onCanPlay={handleCanPlay}
         onRateChange={handleRateChange}
         onSeeked={handleSeeked}
-        autoplay={autoPlay}
+        autoPlay={autoPlay}
         streamType="on-demand"
         playsInline
         crossOrigin

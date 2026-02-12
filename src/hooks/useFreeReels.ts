@@ -1,8 +1,7 @@
+'use client';
 
-"use client";
-
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { fetchJson } from "@/lib/fetcher";
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { fetchJson } from '@/lib/fetcher';
 
 // Interfaces based on FreeReels JSON response
 export interface FreeReelsItem {
@@ -25,6 +24,7 @@ export interface FreeReelsItem {
     };
   };
   link?: string;
+  subtitleUrl?: string;
   [key: string]: any;
 }
 
@@ -34,8 +34,8 @@ export interface FreeReelsForYouResponse {
   data: {
     items: FreeReelsItem[];
     page_info?: {
-       next: string;
-       has_more: boolean;
+      next: string;
+      has_more: boolean;
     };
   };
 }
@@ -71,25 +71,25 @@ export interface FreeReelsDetailResponse {
 
 export function useFreeReelsForYou() {
   return useQuery<FreeReelsForYouResponse>({
-    queryKey: ["freereels", "foryou"],
-    queryFn: () => fetchJson<FreeReelsForYouResponse>("/api/freereels/foryou"),
+    queryKey: ['freereels', 'foryou'],
+    queryFn: () => fetchJson<FreeReelsForYouResponse>('/api/freereels/foryou'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useInfiniteFreeReelsDramas() {
   return useInfiniteQuery<FreeReelsForYouResponse>({
-    queryKey: ["freereels", "foryou", "infinite"],
+    queryKey: ['freereels', 'foryou', 'infinite'],
     queryFn: ({ pageParam = 0 }) => fetchJson<FreeReelsForYouResponse>(`/api/freereels/foryou?offset=${pageParam}`),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-        // User requested multiples of 20 (0, 20, 40...)
-        if (lastPage.data?.page_info?.has_more) {
-             const nextOffset = allPages.length * 20;
-             if (nextOffset >= 100) return undefined; // safety limit
-             return nextOffset;
-        }
-        return undefined;
+      // User requested multiples of 20 (0, 20, 40...)
+      if (lastPage.data?.page_info?.has_more) {
+        const nextOffset = allPages.length * 20;
+        if (nextOffset >= 100) return undefined; // safety limit
+        return nextOffset;
+      }
+      return undefined;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -97,16 +97,16 @@ export function useInfiniteFreeReelsDramas() {
 
 export function useFreeReelsHome() {
   return useQuery<FreeReelsPageResponse>({
-    queryKey: ["freereels", "home"],
-    queryFn: () => fetchJson<FreeReelsPageResponse>("/api/freereels/home"),
+    queryKey: ['freereels', 'home'],
+    queryFn: () => fetchJson<FreeReelsPageResponse>('/api/freereels/home'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useFreeReelsAnime() {
   return useQuery<FreeReelsPageResponse>({
-    queryKey: ["freereels", "anime"],
-    queryFn: () => fetchJson<FreeReelsPageResponse>("/api/freereels/anime"),
+    queryKey: ['freereels', 'anime'],
+    queryFn: () => fetchJson<FreeReelsPageResponse>('/api/freereels/anime'),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -131,42 +131,43 @@ export interface FreeReelsSearchResponse {
 
 export function useFreeReelsDetail(bookId: string) {
   return useQuery({
-    queryKey: ["freereels", "detail", bookId],
+    queryKey: ['freereels', 'detail', bookId],
     queryFn: () => fetchJson<any>(`/api/freereels/detail?id=${bookId}`),
-     select: (response) => {
-       // Response has { data: { info: { ... }, ... } }
-       const info = response.data?.info;
-       if (!info) return null;
-       
-       // Transform info to FreeReelsItem
-       const episodes = info.episode_list?.map((ep: any) => {
-           // Find Indonesian subtitle if available
-           const indoSub = ep.subtitle_list?.find((sub: any) => sub.language === 'id-ID');
-           
-           return {
-               id: ep.id,
-               name: ep.name,
-               index: (info.episode_list?.indexOf(ep) || 0),
-               videoUrl: ep.video_url || ep.external_audio_h264_m3u8 || "", 
-               m3u8_url: ep.m3u8_url || "",
-               external_audio_h264_m3u8: ep.external_audio_h264_m3u8 || "",
-               external_audio_h265_m3u8: ep.external_audio_h265_m3u8 || "",
-               cover: ep.cover || info.cover,
-               // Subtitle extraction
-               subtitleUrl: indoSub?.subtitle || indoSub?.vtt || "",
-               originalAudioLanguage: ep.original_audio_language || "",
-           };
-       }) || [];
+    select: (response) => {
+      // Response has { data: { info: { ... }, ... } }
+      const info = response.data?.info;
+      if (!info) return null;
 
-       return {
-         data: {
-           ...info,
-           key: info.id,
-           title: info.name,
-           follow_count: info.follow_count || 0,
-           episodes: episodes,
-         } as FreeReelsItem
-       };
+      // Transform info to FreeReelsItem
+      const episodes =
+        info.episode_list?.map((ep: any) => {
+          // Find Indonesian subtitle if available
+          const indoSub = ep.subtitle_list?.find((sub: any) => sub.language === 'id-ID');
+
+          return {
+            id: ep.id,
+            name: ep.name,
+            index: info.episode_list?.indexOf(ep) || 0,
+            videoUrl: ep.video_url || ep.external_audio_h264_m3u8 || '',
+            m3u8_url: ep.m3u8_url || '',
+            external_audio_h264_m3u8: ep.external_audio_h264_m3u8 || '',
+            external_audio_h265_m3u8: ep.external_audio_h265_m3u8 || '',
+            cover: ep.cover || info.cover,
+            // Subtitle extraction
+            subtitleUrl: indoSub?.subtitle || indoSub?.vtt || '',
+            originalAudioLanguage: ep.original_audio_language || '',
+          };
+        }) || [];
+
+      return {
+        data: {
+          ...info,
+          key: info.id,
+          title: info.name,
+          follow_count: info.follow_count || 0,
+          episodes: episodes,
+        } as FreeReelsItem,
+      };
     },
     enabled: !!bookId,
     staleTime: 5 * 60 * 1000,
@@ -175,16 +176,18 @@ export function useFreeReelsDetail(bookId: string) {
 
 export function useFreeReelsSearch(query: string) {
   return useQuery({
-    queryKey: ["freereels", "search", query],
+    queryKey: ['freereels', 'search', query],
     queryFn: () => fetchJson<FreeReelsSearchResponse>(`/api/freereels/search?query=${encodeURIComponent(query)}`),
     select: (response) => {
-        // Transform search items to FreeReelsItem format
-        return response.data?.items?.map(item => ({
-            ...item,
-            key: item.id,
-            title: item.name,
-            follow_count: item.follow_count || 0,
-        })) as FreeReelsItem[] || [];
+      // Transform search items to FreeReelsItem format
+      return (
+        (response.data?.items?.map((item) => ({
+          ...item,
+          key: item.id,
+          title: item.name,
+          follow_count: item.follow_count || 0,
+        })) as FreeReelsItem[]) || []
+      );
     },
     enabled: !!query,
     staleTime: 60 * 1000,

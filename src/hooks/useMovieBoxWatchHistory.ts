@@ -1,5 +1,4 @@
-'use client';
-
+'use client';import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { SaveProgressPayload } from '@/types/watch-history';
@@ -16,6 +15,20 @@ interface UseMovieBoxWatchHistoryParams {
 export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
   const { user } = useAuth();
   const { subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes } = params;
+
+  // Fetch initial progress
+  const { data: progressData } = useQuery({
+    queryKey: ['watch-progress', subjectId, currentEpisode],
+    queryFn: async () => {
+      if (!user || !subjectId) return null;
+      const res = await fetch(`/api/watch-history/progress?subject_id=${subjectId}&episode=${currentEpisode || 0}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user && !!subjectId,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
 
   const saveProgress = useCallback(
     async (progressSeconds: number, durationSeconds: number) => {
@@ -57,10 +70,11 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         console.error('Error saving watch history:', error);
       }
     },
-    [user, subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes]
+    [user, subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes],
   );
 
   return {
     saveProgress,
+    progressData,
   };
 }

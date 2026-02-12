@@ -3,9 +3,10 @@ import { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { useMovieBoxDetail, useMovieBoxSources, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
 import { type MediaPlayerInstance } from '@vidstack/react';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
+import { useAdaptiveQuality } from '@/hooks/useAdaptiveQuality';
 import { Navbar } from '@/components/layout/Navbar';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
-import { ChevronLeft, ChevronRight, Zap, ZapOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Zap, ZapOff, Wifi } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -24,9 +25,13 @@ function WatchContent() {
   const [currentEpisode, setCurrentEpisode] = useState(episodeParam);
   const [selectedQuality, setSelectedQuality] = useState(0);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
-  const [savedTime, setSavedTime] = useState<number>(0); // Save current playback time
+
+  // Resume timestamp from URL (t=seconds)
+  const resumeTimestamp = parseInt(searchParams.get('t') || '0');
+  const [savedTime, setSavedTime] = useState<number>(resumeTimestamp); // Initialize with URL timestamp
   const lastSavedTimeRef = useRef(0);
   const playerRef = useRef<MediaPlayerInstance>(null);
+  const hasLoadedHistory = useRef(false);
 
   const { data: detailData, isLoading: isLoadingDetail } = useMovieBoxDetail(subjectId);
   const isMovie = detailData?.subject?.subjectType === 1;
@@ -36,6 +41,20 @@ function WatchContent() {
   const sourcesEpisode = isMovie ? 0 : currentEpisode;
 
   const { data: sourcesData, isLoading: isLoadingSources, error: sourcesError } = useMovieBoxSources(subjectId, sourcesSeason, sourcesEpisode);
+
+  // Auto quality selection based on connection speed
+  const availableResolutions = useMemo(() => sourcesData?.downloads?.map((d) => d.resolution) || [], [sourcesData]);
+  const { recommendedQualityIndex, connectionSpeed } = useAdaptiveQuality(availableResolutions);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
+
+  // Auto-select quality based on connection (only once per session)
+  useEffect(() => {
+    if (!hasAutoSelected && availableResolutions.length > 0 && recommendedQualityIndex >= 0) {
+      setSelectedQuality(recommendedQualityIndex);
+      setHasAutoSelected(true);
+      console.log(`[Auto Quality] Selected index ${recommendedQualityIndex} (${availableResolutions[recommendedQualityIndex]}p) based on ${connectionSpeed}`);
+    }
+  }, [hasAutoSelected, availableResolutions, recommendedQualityIndex, connectionSpeed]);
 
   // Use cached stream generation
   const { data: streamData, isLoading: isLoadingStream, error: streamErrorData } = useMovieBoxPlaybackUrl(subjectId, sourcesSeason, sourcesEpisode, selectedQuality);
@@ -95,7 +114,7 @@ function WatchContent() {
   };
 
   // Watch History Hook
-  const { saveProgress } = useMovieBoxWatchHistory({
+  const { saveProgress, progressData } = useMovieBoxWatchHistory({
     subjectId,
     subjectType: detailData?.subject?.subjectType || 1, // Default Movie
     title: detailData?.subject?.title || 'Unknown Title',
@@ -104,14 +123,30 @@ function WatchContent() {
     totalEpisodes: detailData?.resource?.seasons?.find((s) => s.se === currentSeason)?.maxEp,
   });
 
+  // Apply saved progress when loaded (if not using URL param)
+  useEffect(() => {
+    if (resumeTimestamp > 0) return; // URL param takes precedence
+
+    if (progressData?.progress && progressData.progress > 0 && !hasLoadedHistory.current) {
+      const isNearEnd = progressData.duration > 0 && progressData.progress > progressData.duration * 0.95;
+
+      if (!isNearEnd) {
+        console.log('Restoring progress:', progressData.progress);
+        setSavedTime(progressData.progress);
+        // Force player seek if ref is available immediately
+        if (playerRef.current && Math.abs(playerRef.current.currentTime - progressData.progress) > 1) {
+          playerRef.current.currentTime = progressData.progress;
+        }
+      }
+      hasLoadedHistory.current = true;
+    }
+  }, [progressData, resumeTimestamp]);
+
   // Update current playback time
-  const handleProgress = (time: number) => {
+  const handleProgress = (time: number, playerDuration: number) => {
     setSavedTime(time);
-    // Estimate total duration from stream or metadata if available,
-    // but the hook needs explicit duration.
-    // VideoPlayer onProgress usually just gives currentTime.
-    // Ideally VideoPlayer should pass duration too, or we get it from metadata (subject.duration * 60).
-    const duration = detailData?.subject?.duration ? detailData.subject.duration * 60 : 0;
+    // Use player duration directly, fallback to metadata if not available
+    const duration = playerDuration > 0 ? playerDuration : detailData?.subject?.duration ? detailData.subject.duration * 60 : 0;
     if (duration > 0) {
       if (time - lastSavedTimeRef.current < 10) return;
       lastSavedTimeRef.current = time;

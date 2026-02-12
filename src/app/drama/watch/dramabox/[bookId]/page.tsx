@@ -1,5 +1,4 @@
-'use client';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+'use client';import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useDramaDetail, useEpisodes } from '@/hooks/useDramaDetail';
 import { ChevronLeft, ChevronRight, Loader2, Settings, List, AlertCircle, Check, Zap, ZapOff } from 'lucide-react';
@@ -8,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/DropdownMenu';
 import type { DramaDetailDirect, DramaDetailResponseLegacy } from '@/types/drama';
 import { DramaPlayer } from '@/components/player/DramaPlayer';
+import { useWatchHistory } from '@/hooks/useWatchHistory';
 
 function isDirectFormat(data: unknown): data is DramaDetailDirect {
   return data !== null && typeof data === 'object' && 'bookId' in data && 'coverWap' in data;
@@ -22,6 +22,7 @@ export default function DramaBoxWatchPage() {
   const bookId = params.bookId;
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { saveProgress, getProgress } = useWatchHistory();
   const [currentEpisode, setCurrentEpisode] = useState(0);
   const [quality, setQuality] = useState(720);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
@@ -174,7 +175,7 @@ export default function DramaBoxWatchPage() {
             </div>
           )}
 
-          {videoSource && <DramaPlayer key="dramabox-player" src={videoSource} poster={currentEpisodeData?.chapterImg} onEnded={handleVideoEnded} initialTime={0} autoPlay={autoPlayNext} />}
+          {videoSource && <DramaPlayer key={`dramabox-player-${currentEpisode}`} src={videoSource} poster={currentEpisodeData?.chapterImg} onEnded={handleVideoEnded} autoPlay={autoPlayNext} />}
         </div>
       </div>
 
