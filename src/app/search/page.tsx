@@ -5,6 +5,7 @@ import { useMovieBoxSearch } from '@/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MovieCard } from '@/components/shared/MovieCard';
+import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { MovieCardSkeleton } from '@/components/shared/LoadingSkeleton';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -23,18 +24,18 @@ function SearchContent() {
   // Debounce search query (wait 700ms after user stops typing)
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-      if (searchQuery && searchQuery !== queryParam) {
-        router.push(`/search?q=${encodeURIComponent(searchQuery)}&page=1`);
-        setCurrentPage(1);
+      if (searchQuery.trim()) {
+        const platformParam = searchParams.get('platform') || 'moviebox';
+        router.push(`/search?q=${encodeURIComponent(searchQuery)}&platform=${platformParam}`);
       }
     }, 700);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, router, searchParams]);
 
   // Update local state from URL params
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchQuery(queryParam);
     setDebouncedQuery(queryParam);
     setCurrentPage(pageParam);
@@ -92,11 +93,11 @@ function SearchContent() {
                   'Searching...'
                 ) : hasResults ? (
                   <>
-                    Found <span className="text-white font-semibold">{data.pager.totalCount}</span> results for "<span className="text-white font-semibold">{debouncedQuery}</span>"
+                    Found <span className="text-white font-semibold">{data.pager.totalCount}</span> results for &quot;<span className="text-white font-semibold">{debouncedQuery}</span>&quot;
                   </>
                 ) : (
                   <>
-                    No results found for "<span className="text-white font-semibold">{debouncedQuery}</span>"
+                    No results found for &quot;<span className="text-white font-semibold">{debouncedQuery}</span>&quot;
                   </>
                 )}
               </p>
@@ -114,9 +115,8 @@ function SearchContent() {
 
           {/* Error State */}
           {error && (
-            <div className="text-center py-20">
-              <p className="text-red-500 mb-2">Failed to load search results</p>
-              <p className="text-gray-500 text-sm">{error.message}</p>
+            <div className="py-20 flex justify-center">
+              <ErrorDisplay message={error.message || 'Failed to load search results'} />
             </div>
           )}
 
@@ -157,7 +157,7 @@ function SearchContent() {
             <div className="text-center py-20">
               <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <h2 className="text-2xl font-semibold text-white mb-2">Start Searching</h2>
-              <p className="text-gray-400">Enter a movie or series name above to find what you're looking for</p>
+              <p className="text-gray-400">Enter a movie or series name above to find what you&apos;re looking for</p>
             </div>
           )}
 

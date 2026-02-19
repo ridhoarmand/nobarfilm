@@ -1,5 +1,4 @@
 'use client';
-
 import { useFlickReelsLatest, useFlickReelsHotRank } from '@/hooks/useFlickReels';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
@@ -49,10 +48,7 @@ export function FlickReelsHome() {
         <SectionLoader count={6} titleWidth="w-40" />
       ) : (
         hotRankData?.data?.map((section, sIdx) => (
-          <HorizontalMediaSlider
-            key={section.name || sIdx}
-            title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground flex items-center gap-2">{section.name}</h2>}
-          >
+          <HorizontalMediaSlider key={section.name || sIdx} title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground flex items-center gap-2">{section.name}</h2>}>
             {section.data
               ?.filter((item) => item.title && item.cover)
               .map((item, idx) => (
@@ -60,7 +56,7 @@ export function FlickReelsHome() {
                   <UnifiedMediaCard
                     title={item.title}
                     cover={item.cover}
-                    link={`/drama/flickreels/${item.playlet_id}`}
+                    link={`/dracin/flickreels/${item.playlet_id}`}
                     episodes={item.upload_num ? parseInt(item.upload_num) : 0}
                     topRightBadge={item.hot_num ? { text: item.hot_num, isTransparent: true } : null}
                   />
@@ -75,10 +71,7 @@ export function FlickReelsHome() {
         <SectionLoader count={12} titleWidth="w-48" />
       ) : (
         latestData?.data?.map((section, idx) => (
-          <HorizontalMediaSlider
-            key={idx}
-            title={section.title ? <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{section.title}</h2> : null}
-          >
+          <HorizontalMediaSlider key={idx} title={section.title ? <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{section.title}</h2> : null}>
             {section.list
               ?.filter((item) => item.title && item.cover)
               .map((item, i) => (
@@ -86,7 +79,7 @@ export function FlickReelsHome() {
                   <UnifiedMediaCard
                     title={item.title}
                     cover={item.cover}
-                    link={`/drama/flickreels/${item.playlet_id}`}
+                    link={`/dracin/flickreels/${item.playlet_id}`}
                     episodes={item.upload_num ? parseInt(item.upload_num) : 0}
                     topRightBadge={null}
                   />

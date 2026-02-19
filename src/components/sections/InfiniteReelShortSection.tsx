@@ -1,4 +1,5 @@
 'use client';
+
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
@@ -53,7 +54,7 @@ export function InfiniteReelShortSection({ title }: InfiniteReelShortSectionProp
               index={index}
               title={drama.bookName}
               cover={drama.coverWap || drama.cover || ''}
-              link={`/drama/reelshort/${drama.bookId}`}
+              link={`/dracin/reelshort/${drama.bookId}`}
               episodes={drama.chapterCount}
               topLeftBadge={
                 drama.corner

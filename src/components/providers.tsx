@@ -1,4 +1,5 @@
-'use client';import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
+'use client';
+import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -8,8 +9,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         queryCache: new QueryCache({
-          onError: (error: any) => {
-            if (error?.response?.status === 429 || error?.status === 429) {
+          onError: (error: unknown) => {
+            const err = error as { response?: { status?: number }; status?: number };
+            if (err?.response?.status === 429 || err?.status === 429) {
               toast.error('Terlalu Cepat! Mohon tunggu sebentar sebelum request lagi.', {
                 duration: 5000,
               });

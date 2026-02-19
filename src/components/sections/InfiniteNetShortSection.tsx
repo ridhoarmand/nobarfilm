@@ -1,4 +1,5 @@
 'use client';
+
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
@@ -48,7 +49,7 @@ export function InfiniteNetShortSection({ title }: InfiniteNetShortSectionProps)
             index={index}
             title={drama.title}
             cover={drama.cover}
-            link={`/drama/netshort/${drama.shortPlayId}`}
+            link={`/dracin/netshort/${drama.shortPlayId}`}
             episodes={drama.totalEpisodes}
             topLeftBadge={
               drama.scriptName

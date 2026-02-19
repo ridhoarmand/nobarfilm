@@ -1,4 +1,5 @@
 'use client';
+
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
@@ -48,7 +49,7 @@ export function InfiniteMeloloSection({ title }: InfiniteMeloloSectionProps) {
             index={index}
             title={book.book_name}
             cover={book.thumb_url}
-            link={`/drama/melolo/${book.book_id}`}
+            link={`/dracin/melolo/${book.book_id}`}
             episodes={book.serial_count || 0}
             topLeftBadge={null} // Melolo doesn't seemingly have top-left badges in the list
           />

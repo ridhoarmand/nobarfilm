@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { UnifiedMediaCard } from "@/components/cards/UnifiedMediaCard";
-import type { ReelShortBook } from "@/types/reelshort";
+import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
+import type { ReelShortBook } from '@/types/reelshort';
 
 interface ReelShortCardProps {
   book: ReelShortBook;
@@ -10,21 +10,29 @@ interface ReelShortCardProps {
 
 export function ReelShortCard({ book, index = 0 }: ReelShortCardProps) {
   return (
-    <UnifiedMediaCard 
+    <UnifiedMediaCard
       index={index}
       title={book.book_title}
       cover={book.book_pic}
-      link={`/drama/reelshort/${book.book_id}`}
+      link={`/dracin/reelshort/${book.book_id}`}
       episodes={book.chapter_count}
-      topLeftBadge={book.book_mark?.text ? {
-        text: book.book_mark.text,
-        color: book.book_mark.color || "#E52E2E",
-        textColor: book.book_mark.text_color
-      } : null}
-      topRightBadge={book.rank_level ? {
-        text: book.rank_level,
-        isTransparent: true
-      } : null}
+      topLeftBadge={
+        book.book_mark?.text
+          ? {
+              text: book.book_mark.text,
+              color: book.book_mark.color || '#E52E2E',
+              textColor: book.book_mark.text_color,
+            }
+          : null
+      }
+      topRightBadge={
+        book.rank_level
+          ? {
+              text: book.rank_level,
+              isTransparent: true,
+            }
+          : null
+      }
     />
   );
 }

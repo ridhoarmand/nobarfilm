@@ -1,7 +1,6 @@
 'use client';
-
 import Link from 'next/link';
-import { Search, Menu, X, User, LogOut, Settings, Film, Tv, Clapperboard } from 'lucide-react';
+import { Search, Menu, X, User, LogOut, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -11,7 +10,7 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  // const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const pathname = usePathname();
@@ -33,9 +32,9 @@ export function Navbar() {
     if (searchQuery.trim()) {
       setIsMobileMenuOpen(false);
 
-      // Check if we are in drama section
-      if (pathname.startsWith('/drama')) {
-        router.push(`/drama/search?platform=${encodeURIComponent(currentPlatform)}&q=${encodeURIComponent(searchQuery)}`);
+      // Check if we are in dracin section
+      if (pathname.startsWith('/dracin')) {
+        router.push(`/dracin/search?platform=${encodeURIComponent(currentPlatform)}&q=${encodeURIComponent(searchQuery)}`);
       } else {
         // Default to movie/moviebox search
         router.push(`/movie/search?q=${encodeURIComponent(searchQuery)}`);
@@ -55,11 +54,29 @@ export function Navbar() {
   const navItems = [
     { href: '/movie', label: 'Movie' },
     { href: '/anime', label: 'Anime' },
-    { href: '/drama', label: 'Drama' },
+    { href: '/dracin', label: 'Dracin' },
   ];
 
+  const [currentApp, setCurrentApp] = useState<'movie' | 'anime' | 'dracin'>('movie');
+
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (hostname.includes('anime')) setCurrentApp('anime');
+    else if (hostname.includes('dracin')) setCurrentApp('dracin');
+    else setCurrentApp('movie');
+  }, []);
+
   const isActive = (href: string) => {
-    if (href === '/movie' && pathname === '/') return true;
+    // Exact match for root "/" based on subdomain
+    if (pathname === '/') {
+      if (href === '/anime' && currentApp === 'anime') return true;
+      if (href === '/dracin' && currentApp === 'dracin') return true;
+      if (href === '/movie' && currentApp === 'movie') return true;
+      return false;
+    }
+
+    // Default prefix matching for sub-routes
     return pathname.startsWith(href);
   };
 
@@ -68,8 +85,10 @@ export function Navbar() {
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link href="/movie" className="flex-shrink-0">
-            <h1 className="text-3xl sm:text-4xl font-bold text-red-600 hover:text-red-500 transition">{pathname.startsWith('/drama') ? 'NobarDrama' : 'NobarFilm'}</h1>
+          <Link href={pathname.startsWith('/anime') ? '/anime' : pathname.startsWith('/dracin') ? '/dracin' : '/movie'} className="flex-shrink-0">
+            <h1 className="text-3xl sm:text-4xl font-bold text-red-600 hover:text-red-500 transition">
+              {pathname.startsWith('/anime') ? 'NobarAnime' : pathname.startsWith('/dracin') ? 'NobarDracin' : 'NobarFilm'}
+            </h1>
           </Link>
 
           {/* Desktop Navigation */}
@@ -114,7 +133,7 @@ export function Navbar() {
                   {/* User Dropdown */}
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden">
-                      <Link href="/akun" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-zinc-800 transition">
+                      <Link href="/auth/akun" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-zinc-800 transition">
                         <Settings className="w-4 h-4" />
                         Profile Settings
                       </Link>
@@ -126,7 +145,7 @@ export function Navbar() {
                   )}
                 </>
               ) : (
-                <Link href="/login" className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-full transition">
+                <Link href="/auth/login" className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-full transition">
                   Login
                 </Link>
               )}
@@ -136,8 +155,8 @@ export function Navbar() {
             {!pathname.includes('/search') && (
               <button
                 onClick={() => {
-                  if (pathname.startsWith('/drama')) {
-                    router.push(`/drama/search?platform=${encodeURIComponent(currentPlatform)}`);
+                  if (pathname.startsWith('/dracin')) {
+                    router.push(`/dracin/search?platform=${encodeURIComponent(currentPlatform)}`);
                   } else {
                     router.push('/movie/search');
                   }
@@ -185,7 +204,7 @@ export function Navbar() {
                 </>
               ) : (
                 <Link
-                  href="/login"
+                  href="/auth/login"
                   className="block px-3 py-2 text-base font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

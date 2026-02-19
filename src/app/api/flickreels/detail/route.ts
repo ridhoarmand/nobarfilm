@@ -1,5 +1,4 @@
-import { encryptedResponse, safeJson } from '@/lib/api-utils';
-import { NextRequest, NextResponse } from 'next/server';
+import { encryptedResponse, safeJson } from '@/lib/api-utils';import { NextRequest } from 'next/server';
 
 // Force dynamic to prevent static generation caching
 export const dynamic = 'force-dynamic';

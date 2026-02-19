@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from 'react';import { cn } from '@/lib/utils';
 
 interface DropdownMenuProps {
   children: React.ReactNode;
@@ -23,13 +22,17 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
     <div className="relative inline-block text-left" ref={containerRef}>
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if ((child.type as any).displayName === 'DropdownMenuTrigger') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return React.cloneElement(child as React.ReactElement<any>, {
               onClick: () => setOpen(!open),
             });
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if ((child.type as any).displayName === 'DropdownMenuContent') {
             if (!open) return null;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return React.cloneElement(child as React.ReactElement<any>, {
               onClose: () => setOpen(false),
             });
@@ -41,11 +44,18 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
   );
 }
 
-export function DropdownMenuTrigger({ children, onClick, asChild, ...props }: any) {
+interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  asChild?: boolean;
+}
+
+export function DropdownMenuTrigger({ children, onClick, asChild, ...props }: DropdownMenuTriggerProps) {
   if (asChild && React.isValidElement(children)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return React.cloneElement(children as React.ReactElement<any>, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onClick: (e: any) => {
         onClick?.(e);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (children.props as any).onClick?.(e);
       },
       ...props,
@@ -59,7 +69,14 @@ export function DropdownMenuTrigger({ children, onClick, asChild, ...props }: an
 }
 DropdownMenuTrigger.displayName = 'DropdownMenuTrigger';
 
-export function DropdownMenuContent({ children, className, align = 'end', onClose }: any) {
+interface DropdownMenuContentProps {
+  children: React.ReactNode;
+  className?: string;
+  align?: 'start' | 'end';
+  onClose?: () => void;
+}
+
+export function DropdownMenuContent({ children, className, align = 'end', onClose }: DropdownMenuContentProps) {
   return (
     <div
       className={cn(
@@ -70,8 +87,11 @@ export function DropdownMenuContent({ children, className, align = 'end', onClos
     >
       {React.Children.map(children, (child) =>
         React.isValidElement(child)
-          ? React.cloneElement(child as React.ReactElement<any>, {
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            React.cloneElement(child as React.ReactElement<any>, {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick: (e: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (child.props as any).onClick?.(e);
                 onClose?.();
               },
@@ -83,7 +103,11 @@ export function DropdownMenuContent({ children, className, align = 'end', onClos
 }
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 
-export function DropdownMenuItem({ children, className, onClick, ...props }: any) {
+interface DropdownMenuItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  inset?: boolean;
+}
+
+export function DropdownMenuItem({ children, className, onClick, ...props }: DropdownMenuItemProps) {
   return (
     <button
       className={cn('relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-zinc-800 focus:bg-zinc-800 transition-colors', className)}

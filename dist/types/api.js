@@ -1,7 +1,5 @@
 "use strict";
-// Sansekai MovieBox API Types// Based on documented API responses
-// ============================================
-// Common Types
+// Sansekai MovieBox API Types// Based on documented API responses// ============================================// Common Types
 // ============================================
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubjectType = void 0;

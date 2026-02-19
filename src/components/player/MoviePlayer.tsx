@@ -1,4 +1,4 @@
-'use client';import { useEffect, useRef, useState, useMemo, forwardRef, useCallback } from 'react';
+'use client';import { useEffect, useRef, useState, useMemo, forwardRef, useCallback, useSyncExternalStore } from 'react';
 import { MediaPlayer, MediaProvider, Track, Poster, useMediaState, type MediaPlayerInstance, type MediaSrc } from '@vidstack/react';
 import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/layouts/default';
 import '@vidstack/react/player/styles/default/theme.css';
@@ -37,8 +37,10 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
   const localRef = useRef<MediaPlayerInstance>(null);
   const player = (ref as React.RefObject<MediaPlayerInstance>) || localRef;
 
-  const [isClient, setIsClient] = useState(false);
   const isFullscreen = useMediaState('fullscreen', player);
+
+  // Client-side detection without setState-in-effect
+  const isClient = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   // Speed persistence
   const { setSpeed, applyToPlayer } = usePlaybackSpeed();
@@ -47,18 +49,21 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
 
   // Gesture State
   const [brightness, setBrightness] = useState(1);
-  const [showFeedback, setShowFeedback] = useState<{ Icon: React.ComponentType<any>; text: string } | null>(null);
+  const [showFeedback, setShowFeedback] = useState<{ Icon: React.ComponentType<{ className?: string }>; text: string } | null>(null);
   const feedbackTimeout = useRef<NodeJS.Timeout | null>(null);
   const touchStart = useRef<{ x: number; y: number; time: number; val: number } | null>(null);
 
-  useEffect(() => {
-    setIsClient(true);
+  // speed/source tracking
+  const displayFeedback = useCallback((Icon: React.ComponentType<{ className?: string }>, text: string) => {
+    setShowFeedback({ Icon, text });
+    if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
+    feedbackTimeout.current = setTimeout(() => setShowFeedback(null), 800);
   }, []);
 
   // Track source changes
   const currentSrc = useMemo(() => {
     if (!src) return null;
-    return typeof src === 'string' ? src : (src as any).src;
+    return typeof src === 'string' ? src : (src as { src: string }).src;
   }, [src]);
 
   useEffect(() => {
@@ -88,7 +93,7 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [player]);
+  }, [player, displayFeedback]);
 
   // Auto-play on source change
   useEffect(() => {
@@ -99,13 +104,6 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
       return () => clearTimeout(timer);
     }
   }, [src, autoPlay, player]);
-
-  // Helpers
-  const displayFeedback = useCallback((Icon: React.ComponentType<any>, text: string) => {
-    setShowFeedback({ Icon, text });
-    if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
-    feedbackTimeout.current = setTimeout(() => setShowFeedback(null), 800);
-  }, []);
 
   // Gesture handlers
   const handleTouchStart = useCallback(
@@ -170,13 +168,13 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
       const attemptPlay = async () => {
         try {
           if (p) await p.play();
-        } catch (error) {
+        } catch {
           console.warn('Autoplay failed, retrying muted');
           if (p) {
             p.muted = true;
             try {
               await p.play();
-            } catch (e) {
+            } catch {
               // Autoplay blocked
             }
           }
@@ -201,10 +199,19 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
     }
   }, [player, autoPlay]);
 
-  const tracks = useMemo(
-    () => subtitles.map((sub, i) => <Track key={`track-${sub.srcLang}-${i}`} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
-    [subtitles],
-  );
+  const tracks = useMemo(() => {
+    const defaultIdx = subtitles.findIndex((sub) => sub.default);
+    return subtitles.map((sub, i) => (
+      <Track
+        key={`track-${sub.srcLang}-${i}`}
+        src={sub.src}
+        kind={sub.kind as 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata'}
+        label={sub.label}
+        lang={String(sub.srcLang)}
+        default={i === defaultIdx}
+      />
+    ));
+  }, [subtitles]);
 
   const containerClasses = useMemo(() => {
     const baseClasses = 'relative bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto transition-all duration-500';

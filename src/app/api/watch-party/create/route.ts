@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { CreatePartyPayload } from '@/types/watch-party';
 
 export async function POST(request: NextRequest) {
@@ -72,8 +73,9 @@ export async function POST(request: NextRequest) {
       roomCode: result.res_room_code,
       reused: false,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in create watch party:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

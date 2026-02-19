@@ -1,5 +1,4 @@
 'use client';
-
 import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import { usePlatform, type PlatformInfo } from '@/hooks/usePlatform';
@@ -7,28 +6,27 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export function PlatformSelector() {
-  const { currentPlatform, setPlatform, platforms, getPlatformInfo } = usePlatform();
+  const { currentPlatform, platforms, getPlatformInfo } = usePlatform();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const handlePlatformChange = (platformId: any) => {
-    setPlatform(platformId);
-    setIsOpen(false);
-
+  const handlePlatformChange = (platformId: string) => {
     // Check if we're on a search page
-    const isSearchPage = pathname === '/drama/search';
+    const isSearchPage = pathname === '/dracin/search';
     const searchQuery = searchParams.get('q');
 
     if (isSearchPage) {
       const queryParam = searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : '';
-      router.push(`/drama/search?platform=${encodeURIComponent(platformId)}${queryParam}`);
-    } else if (pathname !== '/drama') {
-      // If we're on a detail page or other page, go back to drama home
-      router.push('/drama');
+      router.push(`/dracin/search?platform=${encodeURIComponent(platformId)}${queryParam}`);
+    } else {
+      // Navigate to the platform's specific route
+      router.push(`/dracin/${platformId}`);
     }
+
+    setIsOpen(false);
   };
 
   const currentPlatformInfo = getPlatformInfo(currentPlatform);

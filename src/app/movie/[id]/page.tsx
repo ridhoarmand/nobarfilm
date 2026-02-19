@@ -1,5 +1,4 @@
-'use client';
-import { useState } from 'react';
+'use client';import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail } from '@/hooks/useMovieBox';
 import { Navbar } from '@/components/layout/Navbar';
@@ -9,7 +8,7 @@ import { SeasonSelector } from '@/components/detail/SeasonSelector';
 import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Info, Star, Calendar, Clock, Download } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Download } from 'lucide-react';
 import { WatchPartyButton } from '@/components/watch-party/WatchPartyButton';
 
 export default function DetailPage() {
@@ -62,7 +61,7 @@ export default function DetailPage() {
 
   // For movies: clean URL
   // For series: season=1, episode=1 (default to first episode)
-  const watchUrl = isMovie ? `/watch/${subjectId}` : `/watch/${subjectId}?season=1&episode=1`;
+  const watchUrl = isMovie ? `/movie/watch/${subjectId}` : `/movie/watch/${subjectId}?season=1&episode=1`;
 
   return (
     <>
@@ -240,7 +239,9 @@ export default function DetailPage() {
           </div>
 
           {/* Season/Episode Selector (for Series) */}
-          {isSeries && resource?.seasons && <SeasonSelector seasons={resource.seasons} subjectId={subjectId} onDownload={(season, episode) => openDownloadModal(season, episode)} />}
+          {isSeries && resource?.seasons && (
+            <SeasonSelector seasons={resource.seasons} subjectId={subjectId} onDownload={(season, episode) => openDownloadModal(season, episode)} baseUrl="/movie/watch" />
+          )}
 
           {/* Cast */}
           {stars && stars.length > 0 && <CastList cast={stars} />}

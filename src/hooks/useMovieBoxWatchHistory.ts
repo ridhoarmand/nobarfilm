@@ -1,5 +1,6 @@
-'use client';import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
+'use client';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { SaveProgressPayload } from '@/types/watch-history';
 

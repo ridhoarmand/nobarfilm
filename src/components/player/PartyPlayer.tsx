@@ -1,4 +1,5 @@
-'use client';import { useEffect, useRef, useMemo, forwardRef, useCallback } from 'react';
+'use client';
+import { useEffect, useRef, useMemo, forwardRef, useCallback } from 'react';
 import { MediaPlayer, MediaProvider, Track, Poster, type MediaPlayerInstance, type MediaSrc } from '@vidstack/react';
 import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/layouts/default';
 import '@vidstack/react/player/styles/default/theme.css';
@@ -9,7 +10,7 @@ import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 
 interface PartyPlayerProps {
   src: MediaSrc | null;
-  subtitles?: Array<{
+  tracks?: Array<{
     kind: string;
     label: string;
     srcLang: string;
@@ -33,10 +34,10 @@ interface PartyPlayerProps {
  * - Persistent playback speed
  * - Minimal API calls
  */
-export const PartyPlayer = forwardRef<MediaPlayerInstance, PartyPlayerProps>(({ src, subtitles = [], poster, subjectType, onPlay, onPause, onSeeked, onWaiting, onPlaying }, ref) => {
+export const PartyPlayer = forwardRef<MediaPlayerInstance, PartyPlayerProps>(({ src, tracks = [], poster, subjectType, onPlay, onPause, onSeeked, onWaiting, onPlaying }, ref) => {
   const localRef = useRef<MediaPlayerInstance>(null);
   const player = (ref as React.RefObject<MediaPlayerInstance>) || localRef;
-  const { speedRef, setSpeed, applyToPlayer } = usePlaybackSpeed();
+  const { setSpeed, applyToPlayer } = usePlaybackSpeed();
   const isSwitchingSource = useRef(false);
   const lastSrcRef = useRef<string | null>(null);
 
@@ -83,10 +84,19 @@ export const PartyPlayer = forwardRef<MediaPlayerInstance, PartyPlayerProps>(({ 
     [onSeeked, player],
   );
 
-  const tracks = useMemo(
-    () => subtitles.map((sub, i) => <Track key={`track-${sub.srcLang}-${i}`} src={sub.src} kind={sub.kind as any} label={sub.label} lang={String(sub.srcLang)} default={!!sub.default} />),
-    [subtitles],
-  );
+  const renderedTracks = useMemo(() => {
+    const defaultIdx = tracks.findIndex((track) => track.default);
+    return tracks.map((track, i) => (
+      <Track
+        key={`track-${track.srcLang}-${i}`}
+        src={track.src}
+        kind={track.kind as 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata'}
+        label={track.label}
+        lang={String(track.srcLang)}
+        default={i === defaultIdx}
+      />
+    ));
+  }, [tracks]);
 
   const containerClasses = useMemo(() => {
     const base = 'relative w-full bg-black rounded-xl overflow-hidden shadow-2xl group mx-auto';
@@ -122,7 +132,7 @@ export const PartyPlayer = forwardRef<MediaPlayerInstance, PartyPlayerProps>(({ 
       >
         <MediaProvider>
           {poster && <Poster className="vds-poster object-contain" src={poster} alt="Poster" />}
-          {tracks}
+          {renderedTracks}
         </MediaProvider>
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>

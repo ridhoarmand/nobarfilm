@@ -1,6 +1,4 @@
-import { AlertCircle, RefreshCw } from 'lucide-react';
-
-interface UnifiedErrorDisplayProps {
+import { AlertCircle, RefreshCw, Copy } from 'lucide-react';interface UnifiedErrorDisplayProps {
   message?: string;
   onRetry?: () => void;
   title?: string;
@@ -18,10 +16,26 @@ export function UnifiedErrorDisplay({ message = 'Terjadi kesalahan saat memuat d
         <p className="text-sm text-white/60 max-w-sm mx-auto">{message}</p>
       </div>
       {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-zinc-800 text-red-500 text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700">
-          <RefreshCw className="w-4 h-4" />
-          <span>{retryLabel}</span>
-        </button>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button
+            onClick={onRetry}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-zinc-800 text-red-500 text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>{retryLabel}</span>
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(message);
+              alert('Error copied to clipboard');
+            }}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700 border-l-0"
+            title="Copy error message"
+          >
+            <Copy className="w-4 h-4" />
+            <span>Copy Error</span>
+          </button>
+        </div>
       )}
     </div>
   );

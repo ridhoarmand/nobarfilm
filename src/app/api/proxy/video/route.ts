@@ -1,104 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';import https from 'https';
-import http from 'http';
-
+import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'; // Prevent static optimization
-
-// Custom agent to ignore SSL issues
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
-
-// Helper: Fetch stream with redirect handling
-function fetchStream(url: string, headers: any, redirectCount = 5): Promise<{ res: http.IncomingMessage; url: string }> {
-  return new Promise((resolve, reject) => {
-    if (redirectCount <= 0) return reject(new Error('Too many redirects'));
-
-    const isHttp = url.startsWith('http:');
-    const requestModule = isHttp ? http : https;
-
-    const options = {
-      headers: headers,
-      agent: isHttp ? undefined : agent,
-      rejectUnauthorized: false,
-      method: 'GET',
-    };
-
-    const req = requestModule.request(url, options, (res) => {
-      if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-        const newUrl = new URL(res.headers.location, url).href;
-        res.resume();
-        return resolve(fetchStream(newUrl, headers, redirectCount - 1));
-      }
-      resolve({ res, url });
-    });
-
-    req.on('error', (e) => reject(e));
-    req.end();
-  });
-}
-
-// Helper: Consume stream to buffer (for rewriting text)
-function streamToBuffer(stream: http.IncomingMessage): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: any[] = [];
-    stream.on('data', (c) => chunks.push(c));
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
-}
-
-// Helper: Convert Node stream to Web ReadableStream (for streaming response)
-// With proper error handling to prevent "Controller is already closed" errors
-function nodeToWebStream(nodeStream: http.IncomingMessage): ReadableStream {
-  let isClosed = false;
-
-  return new ReadableStream({
-    start(controller) {
-      const safeClose = () => {
-        if (!isClosed) {
-          isClosed = true;
-          try {
-            controller.close();
-          } catch (e) {
-            // Controller already closed, ignore
-          }
-        }
-      };
-
-      const safeError = (err: Error) => {
-        if (!isClosed) {
-          isClosed = true;
-          try {
-            controller.error(err);
-          } catch (e) {
-            // Controller already closed, ignore
-          }
-        }
-      };
-
-      nodeStream.on('data', (chunk) => {
-        if (!isClosed) {
-          try {
-            controller.enqueue(chunk);
-          } catch (e) {
-            // Controller closed (client disconnected), cleanup
-            isClosed = true;
-            nodeStream.destroy();
-          }
-        }
-      });
-
-      nodeStream.on('end', safeClose);
-      nodeStream.on('error', safeError);
-      nodeStream.on('close', safeClose); // Handle abrupt close
-    },
-    cancel() {
-      // Called when the consumer cancels the stream (e.g., client disconnects)
-      isClosed = true;
-      nodeStream.destroy();
-    },
-  });
-}
 
 export async function GET(req: NextRequest) {
   const urlParams = req.nextUrl.searchParams;
@@ -111,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const range = req.headers.get('range');
-    const headers: any = {
+    const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       Accept: '*/*',
       Referer: refererParam || new URL(url).origin + '/',
@@ -201,7 +102,7 @@ export async function GET(req: NextRequest) {
               try {
                 const absoluteUrl = new URL(uri, baseUrl.href).href;
                 return `URI="${createProxyUrl(absoluteUrl)}"`;
-              } catch (e) {
+              } catch {
                 return match;
               }
             });
@@ -210,7 +111,7 @@ export async function GET(req: NextRequest) {
           try {
             const absoluteUrl = new URL(trimmed, baseUrl.href).href;
             return createProxyUrl(absoluteUrl);
-          } catch (e) {
+          } catch {
             return line;
           }
         })
@@ -261,7 +162,7 @@ export async function GET(req: NextRequest) {
     }
 
     // FALLBACK: Just return buffered content (e.g. small unknown files)
-    return new NextResponse(buffer as any, {
+    return new NextResponse(buffer, {
       status: upstreamRes.status || 200,
       headers: {
         'Content-Type': contentType,

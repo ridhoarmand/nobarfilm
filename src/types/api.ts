@@ -1,6 +1,4 @@
-// Sansekai MovieBox API Types// Based on documented API responses
-// ============================================
-// Common Types
+// Sansekai MovieBox API Types// Based on documented API responses// ============================================// Common Types
 // ============================================
 
 export interface Image {
@@ -94,15 +92,15 @@ export interface Trailer {
 // ============================================
 
 export interface HomepageResponse {
-  topPickList: any[];
-  homeList: any[];
+  topPickList: Subject[];
+  homeList: OperatingSection[];
   url: string;
   referer: string;
-  allPlatform: any[];
-  banner: any | null;
-  live: any | null;
+  allPlatform: Platform[];
+  banner: BannerSection | null;
+  live: LiveMatch[] | null;
   platformList: Platform[];
-  shareParam: any | null;
+  shareParam: Record<string, unknown> | null;
   operatingList: OperatingSection[];
 }
 

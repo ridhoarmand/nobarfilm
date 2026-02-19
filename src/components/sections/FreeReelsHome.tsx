@@ -1,5 +1,4 @@
 'use client';
-
 import { useFreeReelsHome, useFreeReelsAnime, FreeReelsModule, FreeReelsItem } from '@/hooks/useFreeReels';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
@@ -79,16 +78,13 @@ export function FreeReelsHome() {
             const title = (module.module_name ? cleanTitle(module.module_name) : '') || 'Rekomendasi Untukmu';
 
             return (
-              <HorizontalMediaSlider
-                key={`home-module-${mIdx}`}
-                title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{title}</h2>}
-              >
+              <HorizontalMediaSlider key={`home-module-${mIdx}`} title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{title}</h2>}>
                 {validItems.map((item, idx) => (
                   <div key={`${item.key}-home-${mIdx}-${idx}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
                     <UnifiedMediaCard
                       title={item.title}
                       cover={item.cover}
-                      link={`/drama/freereels/${item.key}`}
+                      link={`/dracin/freereels/${item.key}`}
                       episodes={item.episode_count || 0}
                       topRightBadge={item.follow_count ? { text: `${(item.follow_count / 1000).toFixed(1)}k`, isTransparent: true } : null}
                     />
@@ -121,16 +117,13 @@ export function FreeReelsHome() {
                 const moduleTitle = module.module_name && cleanTitle(module.module_name) !== '' ? cleanTitle(module.module_name) : null;
 
                 return (
-                  <HorizontalMediaSlider
-                    key={`anime-module-${mIdx}`}
-                    title={moduleTitle ? <h3 className="font-display font-semibold text-lg text-foreground/90">{moduleTitle}</h3> : <span />}
-                  >
+                  <HorizontalMediaSlider key={`anime-module-${mIdx}`} title={moduleTitle ? <h3 className="font-display font-semibold text-lg text-foreground/90">{moduleTitle}</h3> : <span />}>
                     {validItems.map((item, idx) => (
                       <div key={`${item.key}-anime-${mIdx}-${idx}`} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
                         <UnifiedMediaCard
                           title={item.title}
                           cover={item.cover}
-                          link={`/drama/freereels/${item.key}`}
+                          link={`/dracin/freereels/${item.key}`}
                           episodes={item.episode_count || 0}
                           topRightBadge={item.follow_count ? { text: `${(item.follow_count / 1000).toFixed(1)}k`, isTransparent: true } : null}
                         />

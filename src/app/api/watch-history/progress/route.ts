@@ -1,4 +1,5 @@
-import { NextResponse, NextRequest } from 'next/server';import { createClient } from '@/lib/supabase/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,8 +56,9 @@ export async function GET(request: NextRequest) {
       completed: data.completed,
       last_watched_at: data.last_watched_at,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error in get watch progress:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

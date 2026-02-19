@@ -64,10 +64,7 @@ export function ReelShortSection() {
 
       {/* Book Sections - Slider Layout */}
       {bookGroups.map((group, index) => (
-        <HorizontalMediaSlider
-          key={index}
-          title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{group.title}</h2>}
-        >
+        <HorizontalMediaSlider key={index} title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">{group.title}</h2>}>
           {group.books
             .filter((book) => book.book_id && book.book_pic)
             .slice(0, 18)
@@ -77,7 +74,7 @@ export function ReelShortSection() {
                   index={index}
                   title={book.book_title}
                   cover={book.book_pic}
-                  link={`/drama/reelshort/${book.book_id}`}
+                  link={`/dracin/reelshort/${book.book_id}`}
                   episodes={book.chapter_count}
                   topLeftBadge={
                     book.book_mark?.text

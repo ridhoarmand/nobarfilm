@@ -1,7 +1,6 @@
-import CryptoJS from 'crypto-js';
-const SECRET_KEY = process.env.NEXT_PUBLIC_CRYPTO_SECRET || 'Sansekai-SekaiDrama';
+import CryptoJS from 'crypto-js';const SECRET_KEY = process.env.NEXT_PUBLIC_CRYPTO_SECRET || 'Sansekai-SekaiDrama';
 
-export function encryptData(data: any): string {
+export function encryptData(data: unknown): string {
   // If data is an object/array, stringify it first
   const stringified = typeof data === 'string' ? data : JSON.stringify(data);
   return CryptoJS.AES.encrypt(stringified, SECRET_KEY).toString();

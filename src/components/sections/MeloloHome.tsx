@@ -1,5 +1,4 @@
 'use client';
-
 import { useMeloloLatest, useMeloloTrending } from '@/hooks/useMelolo';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
@@ -47,19 +46,10 @@ export function MeloloHome() {
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Trending Section */}
       {trendingBooks.length > 0 && (
-        <HorizontalMediaSlider
-          title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Sedang Hangat</h2>}
-        >
+        <HorizontalMediaSlider title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Sedang Hangat</h2>}>
           {trendingBooks.map((book, index) => (
             <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
-              <UnifiedMediaCard
-                title={book.book_name}
-                cover={book.thumb_url}
-                link={`/drama/melolo/${book.book_id}`}
-                episodes={book.serial_count || 0}
-                topLeftBadge={null}
-                index={index}
-              />
+              <UnifiedMediaCard title={book.book_name} cover={book.thumb_url} link={`/dracin/melolo/${book.book_id}`} episodes={book.serial_count || 0} topLeftBadge={null} index={index} />
             </div>
           ))}
         </HorizontalMediaSlider>
@@ -67,19 +57,10 @@ export function MeloloHome() {
 
       {/* Latest Section */}
       {latestBooks.length > 0 && (
-        <HorizontalMediaSlider
-          title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Rilis Baru</h2>}
-        >
+        <HorizontalMediaSlider title={<h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Rilis Baru</h2>}>
           {latestBooks.map((book, index) => (
             <div key={book.book_id} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
-              <UnifiedMediaCard
-                title={book.book_name}
-                cover={book.thumb_url}
-                link={`/drama/melolo/${book.book_id}`}
-                episodes={book.serial_count || 0}
-                topLeftBadge={null}
-                index={index}
-              />
+              <UnifiedMediaCard title={book.book_name} cover={book.thumb_url} link={`/dracin/melolo/${book.book_id}`} episodes={book.serial_count || 0} topLeftBadge={null} index={index} />
             </div>
           ))}
         </HorizontalMediaSlider>
@@ -88,9 +69,7 @@ export function MeloloHome() {
       {/* Infinite Scroll Section */}
       <InfiniteMeloloSection title="Lainnya" />
 
-      {!loadingLatest && !loadingTrending && !latestBooks.length && !trendingBooks.length && (
-        <div className="text-center py-20 text-muted-foreground">Tidak ada konten tersedia saat ini.</div>
-      )}
+      {!loadingLatest && !loadingTrending && !latestBooks.length && !trendingBooks.length && <div className="text-center py-20 text-muted-foreground">Tidak ada konten tersedia saat ini.</div>}
     </div>
   );
 }

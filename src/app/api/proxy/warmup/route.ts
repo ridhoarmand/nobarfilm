@@ -1,20 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import https from "https";
-import http from "http";
+import { NextRequest, NextResponse } from 'next/server';import https from 'https';
+import http from 'http';
 
 export const dynamic = 'force-dynamic';
 
 // Custom agent to ignore SSL issues
 const agent = new https.Agent({
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 });
 
 // Helper: Make a request with redirect handling
 function fetchHead(url: string, redirectCount = 5): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
-    if (redirectCount <= 0) return reject(new Error("Too many redirects"));
+    if (redirectCount <= 0) return reject(new Error('Too many redirects'));
 
-    const isHttp = url.startsWith("http:");
+    const isHttp = url.startsWith('http:');
     const requestModule = isHttp ? http : https;
     const urlObj = new URL(url);
 
@@ -24,9 +23,9 @@ function fetchHead(url: string, redirectCount = 5): Promise<{ statusCode: number
       path: urlObj.pathname + urlObj.search,
       method: 'GET', // Use GET with Range to properly activate stream
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*",
-        "Range": "bytes=0-0" // Request just the first byte
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: '*/*',
+        Range: 'bytes=0-0', // Request just the first byte
       },
       agent: isHttp ? undefined : agent,
       rejectUnauthorized: false,
@@ -43,18 +42,18 @@ function fetchHead(url: string, redirectCount = 5): Promise<{ statusCode: number
 
       // Read/discard data to complete request
       res.resume();
-      
-      resolve({ 
+
+      resolve({
         statusCode: res.statusCode || 500,
-        headers: res.headers
+        headers: res.headers,
       });
     });
 
     request.on('error', (e) => reject(e));
-    
+
     request.on('timeout', () => {
       request.destroy();
-      reject(new Error("Timeout"));
+      reject(new Error('Timeout'));
     });
 
     request.end();
@@ -65,10 +64,10 @@ function fetchHead(url: string, redirectCount = 5): Promise<{ statusCode: number
 // This "activates" the URL on the CDN by following redirects and starting the stream
 export async function GET(req: NextRequest) {
   const urlParams = req.nextUrl.searchParams;
-  let url = urlParams.get("url");
+  let url = urlParams.get('url');
 
   if (!url) {
-    return NextResponse.json({ success: false, error: "Missing URL" }, { status: 400 });
+    return NextResponse.json({ success: false, error: 'Missing URL' }, { status: 400 });
   }
 
   // Handle double-encoded URLs (same logic as video proxy)
@@ -79,29 +78,33 @@ export async function GET(req: NextRequest) {
       const decodedBase = decodeURIComponent(baseUrl);
       url = queryString ? `${decodedBase}?${queryString}` : decodedBase;
     }
-  } catch (e) {
+  } catch {
     url = originalUrl;
   }
 
   try {
     const { statusCode, headers } = await fetchHead(url!);
-    
+
     // Consider 2xx as success (200 or 206 Partial Content)
     const success = statusCode >= 200 && statusCode < 400;
 
-    return NextResponse.json({ 
-      success, 
-      status: statusCode,
-      contentType: headers['content-type'],
-      contentLength: headers['content-length'],
-      contentRange: headers['content-range'],
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      }
-    });
-  } catch (error: any) {
-    console.error("[Warmup] Error:", error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success,
+        status: statusCode,
+        contentType: headers['content-type'],
+        contentLength: headers['content-length'],
+        contentRange: headers['content-range'],
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      },
+    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    console.error('[Warmup] Error:', message);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { useQuery, UseQueryOptions, keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
-import type { HomepageResponse, TrendingResponse, SearchResponse, DetailResponse, SourcesResponse, ApiError } from '@/types/api';
+import type { HomepageResponse, TrendingResponse, SearchResponse, DetailResponse, SourcesResponse, ApiError, Caption } from '@/types/api';
 import { fetchJson } from '@/lib/fetcher';
 
 const API_BASE = '/api/moviebox';
@@ -107,7 +107,7 @@ export function useMovieBoxSources(subjectId: string, season?: number, episode?:
 const getStreamCacheKey = (subjectId: string, season?: number, episode?: number, quality?: number) => `nobar-stream-${subjectId}-${season ?? 'na'}-${episode ?? 'na'}-${quality ?? 0}`;
 
 // Helper to get cached stream data
-function getCachedStreamData(cacheKey: string): { streamUrl: string; captions: any[]; expiry: number } | null {
+function getCachedStreamData(cacheKey: string): { streamUrl: string; captions: Caption[]; expiry: number } | null {
   if (typeof window === 'undefined') return null;
   try {
     const cached = localStorage.getItem(cacheKey);
@@ -125,7 +125,7 @@ function getCachedStreamData(cacheKey: string): { streamUrl: string; captions: a
 }
 
 // Helper to cache stream data
-function cacheStreamData(cacheKey: string, data: { streamUrl: string; captions: any[] }, expiryMinutes = 180) {
+function cacheStreamData(cacheKey: string, data: { streamUrl: string; captions: Caption[] }, expiryMinutes = 180) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(
@@ -147,7 +147,7 @@ export function useMovieBoxPlaybackUrl(
   season?: number,
   episode?: number,
   quality: number = 0,
-  options?: Omit<UseQueryOptions<{ streamUrl: string; captions: any[] }, ApiError>, 'queryKey' | 'queryFn'>,
+  options?: Omit<UseQueryOptions<{ streamUrl: string; captions: Caption[] }, ApiError>, 'queryKey' | 'queryFn'>,
 ) {
   const query = new URLSearchParams();
   if (typeof season === 'number') query.set('season', season.toString());
@@ -156,7 +156,7 @@ export function useMovieBoxPlaybackUrl(
   const url = `${API_BASE}/sources/${subjectId}${queryString ? `?${queryString}` : ''}`;
   const cacheKey = getStreamCacheKey(subjectId, season, episode, quality);
 
-  return useQuery<{ streamUrl: string; captions: any[] }, ApiError>({
+  return useQuery<{ streamUrl: string; captions: Caption[] }, ApiError>({
     queryKey: ['moviebox', 'playback', subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null, quality] as const,
     queryFn: async () => {
       // Check localStorage cache first

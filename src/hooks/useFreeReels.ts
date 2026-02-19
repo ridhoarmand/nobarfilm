@@ -23,9 +23,37 @@ export interface FreeReelsItem {
       name: string;
     };
   };
+  module_card?: {
+    type?: string;
+    items?: FreeReelsItem[];
+  };
   link?: string;
   subtitleUrl?: string;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+export interface FreeReelsEpisode {
+  id: unknown;
+  name: unknown;
+  index: number;
+  videoUrl: string;
+  m3u8_url: string;
+  external_audio_h264_m3u8: string;
+  external_audio_h265_m3u8: string;
+  cover: string;
+  subtitleUrl: string;
+  originalAudioLanguage: string;
+}
+
+export interface FreeReelsDetailItem {
+  key: string;
+  cover: string;
+  title: string;
+  desc: string;
+  episode_count: number;
+  follow_count: number;
+  episodes: FreeReelsEpisode[];
+  [key: string]: unknown;
 }
 
 export interface FreeReelsForYouResponse {
@@ -46,7 +74,7 @@ export interface FreeReelsModule {
   module_name?: string;
   items: FreeReelsItem[];
   // For 'recommend' type which has nested card
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface FreeReelsPageResponse {
@@ -118,7 +146,7 @@ export interface FreeReelsSearchItem {
   cover: string;
   desc?: string;
   episode_count?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface FreeReelsSearchResponse {
@@ -132,7 +160,7 @@ export interface FreeReelsSearchResponse {
 export function useFreeReelsDetail(bookId: string) {
   return useQuery({
     queryKey: ['freereels', 'detail', bookId],
-    queryFn: () => fetchJson<any>(`/api/freereels/detail?id=${bookId}`),
+    queryFn: () => fetchJson<{ data: { info: FreeReelsItem & { episode_list?: Record<string, unknown>[] } } }>(`/api/freereels/detail?id=${bookId}`),
     select: (response) => {
       // Response has { data: { info: { ... }, ... } }
       const info = response.data?.info;
@@ -140,22 +168,23 @@ export function useFreeReelsDetail(bookId: string) {
 
       // Transform info to FreeReelsItem
       const episodes =
-        info.episode_list?.map((ep: any) => {
+        info.episode_list?.map((ep) => {
           // Find Indonesian subtitle if available
-          const indoSub = ep.subtitle_list?.find((sub: any) => sub.language === 'id-ID');
+          const subtitleList = (ep.subtitle_list as { language: string; subtitle: string; vtt: string }[]) || [];
+          const indoSub = subtitleList.find((sub) => sub.language === 'id-ID');
 
           return {
             id: ep.id,
             name: ep.name,
             index: info.episode_list?.indexOf(ep) || 0,
-            videoUrl: ep.video_url || ep.external_audio_h264_m3u8 || '',
-            m3u8_url: ep.m3u8_url || '',
-            external_audio_h264_m3u8: ep.external_audio_h264_m3u8 || '',
-            external_audio_h265_m3u8: ep.external_audio_h265_m3u8 || '',
-            cover: ep.cover || info.cover,
+            videoUrl: ((ep.video_url || ep.external_audio_h264_m3u8 || '') as string),
+            m3u8_url: ((ep.m3u8_url || '') as string),
+            external_audio_h264_m3u8: ((ep.external_audio_h264_m3u8 || '') as string),
+            external_audio_h265_m3u8: ((ep.external_audio_h265_m3u8 || '') as string),
+            cover: (ep.cover as string) || info.cover,
             // Subtitle extraction
             subtitleUrl: indoSub?.subtitle || indoSub?.vtt || '',
-            originalAudioLanguage: ep.original_audio_language || '',
+            originalAudioLanguage: (ep.original_audio_language as string) || '',
           };
         }) || [];
 
@@ -166,7 +195,7 @@ export function useFreeReelsDetail(bookId: string) {
           title: info.name,
           follow_count: info.follow_count || 0,
           episodes: episodes,
-        } as FreeReelsItem,
+        } as unknown as FreeReelsDetailItem,
       };
     },
     enabled: !!bookId,
@@ -185,7 +214,7 @@ export function useFreeReelsSearch(query: string) {
           ...item,
           key: item.id,
           title: item.name,
-          follow_count: item.follow_count || 0,
+          follow_count: (item.follow_count as number) || 0,
         })) as FreeReelsItem[]) || []
       );
     },

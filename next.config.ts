@@ -1,5 +1,4 @@
 import type { NextConfig } from 'next';
-
 const nextConfig: NextConfig = {
   output: 'standalone',
   // Note: Cross-origin warning in dev is safe to ignore (mobile testing)
@@ -28,6 +27,39 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ['socket.io'], // Ensure socket.io is handled correctly
   transpilePackages: ['@vidstack/react', 'vidstack'],
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/movie',
+        permanent: false,
+      },
+
+      {
+        source: '/dracin',
+        destination: '/dracin/dramabox',
+        permanent: false,
+      },
+      // API routes that might need redirection from old structure if any
+    ];
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/login',
+        destination: '/auth/login',
+      },
+      {
+        source: '/register',
+        destination: '/auth/register',
+      },
+      {
+        source: '/akun',
+        destination: '/auth/akun',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

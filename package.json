@@ -1,6 +1,6 @@
 {
   "name": "nobarfilm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -24,10 +24,11 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hot-toast": "^2.6.0",
+    "react-intersection-observer": "^10.0.2",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
-    "tailwindcss-animate": "^1.0.7",
     "tailwind-merge": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7",
     "vidstack": "^1.11.23",
     "zustand": "^5.0.11"
   },

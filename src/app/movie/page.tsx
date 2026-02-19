@@ -1,4 +1,5 @@
-'use client';import { useState, useEffect, useRef } from 'react';
+'use client';
+import { useState, useEffect, useRef } from 'react';
 import { useMovieBoxHomepage, useMovieBoxTrending } from '@/hooks/useMovieBox';
 import { useContinueWatching } from '@/hooks/useContinueWatching';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -10,7 +11,9 @@ import { LoadingPage } from '@/components/shared/LoadingSkeleton';
 import { Subject, BannerItem } from '@/types/api';
 import { SectionSlider } from '@/components/shared/SectionSlider';
 import { MovieCard } from '@/components/shared/MovieCard';
+
 import { ContinueWatchingCard } from '@/components/shared/ContinueWatchingCard';
+import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function MoviePage() {
@@ -28,6 +31,7 @@ export default function MoviePage() {
   // Append new trending movies when data arrives
   useEffect(() => {
     if (trendingData?.subjectList) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTrendingMovies((prev) => {
         const newMovies = trendingData.subjectList.filter((newM) => !prev.some((existingM) => existingM.subjectId === newM.subjectId));
         return [...prev, ...newMovies];
@@ -58,14 +62,7 @@ export default function MoviePage() {
       <>
         <Navbar />
         <div className="min-h-screen bg-black flex items-center justify-center px-4">
-          <div className="text-center max-w-md">
-            <h1 className="text-4xl font-bold text-red-600 mb-4">Oops!</h1>
-            <p className="text-gray-300 mb-2">Failed to load content</p>
-            <p className="text-gray-500 text-sm">{homeError.message}</p>
-            <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition">
-              Try Again
-            </button>
-          </div>
+          <ErrorDisplay message={homeError.message || 'Failed to load content'} onRetry={() => window.location.reload()} />
         </div>
         <Footer />
       </>
@@ -113,16 +110,10 @@ export default function MoviePage() {
     }
   }
 
-  // Get Popular Movie & Popular Series sections from Homepage API
-  const popularMovieSection = homeData?.operatingList?.find((section) => section.title === 'Popular Movie');
-  const popularSeriesSection = homeData?.operatingList?.find((section) => section.title === 'Popular Series');
-
-  const popularMovies = popularMovieSection?.subjects || [];
-  const popularSeries = popularSeriesSection?.subjects || [];
-
-  // Get featured categories for homepage
-  const featuredCategoryTitles = ['Horror Movies', 'Western TV', 'Adventure Movies', 'Action Movies'];
-  const featuredCategories = homeData?.operatingList?.filter((section) => section.subjects && section.subjects.length > 0 && featuredCategoryTitles.includes(section.title)) || [];
+  // Render ALL non-banner sections that have subjects, in the order the API returns them
+  const contentSections = homeData?.operatingList?.filter(
+    (section) => section.type !== 'BANNER' && Array.isArray(section.subjects) && section.subjects.length > 0,
+  ) || [];
 
   return (
     <>
@@ -171,15 +162,14 @@ export default function MoviePage() {
             </section>
           )}
 
-          {/* 1. Popular Movies (Ranked Slider) */}
-          {popularMovies.length > 0 && <SectionSlider title="Popular Movies" items={popularMovies} isRanked={true} />}
-
-          {/* 2. Popular Series (Ranked Slider) */}
-          {popularSeries.length > 0 && <SectionSlider title="Popular Series" items={popularSeries} isRanked={true} />}
-
-          {/* Featured Categories: Horror, Western, Adventure, Action */}
-          {featuredCategories.map((section, index) => (
-            <SectionSlider key={`${section.title}-${index}`} title={section.title} items={section.subjects?.slice(0, 20) || []} />
+          {/* Dynamic Content Sections from API */}
+          {contentSections.map((section, index) => (
+            <SectionSlider
+              key={`${section.title}-${index}`}
+              title={section.title}
+              items={section.subjects?.slice(0, 20) || []}
+              isRanked={index < 2}
+            />
           ))}
 
           {/* 3. Discover More (Load More Grid) */}

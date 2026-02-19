@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { ContinueWatchingItem } from '@/types/watch-history';
 
 export const dynamic = 'force-dynamic';
@@ -40,8 +41,9 @@ export async function GET() {
     }));
 
     return NextResponse.json({ items });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error in get watch history:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

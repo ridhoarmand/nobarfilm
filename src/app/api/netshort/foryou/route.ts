@@ -1,12 +1,11 @@
-import { safeJson, encryptedResponse } from "@/lib/api-utils";
-import { NextRequest, NextResponse } from "next/server";
+import { safeJson, encryptedResponse } from '@/lib/api-utils';import { NextRequest } from 'next/server';
 
-const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api") + "/netshort";
+const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api') + '/netshort';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const page = searchParams.get("page") || "1";
+    const page = searchParams.get('page') || '1';
 
     const response = await fetch(`${UPSTREAM_API}/foryou?page=${page}`, {
       next: { revalidate: 900 },
@@ -16,16 +15,17 @@ export async function GET(request: NextRequest) {
       return encryptedResponse({ success: false, data: [] });
     }
 
-    const data = await safeJson<any>(response);
-    
+    const json = await safeJson<Record<string, unknown>>(response);
+    const data = json;
+
     // Normalize the response
-    const dramas = (data.contentInfos || []).map((item: any) => ({
+    const dramas = ((data.contentInfos as Record<string, unknown>[]) || []).map((item) => ({
       shortPlayId: item.shortPlayId,
       shortPlayLibraryId: item.shortPlayLibraryId,
       title: item.shortPlayName,
       cover: item.shortPlayCover,
-      labels: item.labelArray || [],
-      heatScore: item.heatScoreShow || "",
+      labels: (item.labelArray as string[]) || [],
+      heatScore: item.heatScoreShow || '',
       scriptName: item.scriptName,
     }));
 
@@ -36,8 +36,7 @@ export async function GET(request: NextRequest) {
       completed: data.completed,
     });
   } catch (error) {
-    console.error("NetShort ForYou Error:", error);
+    console.error('NetShort ForYou Error:', error);
     return encryptedResponse({ success: false, data: [] });
   }
 }
-

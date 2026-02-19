@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ContinueWatchingItem } from '@/types/watch-history';
 import { Play, X } from 'lucide-react';
 import { useState } from 'react';
@@ -36,7 +37,7 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
 
   // Build watch URL with resume capability (t = timestamp in seconds)
   const timestamp = Math.floor(item.progress_seconds || 0);
-  const baseUrl = item.subject_type === 2 ? `/watch/${item.subject_id}?season=1&episode=${item.current_episode}` : `/watch/${item.subject_id}`;
+  const baseUrl = item.subject_type === 2 ? `/movie/watch/${item.subject_id}?season=1&episode=${item.current_episode}` : `/movie/watch/${item.subject_id}`;
   const watchUrl = timestamp > 0 ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${timestamp}` : baseUrl;
 
   const handleRemove = async (e: React.MouseEvent) => {
@@ -67,7 +68,7 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
         <div className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 shadow-lg transition-transform duration-300 group-hover/card:scale-[1.02]">
           {/* Cover Image */}
           {item.cover_url ? (
-            <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover transition-opacity duration-300 group-hover/card:opacity-80" />
+            <Image src={item.cover_url} alt={item.title} fill className="object-cover transition-opacity duration-300 group-hover/card:opacity-80" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
               <span className="text-zinc-600 text-xs">No Image</span>

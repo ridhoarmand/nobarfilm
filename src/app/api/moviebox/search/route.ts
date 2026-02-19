@@ -1,55 +1,47 @@
-import { safeJson, encryptedResponse } from "@/lib/api-utils";
-import { NextRequest, NextResponse } from "next/server";
+import { safeJson, encryptedResponse } from '@/lib/api-utils';
+import { NextRequest, NextResponse } from 'next/server';
+import { SearchResponse, Subject, ContentTypeCount } from '@/types/api';
 
-const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api") + "/moviebox";
+const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api') + '/moviebox';
 
 const ALLOWED_SUBJECT_TYPES = new Set([1, 2]);
 
-function filterSubjects(subjects: any[] | undefined) {
+function filterSubjects(subjects: Subject[] | undefined) {
   if (!Array.isArray(subjects)) return subjects;
-  return subjects.filter((item) => typeof item?.subjectType === "number" && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
+  return subjects.filter((item) => typeof item?.subjectType === 'number' && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
 }
 
-function filterCounts(counts: any[] | undefined) {
+function filterCounts(counts: ContentTypeCount[] | undefined) {
   if (!Array.isArray(counts)) return counts;
-  return counts.filter((item) => typeof item?.subjectType === "number" && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
+  return counts.filter((item) => typeof item?.subjectType === 'number' && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
 }
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get("query");
-    const page = searchParams.get("page") || "1";
+    const query = searchParams.get('query');
+    const page = searchParams.get('page') || '1';
 
     if (!query) {
       return encryptedResponse([]);
     }
 
-    const response = await fetch(
-      `${UPSTREAM_API}/search?query=${encodeURIComponent(query)}&page=${page}`,
-      { next: { revalidate: 300 } }
-    );
+    const response = await fetch(`${UPSTREAM_API}/search?query=${encodeURIComponent(query)}&page=${page}`, { next: { revalidate: 300 } });
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch data" },
-        { status: response.status }
-      );
+      return NextResponse.json({ error: 'Failed to fetch data' }, { status: response.status });
     }
 
-    const data = await safeJson<any>(response);
+    const data = await safeJson<SearchResponse>(response);
     if (Array.isArray(data?.items)) {
-      data.items = filterSubjects(data.items);
+      data.items = filterSubjects(data.items) ?? [];
     }
     if (Array.isArray(data?.counts)) {
-      data.counts = filterCounts(data.counts);
+      data.counts = filterCounts(data.counts) ?? [];
     }
     return encryptedResponse(data);
   } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    console.error('API Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

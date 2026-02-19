@@ -48,7 +48,7 @@ export function InfiniteFlickReelsSection({ title }: InfiniteFlickReelsSectionPr
             index={index}
             title={drama.title}
             cover={drama.cover}
-            link={`/drama/flickreels/${drama.playlet_id}`}
+            link={`/dracin/flickreels/${drama.playlet_id}`}
             episodes={drama.upload_num ? parseInt(drama.upload_num) : 0}
             topRightBadge={drama.hot_num ? { text: drama.hot_num, isTransparent: true } : null}
             topLeftBadge={drama.status === '2' ? { text: 'Ongoing', color: '#EAB308' } : null}

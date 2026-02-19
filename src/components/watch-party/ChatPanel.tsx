@@ -1,5 +1,6 @@
 'use client';import { useState, useEffect, useRef, memo } from 'react';
-import { MessageCircle, Send, X, ChevronRight, Users } from 'lucide-react';
+import Image from 'next/image';
+import { MessageCircle, Send, Users } from 'lucide-react';
 import { ChatMessage } from '@/types/watch-party';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -16,10 +17,10 @@ export const ChatPanel = memo(ChatPanelComponent);
 
 function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCount, className = '' }: ChatPanelProps) {
   // ... existing implementation ...
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
-  const [lastReadTimestamp, setLastReadTimestamp] = useState(Date.now());
+  const [lastReadTimestamp, setLastReadTimestamp] = useState(() => Date.now());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
@@ -33,6 +34,7 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
   // Handle marking as read when expanded
   useEffect(() => {
     if (isExpanded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnreadCount(0);
       setLastReadTimestamp(Date.now());
     }
@@ -42,6 +44,7 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
   useEffect(() => {
     if (!isExpanded) {
       const newMessages = messages.filter((msg) => new Date(msg.timestamp).getTime() > lastReadTimestamp && msg.user_id !== user?.id);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnreadCount((prev) => prev + newMessages.length);
       // Note: We don't update lastReadTimestamp here, only when expanded
       // We use prev + new to accumulate, OR just count total if we know the baseline?
@@ -56,14 +59,6 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
     if (inputMessage.trim()) {
       onSendMessage(inputMessage.trim());
       setInputMessage('');
-    }
-  };
-
-  const handleToggle = () => {
-    setIsExpanded(!isExpanded);
-    if (!isExpanded) {
-      setUnreadCount(0);
-      setLastReadTimestamp(Date.now());
     }
   };
 
@@ -103,7 +98,7 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
           </div>
         ) : (
           messages.map((msg) => {
-            const isSystem = (msg as any).is_system || msg.user_id === 'system';
+            const isSystem = (msg as unknown as Record<string, unknown>).is_system || msg.user_id === 'system';
             const isAction = msg.user_id === 'action';
 
             return (
@@ -113,7 +108,9 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
                     {/* Avatar */}
                     <div className="flex-shrink-0">
                       {msg.avatar_url ? (
-                        <img src={msg.avatar_url} alt={msg.display_name} className="w-7 h-7 lg:w-8 lg:h-8 rounded-full" />
+                        <div className="relative w-7 h-7 lg:w-8 lg:h-8 shrink-0">
+                          <Image src={msg.avatar_url} alt={msg.display_name} fill className="rounded-full object-cover" />
+                        </div>
                       ) : (
                         <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center text-white text-[10px] lg:text-xs font-semibold">
                           {msg.display_name.charAt(0).toUpperCase()}

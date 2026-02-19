@@ -1,4 +1,5 @@
-import Link from 'next/link';import { Github, Heart } from 'lucide-react';
+import Link from 'next/link';
+import { Github, Heart } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -27,18 +28,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/drama" className="text-gray-400 hover:text-white text-sm transition">
-                  Drama
-                </Link>
-              </li>
-              <li>
                 <Link href="/anime" className="text-gray-400 hover:text-white text-sm transition">
                   Anime
                 </Link>
               </li>
               <li>
-                <Link href="/search" className="text-gray-400 hover:text-white text-sm transition">
-                  Browse
+                <Link href="/dracin" className="text-gray-400 hover:text-white text-sm transition">
+                  Dracin
                 </Link>
               </li>
             </ul>
@@ -49,17 +45,17 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-4">Community</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm transition">
+                <a href="https://github.com/ridhoarmand/nobarfilm/issues" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
                   Feedback & Ideas
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm transition">
+                <a href="https://github.com/ridhoarmand/nobarfilm/issues" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
                   Report Issue
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm transition">
+                <a href="https://github.com/ridhoarmand/nobarfilm/issues" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
                   Request Content
                 </a>
               </li>

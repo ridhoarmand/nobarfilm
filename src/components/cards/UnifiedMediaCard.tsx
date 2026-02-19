@@ -1,5 +1,5 @@
-'use client';
-import Link from 'next/link';
+'use client';import Link from 'next/link';
+import Image from 'next/image';
 import { Play } from 'lucide-react';
 
 export interface BadgeConfig {
@@ -35,14 +35,12 @@ export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadg
     <Link href={link} className="group relative block" style={{ animationDelay: `${index * 50}ms` }}>
       {/* Visual Container */}
       <div className="aspect-[2/3] relative overflow-hidden rounded-xl bg-muted/20">
-        <img
+        <Image
           src={cover.startsWith('/') ? cover : `/api/proxy/image?url=${encodeURIComponent(cover)}`}
           alt={title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          loading="lazy"
-          referrerPolicy="no-referrer"
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-110"
         />
-
         {/* Gradient Overlay */}
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 

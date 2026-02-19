@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-// Helper function to convert SRT to VTT
+import { NextRequest, NextResponse } from 'next/server';// Helper function to convert SRT to VTT
 function srtToVtt(srtContent: string): string {
   // Replace comma with dot in timestamps (00:00:00,000 --> 00:00:00.000)
   const vttContent = srtContent.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
@@ -42,8 +41,9 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, max-age=3600',
       },
     });
-  } catch (error: any) {
-    console.error('Subtitle proxy error:', error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Subtitle proxy error:', message);
     return NextResponse.json({ error: 'Failed to fetch subtitle' }, { status: 500 });
   }
 }

@@ -1,6 +1,4 @@
-'use client';
-
-import { useNetShortTheaters, useNetShortForYou } from '@/hooks/useNetShort';
+'use client';import { useNetShortTheaters, useNetShortForYou } from '@/hooks/useNetShort';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedErrorDisplay } from '@/components/common/UnifiedErrorDisplay';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
@@ -72,16 +70,14 @@ export function NetShortHome() {
     <div className="space-y-10">
       {/* For You Section */}
       {forYouData?.data && forYouData.data.length > 0 && (
-        <HorizontalMediaSlider
-          title={<h2 className="text-xl font-bold font-display text-foreground">Rekomendasi Untukmu</h2>}
-        >
+        <HorizontalMediaSlider title={<h2 className="text-xl font-bold font-display text-foreground">Rekomendasi Untukmu</h2>}>
           {forYouData.data.map((drama, index) => (
             <div key={drama.shortPlayId} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
                 index={index}
                 title={drama.title}
                 cover={drama.cover}
-                link={`/drama/netshort/${drama.shortPlayId}`}
+                link={`/dracin/netshort/${drama.shortPlayId}`}
                 episodes={drama.totalEpisodes}
                 topLeftBadge={
                   drama.scriptName
@@ -107,17 +103,14 @@ export function NetShortHome() {
 
       {/* Theaters Sections */}
       {filteredGroups.map((group) => (
-        <HorizontalMediaSlider
-          key={group.groupId}
-          title={<h2 className="text-xl font-bold font-display text-foreground">{stripEmoji(group.groupName)}</h2>}
-        >
+        <HorizontalMediaSlider key={group.groupId} title={<h2 className="text-xl font-bold font-display text-foreground">{stripEmoji(group.groupName)}</h2>}>
           {group.dramas.slice(0, 16).map((drama, index) => (
             <div key={drama.shortPlayId} className="flex-none w-36 sm:w-40 md:w-48 lg:w-52 snap-start">
               <UnifiedMediaCard
                 index={index}
                 title={drama.title}
                 cover={drama.cover}
-                link={`/drama/netshort/${drama.shortPlayId}`}
+                link={`/dracin/netshort/${drama.shortPlayId}`}
                 episodes={drama.totalEpisodes}
                 topLeftBadge={
                   drama.scriptName

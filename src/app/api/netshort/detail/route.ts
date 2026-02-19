@@ -1,41 +1,38 @@
-import { safeJson, encryptedResponse } from "@/lib/api-utils";
-import { NextRequest, NextResponse } from "next/server";
+import { safeJson, encryptedResponse } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
 
-const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api") + "/netshort";
+const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api') + '/netshort';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const shortPlayId = searchParams.get("shortPlayId");
+    const shortPlayId = searchParams.get('shortPlayId');
 
     if (!shortPlayId) {
-      return encryptedResponse(
-        { success: false, error: "shortPlayId is required" },
-        400
-      );
+      return encryptedResponse({ success: false, error: 'shortPlayId is required' }, 400);
     }
 
     const response = await fetch(`${UPSTREAM_API}/allepisode?shortPlayId=${shortPlayId}`, {
-      next: { revalidate: 600 },});
+      next: { revalidate: 600 },
+    });
 
     if (!response.ok) {
-      return encryptedResponse(
-        { success: false, error: "Failed to fetch detail" }
-      );
+      return encryptedResponse({ success: false, error: 'Failed to fetch detail' });
     }
 
-    const data = await safeJson<any>(response);
+    const json = await safeJson<Record<string, unknown>>(response);
+    const data = json;
 
     // Normalize episode data
-    const episodes = (data.shortPlayEpisodeInfos || []).map((ep: any) => ({
+    const episodes = ((data.shortPlayEpisodeInfos as Record<string, unknown>[]) || []).map((ep) => ({
       episodeId: ep.episodeId,
       episodeNo: ep.episodeNo,
       cover: ep.episodeCover,
       videoUrl: ep.playVoucher,
-      quality: ep.playClarity || "720p",
+      quality: ep.playClarity || '720p',
       isLock: ep.isLock,
       likeNums: ep.likeNums,
-      subtitleUrl: ep.subtitleList?.[0]?.url || "",
+      subtitleUrl: (ep.subtitleList as { url: string }[])?.[0]?.url || '',
     }));
 
     return encryptedResponse({
@@ -52,11 +49,7 @@ export async function GET(request: NextRequest) {
       episodes,
     });
   } catch (error) {
-    console.error("NetShort Detail Error:", error);
-    return encryptedResponse(
-      { success: false, error: "Internal server error" }
-    );
+    console.error('NetShort Detail Error:', error);
+    return encryptedResponse({ success: false, error: 'Internal server error' });
   }
 }
-
-

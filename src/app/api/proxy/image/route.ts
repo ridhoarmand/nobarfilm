@@ -24,11 +24,10 @@ export async function GET(request: NextRequest) {
       console.log('Detected Melolo image, trying direct fetch with mobile headers...');
       response = await fetch(decodedUrl, {
         headers: {
-          'User-Agent': 'Melolo/2.8.3 (iPhone; iOS 17.0; Scale/3.00)',
-          Accept: 'image/*,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          Connection: 'keep-alive',
+          'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 10; SM-G960F Build/QP1A.190711.020)',
+          'Accept-Encoding': 'gzip',
+          Connection: 'Keep-Alive',
+          Host: 'p19-novel-sign-sg.fizzopic.org',
         },
       });
 

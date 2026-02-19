@@ -49,7 +49,7 @@ export function InfiniteFreeReelsSection({ title }: InfiniteFreeReelsSectionProp
             index={index}
             title={item.title}
             cover={item.cover}
-            link={`/drama/freereels/${item.key}`}
+            link={`/dracin/freereels/${item.key}`}
             episodes={item.episode_count || 0}
             topRightBadge={item.follow_count ? { text: `${(item.follow_count / 1000).toFixed(1)}k`, isTransparent: true } : null}
             topLeftBadge={null}

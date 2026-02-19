@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { AuthContextType, UserProfile } from '@/lib/supabase/types';
-import { User } from '@supabase/supabase-js';
+import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -14,7 +14,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -65,15 +65,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       toast.success('Login successful!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to login');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to login';
+      toast.error(message);
       throw error;
     }
   };
 
   const register = async (email: string, password: string, fullName?: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -91,8 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Profile is automatically created by DB trigger "handle_new_user"
 
       toast.success('Registration successful! Please check your email for verification.');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to register');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to register';
+      toast.error(message);
       throw error;
     }
   };
@@ -105,8 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setProfile(null);
       toast.success('Logged out successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to logout');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to logout';
+      toast.error(message);
       throw error;
     }
   };
@@ -121,8 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setProfile((prev) => (prev ? { ...prev, ...updates } : null));
       toast.success('Profile updated successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update profile');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update profile';
+      toast.error(message);
       throw error;
     }
   };

@@ -107,11 +107,10 @@ export function Hero({ slides }: HeroProps) {
   const currentSlide = safeSlides[currentIndex];
   if (!currentSlide) return null;
 
-  const isSeries = currentSlide.subjectType === 2;
   const isMovie = currentSlide.subjectType === 1;
 
   // Watch URL logic
-  const watchUrl = isMovie ? `/watch/${currentSlide.subjectId}?season=0&episode=0` : `/watch/${currentSlide.subjectId}?season=1&episode=1`;
+  const watchUrl = isMovie ? `/movie/watch/${currentSlide.subjectId}?season=0&episode=0` : `/movie/watch/${currentSlide.subjectId}?season=1&episode=1`;
 
   // Determine images
   const mobileImage = currentSlide.posterUrl || currentSlide.coverUrl;

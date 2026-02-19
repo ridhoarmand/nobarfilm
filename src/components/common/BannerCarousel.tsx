@@ -1,19 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
-import type { ReelShortBanner } from "@/types/reelshort";
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import type { ReelShortBanner } from '@/types/reelshort';
 
 interface BannerCarouselProps {
   banners: ReelShortBanner[];
   autoPlayInterval?: number;
 }
 
-export function BannerCarousel({
-  banners,
-  autoPlayInterval = 5000,
-}: BannerCarouselProps) {
+export function BannerCarousel({ banners, autoPlayInterval = 5000 }: BannerCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -38,18 +36,10 @@ export function BannerCarousel({
   const currentBanner = banners[currentIndex];
 
   return (
-    <div
-      className="relative w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl overflow-hidden group"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="relative w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl overflow-hidden group" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       {/* Banner Image */}
-      <Link href={`/drama/reelshort/${currentBanner.jump_param.book_id}`}>
-        <img
-          src={currentBanner.pic}
-          alt={currentBanner.jump_param.book_title}
-          className="w-full h-full object-cover transition-transform duration-700"
-        />
+      <Link href={`/dracin/reelshort/${currentBanner.jump_param.book_id}`}>
+        <Image src={currentBanner.pic} alt={currentBanner.jump_param.book_title} fill className="object-cover transition-transform duration-700" priority />
 
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/40 to-transparent" />
@@ -59,25 +49,18 @@ export function BannerCarousel({
         <div className="absolute bottom-6 left-6 right-20 space-y-3">
           {/* Artistic Title */}
           {currentBanner.pic_artistic_word && (
-            <img
-              src={currentBanner.pic_artistic_word}
-              alt=""
-              className="h-12 md:h-16 object-contain"
-            />
+            <div className="relative h-12 md:h-16 w-32 md:w-48">
+              <Image src={currentBanner.pic_artistic_word} alt="" fill className="object-contain" />
+            </div>
           )}
 
-          <h3 className="text-lg md:text-xl font-bold text-white line-clamp-1">
-            {currentBanner.jump_param.book_title}
-          </h3>
+          <h3 className="text-lg md:text-xl font-bold text-white line-clamp-1">{currentBanner.jump_param.book_title}</h3>
 
           {/* Tags */}
           {currentBanner.jump_param.book_theme && (
             <div className="flex flex-wrap gap-2">
               {currentBanner.jump_param.book_theme.slice(0, 3).map((theme) => (
-                <span
-                  key={theme}
-                  className="px-2 py-0.5 rounded-full text-xs bg-white/20 text-white backdrop-blur-sm"
-                >
+                <span key={theme} className="px-2 py-0.5 rounded-full text-xs bg-white/20 text-white backdrop-blur-sm">
                   {theme}
                 </span>
               ))}
@@ -98,8 +81,8 @@ export function BannerCarousel({
           <div
             className="absolute top-4 left-4 px-3 py-1 rounded-md text-xs font-bold"
             style={{
-              backgroundColor: currentBanner.book_mark.color || "#E52E2E",
-              color: currentBanner.book_mark.text_color || "#FFFFFF",
+              backgroundColor: currentBanner.book_mark.color || '#E52E2E',
+              color: currentBanner.book_mark.text_color || '#FFFFFF',
             }}
           >
             {currentBanner.book_mark.text}
@@ -143,11 +126,7 @@ export function BannerCarousel({
               }}
               className={`
                 w-2 h-2 rounded-full transition-all duration-200
-                ${
-                  idx === currentIndex
-                    ? "bg-primary w-6"
-                    : "bg-white/50 hover:bg-white/80"
-                }
+                ${idx === currentIndex ? 'bg-primary w-6' : 'bg-white/50 hover:bg-white/80'}
               `}
             />
           ))}

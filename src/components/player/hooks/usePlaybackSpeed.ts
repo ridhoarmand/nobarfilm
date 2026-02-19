@@ -1,4 +1,4 @@
-'use client';import { useCallback, useRef } from 'react';
+'use client';import { useCallback, useRef, useState, useEffect } from 'react';
 
 const STORAGE_KEY = 'nobar-playback-rate';
 
@@ -26,12 +26,21 @@ function getStoredSpeed(): number {
  * Uses synchronous localStorage read to ensure speed is available immediately.
  */
 export function usePlaybackSpeed() {
-  // Read from localStorage SYNCHRONOUSLY on first call
-  const speedRef = useRef<number>(getStoredSpeed());
+  // Use state for reactivity
+  const [speed, setSpeedState] = useState<number>(() => getStoredSpeed());
+
+  // Use ref for synchronous access in callbacks without dependencies
+  const speedRef = useRef<number>(speed);
+
+  // Sync ref when state changes (though typical flow is setSpeed -> update both)
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
 
   // Stable setter that updates ref and localStorage
   const setSpeed = useCallback((newSpeed: number) => {
     speedRef.current = newSpeed;
+    setSpeedState(newSpeed);
     try {
       localStorage.setItem(STORAGE_KEY, newSpeed.toString());
     } catch {
@@ -42,16 +51,14 @@ export function usePlaybackSpeed() {
   // Apply speed to a player instance
   const applyToPlayer = useCallback((player: { playbackRate: number } | null) => {
     if (player) {
-      // Re-read from localStorage in case it was updated elsewhere
-      const currentSpeed = getStoredSpeed();
-      speedRef.current = currentSpeed;
-      player.playbackRate = currentSpeed;
+      // Re-read from localStorage/ref in case it was updated elsewhere
+      // But purely relying on ref is safer for concurrent updates
+      player.playbackRate = speedRef.current;
     }
   }, []);
 
   return {
-    speed: speedRef.current,
-    speedRef,
+    speed,
     setSpeed,
     applyToPlayer,
   };

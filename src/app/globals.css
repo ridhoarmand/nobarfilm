@@ -1,5 +1,4 @@
-@import 'tailwindcss';
-@theme {
+@import 'tailwindcss';@theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-primary: hsl(var(--primary));
@@ -137,4 +136,23 @@ video[aria-hidden='true'] {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+}
+
+/* Subtitle/Caption Optimization */
+.media-player {
+  /* Reduce default font size and add shadow for better readability without mass */
+  --media-captions-font-size: 0.85rem !important;
+  --media-captions-text-shadow: 0 1px 2px rgb(0 0 0 / 80%), 0 0 1px rgb(0 0 0 / 80%) !important;
+}
+
+/* Responsive subtitle size for vertical content (Dracin) */
+.media-player[data-aspect-ratio='9/16'] {
+  --media-captions-font-size: 0.75rem !important;
+}
+
+/* Ensure captions don't overlap with critical UI on mobile */
+@media (max-width: 768px) {
+  .media-player {
+    --media-captions-font-size: 0.7rem !important;
+  }
 }

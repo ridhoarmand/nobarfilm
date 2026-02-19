@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useReelShortHomepage } from '@/hooks/useReelShort';
 import { ReelShortCard } from '@/components/cards/ReelShortCard';
 import { BannerCarousel } from '@/components/common/BannerCarousel';
-import { DramaCardSkeleton } from '@/components/cards/DramaCardSkeleton';
+import { DracinCardSkeleton } from '@/components/dracin/DracinCardSkeleton';
 import type { ReelShortBook, ReelShortBanner } from '@/types/reelshort';
 
 export function ReelShortHome() {
@@ -58,7 +58,7 @@ export function ReelShortHome() {
       {/* Books Grid */}
       <div className="grid grid-cols-1 min-[380px]:grid-cols-2 min-[540px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 md:gap-4">
         {isLoading
-          ? Array.from({ length: 12 }).map((_, i) => <DramaCardSkeleton key={i} index={i} />)
+          ? Array.from({ length: 12 }).map((_, i) => <DracinCardSkeleton key={i} />)
           : books.filter((book) => book.book_id).map((book, index) => <ReelShortCard key={book.book_id} book={book} index={index} />)}
       </div>
 

@@ -1,6 +1,5 @@
-import { Server } from 'socket.io';
-import { createServer } from 'http';
-import { ServerToClientEvents, ClientToServerEvents, WatchPartyParticipant, PartyPlaybackState, ChatMessage, ChatState } from '../types/watch-party';
+import { Server } from 'socket.io';import { createServer } from 'http';
+import { ServerToClientEvents, ClientToServerEvents, WatchPartyParticipant, PartyPlaybackState, ChatMessage } from '../types/watch-party';
 
 const httpServer = createServer();
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
