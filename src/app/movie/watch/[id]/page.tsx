@@ -16,16 +16,18 @@ function WatchContent() {
   const episodeParam = searchParams.get('episode');
   const resumeTimeParam = searchParams.get('t');
 
-  const season = seasonParam ? parseInt(seasonParam) : undefined;
-  const episode = episodeParam ? parseInt(episodeParam) : undefined;
+  // Parse params: season=0&episode=0 for movies, season=1&episode=1 for series
+  const season = seasonParam !== null ? parseInt(seasonParam) : undefined;
+  const episode = episodeParam !== null ? parseInt(episodeParam) : undefined;
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
   const isSeries = detail?.subject?.subjectType === 2;
-  // For series: default to S1E1 when no params provided. For movies: no season/episode needed.
-  const effectiveSeason = isSeries ? (season ?? 1) : undefined;
-  const effectiveEpisode = isSeries ? (episode ?? 1) : undefined;
+  // For series: use provided season/episode or default to S1E1
+  // For movies: use provided params (season=0,episode=0) or no season/episode for API
+  const effectiveSeason = isSeries ? (season ?? 1) : (season === 0 ? 0 : undefined);
+  const effectiveEpisode = isSeries ? (episode ?? 1) : (episode === 0 ? 0 : undefined);
 
   const {
     data: playbackData,

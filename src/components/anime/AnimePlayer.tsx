@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Stream } from '@/types/anime';
-import { Play, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { StreamQualityDropdown } from './StreamQualityDropdown';
 
 interface AnimePlayerProps {
   streams: Stream[];
@@ -49,27 +50,12 @@ export function AnimePlayer({ streams, title }: AnimePlayerProps) {
         )}
       </div>
 
-      {/* Stream Selector */}
-      <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5">
-        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Play className="w-4 h-4" />
-          Select Server
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {streams.map((stream) => (
-            <button
-              key={stream.id}
-              onClick={() => setCurrentStream(stream)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentStream?.id === stream.id ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-black/40 text-gray-400 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {stream.provider}
-              <span className="ml-1 opacity-60 text-xs">({stream.quality})</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Stream Selector Dropdown */}
+      <StreamQualityDropdown
+        streams={streams}
+        currentStream={currentStream}
+        onStreamSelect={setCurrentStream}
+      />
     </div>
   );
 }

@@ -9,8 +9,9 @@ interface AnimeCardProps {
 
 export function AnimeCard({ anime }: AnimeCardProps) {
   return (
-    <Link href={`/anime/${anime.endpoint}`} className="group relative block overflow-hidden rounded-xl bg-zinc-900/50 transition-all hover:bg-zinc-800/50">
-      <div className="aspect-[3/4] overflow-hidden rounded-xl relative">
+    <Link href={`/anime/${anime.endpoint}`} className="group relative block overflow-hidden rounded-lg md:rounded-xl bg-zinc-900/50 transition-all hover:bg-zinc-800/50">
+      {/* Smaller aspect ratio on mobile (2:3), normal on desktop (3:4) */}
+      <div className="aspect-[2/3] md:aspect-[3/4] overflow-hidden rounded-lg md:rounded-xl relative">
         <Image
           src={anime.thumb}
           alt={anime.title}
@@ -35,9 +36,9 @@ export function AnimeCard({ anime }: AnimeCardProps) {
         </div>
       </div>
 
-      <div className="p-3">
-        <h3 className="text-sm font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{anime.title}</h3>
-        <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+      <div className="p-2 md:p-3">
+        <h3 className="text-xs md:text-sm font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{anime.title}</h3>
+        <div className="mt-1 md:mt-2 flex items-center gap-2 text-[10px] md:text-xs text-gray-400 line-clamp-1">
           {anime.type && <span>{anime.type}</span>}
           {anime.type && anime.total_episodes && <span>•</span>}
           {anime.total_episodes && <span>{anime.total_episodes} Eps</span>}

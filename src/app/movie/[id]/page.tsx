@@ -59,9 +59,10 @@ export default function DetailPage() {
   const isSeries = subject.subjectType === 2;
   const isMovie = subject.subjectType === 1;
 
-  // For movies: clean URL
-  // For series: season=1, episode=1 (default to first episode)
-  const watchUrl = isMovie ? `/movie/watch/${subjectId}` : `/movie/watch/${subjectId}?season=1&episode=1`;
+  // For both movie and series: include season/episode params for consistency
+  // Movies: season=0&episode=0 (API default handling)
+  // Series: season=1&episode=1 (default to first season/episode)
+  const watchUrl = isMovie ? `/movie/watch/${subjectId}?season=0&episode=0` : `/movie/watch/${subjectId}?season=1&episode=1`;
 
   return (
     <>

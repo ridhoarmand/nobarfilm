@@ -18,17 +18,17 @@ export default async function AnimeDetailPage({ params }: { params: Promise<{ sl
   return (
     <>
       <Navbar />
-      <main className="bg-black min-h-screen text-white pb-20">
+      <main className="bg-black min-h-screen text-white pb-20 pt-16 sm:pt-20">
         {/* Backdrop */}
-        <div className="relative h-[60vh] w-full overflow-hidden">
+        <div className="relative h-[30vh] sm:h-[40vh] md:h-[55vh] w-full overflow-hidden">
           <Image src={data.thumb} alt={data.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
         </div>
 
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 -mt-64 relative z-10">
-          <div className="flex flex-col md:flex-row gap-8">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-24 md:-mt-56 relative z-10">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             {/* Poster */}
-            <div className="w-full md:w-1/4 shrink-0">
+            <div className="w-32 sm:w-40 md:w-1/4 shrink-0">
               <div className="aspect-[3/4] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 relative">
                 <Image src={data.thumb} alt={data.title} fill className="object-cover" priority />
                 <div className="absolute top-4 left-4">

@@ -2,7 +2,8 @@ import { Navbar } from '@/components/layout/Navbar';import { Footer } from '@/co
 import Image from 'next/image';
 import { AnimeApi } from '@/lib/anime-api';
 import { AnimePlayer } from '@/components/anime/AnimePlayer';
-import { ChevronLeft, ChevronRight, Home, List, Download } from 'lucide-react';
+import { ResolutionDownloadDropdown } from '@/components/anime/ResolutionDownloadDropdown';
+import { ChevronLeft, ChevronRight, Home, List } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -99,35 +100,8 @@ export default async function AnimeWatchPage({ params }: { params: Promise<{ slu
 
               {/* Downloads */}
               <div className="bg-zinc-900/50 p-6 rounded-xl border border-white/5">
-                <h3 className="font-bold flex items-center gap-2 mb-4">
-                  <Download className="w-5 h-5 text-green-500" />
-                  Downloads
-                </h3>
-
-                {Object.keys(downloads).length > 0 ? (
-                  <div className="space-y-4">
-                    {Object.entries(downloads).map(([res, links]) => (
-                      <div key={res}>
-                        <div className="text-xs font-bold text-gray-400 uppercase mb-2 border-b border-white/5 pb-1">{res}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {(links as { url: string; provider: string }[]).map((link, idx: number) => (
-                            <a
-                              key={`${res}-${idx}`}
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1 bg-zinc-800 hover:bg-green-600 text-xs rounded transition-colors text-gray-300 hover:text-white"
-                            >
-                              {link.provider}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">No download links available.</p>
-                )}
+                <h3 className="font-bold mb-4 text-white">Downloads</h3>
+                <ResolutionDownloadDropdown downloads={downloads} />
               </div>
             </div>
           </div>

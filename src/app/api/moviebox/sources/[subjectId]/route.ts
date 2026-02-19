@@ -9,18 +9,23 @@ export async function GET(
 ) {
   const { subjectId } = await params;
   const searchParams = request.nextUrl.searchParams;
-  const season = searchParams.get("season") || "0";
-  const episode = searchParams.get("episode") || "1";
+  // Use !== null to properly handle season=0 and episode=0 for movies
+  const season = searchParams.get("season") !== null ? searchParams.get("season") : "0";
+  const episode = searchParams.get("episode") !== null ? searchParams.get("episode") : "1";
+
+  const upstreamUrl = `${UPSTREAM_API}/sources?subjectId=${subjectId}&season=${season}&episode=${episode}`;
 
   try {
-    const response = await fetch(
-      `${UPSTREAM_API}/sources?subjectId=${subjectId}&season=${season}&episode=${episode}`,
-      { next: { revalidate: 600 } }
-    );
+    const response = await fetch(upstreamUrl, {
+      // Don't cache sources — URLs expire
+      cache: "no-store",
+    });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => "(unreadable)");
+      console.error(`[sources] Upstream ${response.status}: ${errorText.substring(0, 300)}`);
       return NextResponse.json(
-        { error: "Failed to fetch data" },
+        { error: `Upstream error ${response.status}`, detail: errorText.substring(0, 200) },
         { status: response.status }
       );
     }
@@ -28,10 +33,12 @@ export async function GET(
     const data = await safeJson(response);
     return encryptedResponse(data);
   } catch (error) {
-    console.error("API Error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[sources] Exception for ${upstreamUrl}: ${msg}`);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal Server Error", detail: msg },
       { status: 500 }
     );
   }
 }
+
