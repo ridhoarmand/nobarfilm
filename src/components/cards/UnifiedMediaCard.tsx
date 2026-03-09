@@ -35,7 +35,7 @@ export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadg
     <Link href={link} className="group relative block" style={{ animationDelay: `${index * 50}ms` }}>
       {/* Visual Container */}
       <div className="aspect-[2/3] relative overflow-hidden rounded-xl bg-muted/20">
-        <Image
+        <Image unoptimized
           src={cover.startsWith('/') ? cover : `/api/proxy/image?url=${encodeURIComponent(cover)}`}
           alt={title}
           fill

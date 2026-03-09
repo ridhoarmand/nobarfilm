@@ -109,7 +109,7 @@ function ChatPanelComponent({ roomCode, messages, onSendMessage, participantCoun
                     <div className="flex-shrink-0">
                       {msg.avatar_url ? (
                         <div className="relative w-7 h-7 lg:w-8 lg:h-8 shrink-0">
-                          <Image src={msg.avatar_url} alt={msg.display_name} fill className="rounded-full object-cover" />
+                          <Image unoptimized src={msg.avatar_url} alt={msg.display_name} fill className="rounded-full object-cover" />
                         </div>
                       ) : (
                         <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center text-white text-[10px] lg:text-xs font-semibold">

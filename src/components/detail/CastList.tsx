@@ -20,7 +20,7 @@ export function CastList({ cast, maxItems = 10 }: CastListProps) {
           <div key={`${actor.staffId}-${index}`} className="group">
             <div className="aspect-[2/3] relative overflow-hidden rounded-lg bg-zinc-900 mb-2">
               {actor.avatarUrl ? (
-                <Image
+                <Image unoptimized
                   src={actor.avatarUrl}
                   alt={actor.name}
                   fill

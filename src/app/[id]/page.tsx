@@ -73,7 +73,7 @@ export default function DetailPage() {
         <div className="relative h-[60vh] md:h-[70vh] overflow-hidden">
           {/* Background Image */}
           <div className="absolute inset-0">
-            <Image src={subject.cover.url} alt={subject.title} fill className="object-cover" priority sizes="100vw" />
+            <Image unoptimized src={subject.cover.url} alt={subject.title} fill className="object-cover" priority sizes="100vw" />
             <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
           </div>

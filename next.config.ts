@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   // Only affects development, not production
 
   images: {
-    unoptimized: true, // Disable image optimization to prevent timeout on mobile
-    qualities: [75, 80, 90, 100], // Add quality levels to suppress warnings
+    unoptimized: true, // We have to use this because the external image server is timing out for the Next.js image optimizer
+    qualities: [75, 80, 90, 100],
     remotePatterns: [
       {
         protocol: 'https',

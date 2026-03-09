@@ -71,7 +71,7 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
         <div className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 shadow-lg transition-transform duration-300 group-hover/card:scale-[1.02]">
           {/* Cover Image */}
           {item.cover_url ? (
-            <Image src={item.cover_url} alt={item.title} fill className="object-cover transition-opacity duration-300 group-hover/card:opacity-80" />
+            <Image unoptimized src={item.cover_url} alt={item.title} fill className="object-cover transition-opacity duration-300 group-hover/card:opacity-80" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
               <span className="text-zinc-600 text-xs">No Image</span>

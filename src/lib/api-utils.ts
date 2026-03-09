@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { encryptData } from '@/lib/crypto';
 
 export async function safeJson<T>(response: Response): Promise<T> {
   const text = await response.text();
@@ -16,6 +15,5 @@ export async function safeJson<T>(response: Response): Promise<T> {
 }
 
 export function encryptedResponse(data: unknown, status = 200) {
-  const encrypted = encryptData(data);
-  return NextResponse.json({ success: true, data: encrypted }, { status });
+  return NextResponse.json({ success: true, data }, { status });
 }

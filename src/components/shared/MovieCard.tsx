@@ -33,7 +33,7 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
           )}
 
           {/* Main Image */}
-          <Image
+          <Image unoptimized
             src={movie.cover.url}
             alt={movie.title}
             fill
@@ -44,7 +44,7 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
           />
 
           {/* Desktop Hover Overlay (Play Icon) */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[1px]">
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
             <PlayCircle className="w-12 h-12 text-white fill-white/20 drop-shadow-lg transform scale-90 group-hover/card:scale-100 transition-transform duration-300" />
           </div>
         </div>
