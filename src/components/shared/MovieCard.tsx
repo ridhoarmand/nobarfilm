@@ -12,7 +12,7 @@ interface MovieCardProps {
 export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
   return (
     <div className="w-full">
-      <Link href={`/movie/${movie.subjectId}`} className="group/card block w-full relative">
+      <Link href={`/${movie.subjectId}`} className="group/card block w-full relative">
         {/* POSTER IMAGE CONTAINER */}
         <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-600/50 group-hover/card:shadow-red-900/20 group-hover/card:-translate-y-1">
           {/* Rank Badge - Top Left (Consistent & Readable) */}

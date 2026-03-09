@@ -15,7 +15,7 @@ function LoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const redirect = searchParams.get('redirect') || '/movie';
+  const redirect = searchParams.get('redirect') || '/';
 
   useEffect(() => {
     if (isAuthenticated) {

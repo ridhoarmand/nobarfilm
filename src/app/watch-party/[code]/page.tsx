@@ -37,7 +37,7 @@ export default function WatchPartyRoomPage() {
   // Protect Route
   useEffect(() => {
     if (!authLoading && !user) {
-      const returnUrl = encodeURIComponent(`/movie/watch-party/${roomCode}`);
+      const returnUrl = encodeURIComponent(`/watch-party/${roomCode}`);
       router.push(`/login?redirect=${returnUrl}`);
     }
   }, [authLoading, user, router, roomCode]);

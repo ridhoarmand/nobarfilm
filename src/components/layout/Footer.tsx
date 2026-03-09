@@ -23,18 +23,13 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-4">Explore</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/movie" className="text-gray-400 hover:text-white text-sm transition">
+                <Link href="/" className="text-gray-400 hover:text-white text-sm transition">
                   Movie
                 </Link>
               </li>
               <li>
                 <Link href="/anime" className="text-gray-400 hover:text-white text-sm transition">
                   Anime
-                </Link>
-              </li>
-              <li>
-                <Link href="/dracin" className="text-gray-400 hover:text-white text-sm transition">
-                  Dracin
                 </Link>
               </li>
             </ul>

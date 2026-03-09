@@ -1,10 +1,10 @@
 # 🎬 NobarFilm
 
-Platform streaming dengan fitur nonton bareng (watch party). Mendukung berbagai sumber konten seperti MovieBox, ReelShort, DramaBox, NetShort, FlickReels, FreeReels, dan Melolo.
+Platform streaming dengan fitur nonton bareng (watch party). Mendukung sumber konten seperti Movie dan Anime.
 
 ## Fitur
 
-- **Multi-platform streaming** - Support MovieBox, ReelShort, DramaBox, NetShort, FlickReels, FreeReels, Melolo
+- **Multi-platform streaming** - Support Movie dan Anime
 - **Download manager** - Download film/series dengan progress tracking
 - **Watch party** - Nonton bareng secara real-time dengan sinkronisasi otomatis (pause, play, skip)
 - **PWA** - Dapat diinstall sebagai aplikasi native
@@ -78,15 +78,15 @@ docker-compose up -d
 src/
 ├── app/                  # Next.js App Router pages
 │   ├── api/             # API routes (proxy ke upstream APIs)
-│   ├── drama/           # Drama platform pages
+│   ├── anime/           # Anime pages
 │   ├── movie/           # Movie pages
-│   ├── watch/           # Watch page (MovieBox)
+│   ├── watch/           # Watch page (Movie)
 │   └── watch-party/     # Watch party rooms
 ├── components/          # React components
 │   ├── player/         # Video player & hooks
 │   ├── layout/         # Navbar, Footer
 │   └── ...
-├── hooks/              # Custom hooks (useMovieBox, useDramaBox, etc)
+├── hooks/              # Custom hooks (useMovieBox, etc)
 ├── lib/                # Utils & helpers
 └── types/              # TypeScript types
 ```

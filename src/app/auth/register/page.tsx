@@ -18,7 +18,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/movie');
+      router.push('/');
     }
   }, [isAuthenticated, router]);
 

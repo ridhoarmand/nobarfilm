@@ -62,7 +62,7 @@ export default function DetailPage() {
   // For both movie and series: include season/episode params for consistency
   // Movies: season=0&episode=0 (API default handling)
   // Series: season=1&episode=1 (default to first season/episode)
-  const watchUrl = isMovie ? `/movie/watch/${subjectId}?season=0&episode=0` : `/movie/watch/${subjectId}?season=1&episode=1`;
+  const watchUrl = isMovie ? `/watch/${subjectId}?season=0&episode=0` : `/watch/${subjectId}?season=1&episode=1`;
 
   return (
     <>
@@ -241,7 +241,7 @@ export default function DetailPage() {
 
           {/* Season/Episode Selector (for Series) */}
           {isSeries && resource?.seasons && (
-            <SeasonSelector seasons={resource.seasons} subjectId={subjectId} onDownload={(season, episode) => openDownloadModal(season, episode)} baseUrl="/movie/watch" />
+            <SeasonSelector seasons={resource.seasons} subjectId={subjectId} onDownload={(season, episode) => openDownloadModal(season, episode)} baseUrl="/watch" />
           )}
 
           {/* Cast */}

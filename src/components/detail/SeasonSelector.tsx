@@ -11,7 +11,7 @@ interface SeasonSelectorProps {
   baseUrl?: string;
 }
 
-export function SeasonSelector({ seasons, subjectId, onDownload, baseUrl = '/movie/watch' }: SeasonSelectorProps) {
+export function SeasonSelector({ seasons, subjectId, onDownload, baseUrl = '/watch' }: SeasonSelectorProps) {
   const [selectedSeason, setSelectedSeason] = useState(1);
 
   // Filter out movie entries (se: 0)

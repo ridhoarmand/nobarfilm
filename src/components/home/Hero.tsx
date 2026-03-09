@@ -110,7 +110,7 @@ export function Hero({ slides }: HeroProps) {
   const isMovie = currentSlide.subjectType === 1;
 
   // Watch URL logic
-  const watchUrl = isMovie ? `/movie/watch/${currentSlide.subjectId}?season=0&episode=0` : `/movie/watch/${currentSlide.subjectId}?season=1&episode=1`;
+  const watchUrl = isMovie ? `/watch/${currentSlide.subjectId}?season=0&episode=0` : `/watch/${currentSlide.subjectId}?season=1&episode=1`;
 
   // Determine images
   const mobileImage = currentSlide.posterUrl || currentSlide.coverUrl;
@@ -169,7 +169,7 @@ export function Hero({ slides }: HeroProps) {
                 Play
               </Link>
               <Link
-                href={`/movie/${currentSlide.subjectId}`}
+                href={`/${currentSlide.subjectId}`}
                 className="flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3 bg-white/20 text-white font-bold rounded hover:bg-white/30 transition backdrop-blur-md w-full sm:w-auto justify-center"
               >
                 <Info className="w-5 h-5 sm:w-6 sm:h-6" />

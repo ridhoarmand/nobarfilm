@@ -39,8 +39,8 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
   // Series: season=1&episode={current_episode}, Movie: season=0&episode=0
   const timestamp = Math.floor(item.progress_seconds || 0);
   const baseUrl = item.subject_type === 2
-    ? `/movie/watch/${item.subject_id}?season=1&episode=${item.current_episode}`
-    : `/movie/watch/${item.subject_id}?season=0&episode=0`;
+    ? `/watch/${item.subject_id}?season=1&episode=${item.current_episode}`
+    : `/watch/${item.subject_id}?season=0&episode=0`;
   const watchUrl = timestamp > 0 ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${timestamp}` : baseUrl;
 
   const handleRemove = async (e: React.MouseEvent) => {

@@ -145,7 +145,7 @@ video[aria-hidden='true'] {
   --media-captions-text-shadow: 0 1px 2px rgb(0 0 0 / 80%), 0 0 1px rgb(0 0 0 / 80%) !important;
 }
 
-/* Responsive subtitle size for vertical content (Dracin) */
+/* Responsive subtitle size for vertical content */
 .media-player[data-aspect-ratio='9/16'] {
   --media-captions-font-size: 0.75rem !important;
 }

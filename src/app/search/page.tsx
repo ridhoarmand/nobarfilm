@@ -1,197 +1,180 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useMovieBoxSearch } from '@/hooks/useMovieBox';
+
+import { Suspense, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { MovieCard } from '@/components/shared/MovieCard';
-import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
-import { MovieCardSkeleton } from '@/components/shared/LoadingSkeleton';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Film, AlertCircle } from 'lucide-react';
+import { useMovieBoxSearch } from '@/hooks/useMovieBox';
+import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
+import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
 
-function SearchContent() {
-  const router = useRouter();
+function MovieSearchContent() {
   const searchParams = useSearchParams();
-  const queryParam = searchParams.get('q') || '';
-  const pageParam = parseInt(searchParams.get('page') || '1');
+  const router = useRouter();
+  const query = searchParams.get('q') || '';
+  const [searchInput, setSearchInput] = useState(query);
 
-  const [searchQuery, setSearchQuery] = useState(queryParam);
-  const [debouncedQuery, setDebouncedQuery] = useState(queryParam);
-  const [currentPage, setCurrentPage] = useState(pageParam);
-
-  const { data, isLoading, error } = useMovieBoxSearch(debouncedQuery, currentPage);
-
-  // Debounce search query (wait 700ms after user stops typing)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        const platformParam = searchParams.get('platform') || 'moviebox';
-        router.push(`/search?q=${encodeURIComponent(searchQuery)}&platform=${platformParam}`);
-      }
-    }, 700);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, router, searchParams]);
-
-  // Update local state from URL params
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSearchQuery(queryParam);
-    setDebouncedQuery(queryParam);
-    setCurrentPage(pageParam);
-  }, [queryParam, pageParam]);
+  const { data, isLoading, isError, error, refetch } = useMovieBoxSearch(query, 1);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      setDebouncedQuery(searchQuery);
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}&page=1`);
-      setCurrentPage(1);
+    if (searchInput.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchInput.trim())}`);
     }
   };
-
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    router.push(`/search?q=${encodeURIComponent(debouncedQuery)}&page=${newPage}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const hasResults = data && data.items && data.items.length > 0;
-  const hasMore = data?.pager?.hasMore || false;
 
   return (
     <>
       <Navbar />
-
-      <main className="min-h-screen bg-black pt-20 pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="bg-black min-h-screen pt-24 px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="max-w-7xl mx-auto">
           {/* Search Header */}
           <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-6">Search Movies & Series</h1>
-
-            {/* Search Box */}
-            <form onSubmit={handleSearch}>
-              <div className="relative max-w-2xl">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search movies, series, anime..."
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-3 pl-12 text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
-                  autoFocus
-                />
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/30">
+                <Film className="w-6 h-6 text-white" />
               </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white">Movie Search</h1>
+                {query && (
+                  <p className="text-gray-400 text-sm">
+                    Search results for: <span className="text-red-500 font-semibold">{query}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="relative mt-4">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search movies and series..."
+                className="w-full px-5 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Search
+              </button>
             </form>
           </div>
-
-          {/* Results Count */}
-          {debouncedQuery && (
-            <div className="mb-6">
-              <p className="text-gray-400">
-                {isLoading ? (
-                  'Searching...'
-                ) : hasResults ? (
-                  <>
-                    Found <span className="text-white font-semibold">{data.pager.totalCount}</span> results for &quot;<span className="text-white font-semibold">{debouncedQuery}</span>&quot;
-                  </>
-                ) : (
-                  <>
-                    No results found for &quot;<span className="text-white font-semibold">{debouncedQuery}</span>&quot;
-                  </>
-                )}
-              </p>
-            </div>
-          )}
 
           {/* Loading State */}
           {isLoading && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {[...Array(12)].map((_, i) => (
-                <MovieCardSkeleton key={i} />
+              {[...Array(12)].map((_, index) => (
+                <UnifiedMediaCardSkeleton key={index} />
               ))}
             </div>
           )}
 
           {/* Error State */}
-          {error && (
-            <div className="py-20 flex justify-center">
-              <ErrorDisplay message={error.message || 'Failed to load search results'} />
+          {isError && (
+            <div className="bg-gradient-to-r from-red-600/10 to-orange-600/10 border border-red-600/30 rounded-2xl p-6 mb-8">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-white font-semibold mb-2">Search Error</h3>
+                  <p className="text-gray-300 text-sm mb-3">
+                    {error?.message || 'Failed to search movies'}
+                  </p>
+                  <button
+                    onClick={() => refetch()}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Results Grid */}
-          {!isLoading && hasResults && (
+          {/* Search Results */}
+          {!isLoading && !isError && data && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {data.items.map((movie, index) => (
-                  <MovieCard key={`${movie.subjectId}-${index}`} movie={movie} />
-                ))}
-              </div>
-
-              {/* Pagination */}
-              <div className="mt-12 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage <= 1}
-                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-
-                <span className="px-6 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white">Page {currentPage}</span>
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={!hasMore}
-                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
+              {data.items.length > 0 ? (
+                <>
+                  <div className="mb-4 text-gray-400 text-sm">
+                    Found {data.items.length} result{data.items.length !== 1 ? 's' : ''}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {data.items.map((item, index) => (
+                      <UnifiedMediaCard
+                        key={`${item.subjectId}-${index}`}
+                        title={item.title}
+                        cover={item.cover.url}
+                        link={`/${item.subjectId}`}
+                        topLeftBadge={{
+                          text: item.subjectType === 1 ? 'Movie' : 'Series',
+                          color: item.subjectType === 1 ? '#E52E2E' : '#2E7DE5',
+                        }}
+                        topRightBadge={
+                          item.imdbRatingValue
+                            ? {
+                                text: parseFloat(item.imdbRatingValue).toFixed(1),
+                                color: '#F59E0B',
+                              }
+                            : null
+                        }
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-20">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-zinc-900 border border-zinc-700 mb-6">
+                    <Search className="w-10 h-10 text-gray-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-3">No Results Found</h2>
+                  <p className="text-gray-400 mb-2">
+                    No movies or series found for &quot;{query}&quot;
+                  </p>
+                  <p className="text-sm text-gray-500">Try different keywords or check your spelling</p>
+                </div>
+              )}
             </>
           )}
 
-          {/* Empty State (no query) */}
-          {!debouncedQuery && !isLoading && (
+          {/* Empty Query State */}
+          {!query && !isLoading && (
             <div className="text-center py-20">
-              <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-white mb-2">Start Searching</h2>
-              <p className="text-gray-400">Enter a movie or series name above to find what you&apos;re looking for</p>
-            </div>
-          )}
-
-          {/* No Results State */}
-          {debouncedQuery && !isLoading && !hasResults && !error && (
-            <div className="text-center py-20">
-              <h2 className="text-2xl font-semibold text-white mb-2">No Results Found</h2>
-              <p className="text-gray-400 mb-6">Try adjusting your search terms or browse our categories</p>
-              <button onClick={() => router.push('/browse')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
-                Browse Categories
-              </button>
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-zinc-900 border border-zinc-700 mb-6">
+                <Search className="w-10 h-10 text-gray-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-3">Search Movies & Series</h2>
+              <p className="text-gray-400 mb-2">Enter a keyword to start searching</p>
             </div>
           )}
         </div>
       </main>
-
       <Footer />
     </>
   );
 }
 
-export default function SearchPage() {
+export default function MovieSearchPage() {
   return (
     <Suspense
       fallback={
         <>
           <Navbar />
-          <div className="min-h-screen bg-black pt-20 pb-16 flex items-center justify-center">
-            <div className="text-white">Loading...</div>
-          </div>
+          <main className="bg-black min-h-screen pt-24 px-4">
+            <div className="max-w-7xl mx-auto">
+              <div className="animate-pulse">
+                <div className="h-12 bg-zinc-800 rounded w-48 mb-8"></div>
+                <div className="h-6 bg-zinc-800 rounded w-64"></div>
+              </div>
+            </div>
+          </main>
         </>
       }
     >
-      <SearchContent />
+      <MovieSearchContent />
     </Suspense>
   );
 }

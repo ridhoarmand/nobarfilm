@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   // Handle OPTIONS request for CORS preflight
@@ -12,11 +13,6 @@ export function middleware(request: NextRequest) {
   // Skip static files and API
   if (path.startsWith('/_next') || path.startsWith('/static') || path.startsWith('/api') || path.includes('.')) {
     return NextResponse.next();
-  }
-
-  // Root "/" -> Redirect to "/movie"
-  if (path === '/') {
-    return NextResponse.redirect(new URL('/movie', request.url));
   }
 
   // Allow accessing /login, /register, /akun from root, but rewrite to /auth/...

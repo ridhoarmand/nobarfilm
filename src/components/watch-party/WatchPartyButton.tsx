@@ -48,7 +48,7 @@ export function WatchPartyButton({ subject, className = '' }: WatchPartyButtonPr
       }
 
       toast.success('Watch Party created!');
-      router.push(`/movie/watch-party/${data.roomCode}`);
+      router.push(`/watch-party/${data.roomCode}`);
     } catch (error: unknown) {
       console.error('Error creating party:', error);
       const message = error instanceof Error ? error.message : 'Something went wrong';

@@ -24,16 +24,6 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@vidstack/react', 'vidstack'],
   async redirects() {
     return [
-      {
-        source: '/',
-        destination: '/movie',
-        permanent: false,
-      },
-      {
-        source: '/dracin',
-        destination: '/dracin/dramabox',
-        permanent: false,
-      },
       // API routes that might need redirection from old structure if any
     ];
   },

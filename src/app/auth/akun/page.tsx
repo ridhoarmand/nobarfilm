@@ -17,7 +17,7 @@ export default function AkunPage() {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/movie');
+    router.push('/');
   };
 
   if (isLoading) {

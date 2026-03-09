@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Image Proxy with Long Cache Duration
- * Special handling for fizzopic.org (Melolo) images which need mobile-like headers
  * Uses wsrv.nl as fallback for image conversion
  */
 export async function GET(request: NextRequest) {
@@ -18,52 +17,13 @@ export async function GET(request: NextRequest) {
     const decodedUrl = decodeURIComponent(url);
     let response: Response | null = null;
 
-    // For fizzopic.org (Melolo images), try direct fetch with mobile-like headers first
-    // These servers often block external proxies but allow direct requests with proper headers
-    if (decodedUrl.includes('fizzopic.org') || decodedUrl.includes('novel-sign')) {
-      console.log('Detected Melolo image, trying direct fetch with mobile headers...');
-      response = await fetch(decodedUrl, {
-        headers: {
-          'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 10; SM-G960F Build/QP1A.190711.020)',
-          'Accept-Encoding': 'gzip',
-          Connection: 'Keep-Alive',
-          Host: 'p19-novel-sign-sg.fizzopic.org',
-        },
-      });
-
-      // If HEIC is returned, we can serve it directly - modern browsers will handle it
-      // or we try the wsrv.nl proxy for conversion
-      if (response.ok) {
-        const contentType = response.headers.get('content-type') || 'image/heic';
-
-        // If it's HEIC and we need to convert, use wsrv.nl
-        if (contentType.includes('heic') || decodedUrl.includes('.heic')) {
-          console.log('HEIC detected, trying wsrv.nl for conversion...');
-          const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(decodedUrl)}&output=jpg&q=85`;
-          const wsrvResponse = await fetch(wsrvUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-          });
-
-          if (wsrvResponse.ok) {
-            response = wsrvResponse;
-          }
-          // If wsrv fails, we'll use the original HEIC response
-        }
-      }
-    }
-
-    // If not a fizzopic URL or direct fetch failed, try the standard proxy chain
-    if (!response || !response.ok) {
-      // Try wsrv.nl first - it handles SSL issues, CORS, and image conversion
-      const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(decodedUrl)}&output=jpg&q=85`;
-      response = await fetch(wsrvUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
-    }
+    // Try wsrv.nl first - it handles SSL issues, CORS, and image conversion
+    const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(decodedUrl)}&output=jpg&q=85`;
+    response = await fetch(wsrvUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
 
     // Fallback: Try alternative weserv domain
     if (!response.ok) {
