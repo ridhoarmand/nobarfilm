@@ -18,12 +18,20 @@ function filterSubjects(subjects: unknown[] | undefined) {
   });
 }
 
+const MOVIEBOX_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+  'Accept-Encoding': 'gzip',
+  'Sec-WebSocket-Version': '13',
+  'Cache-Control': 'no-cache',
+};
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = searchParams.get('page') || '0';
 
     const response = await fetch(`${UPSTREAM_API}/trending?page=${page}`, {
+      headers: MOVIEBOX_HEADERS,
       next: { revalidate: 900 },
     });
 

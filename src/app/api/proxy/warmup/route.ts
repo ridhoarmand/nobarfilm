@@ -23,7 +23,7 @@ function fetchHead(url: string, redirectCount = 5): Promise<{ statusCode: number
       path: urlObj.pathname + urlObj.search,
       method: 'GET', // Use GET with Range to properly activate stream
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
         Accept: '*/*',
         Range: 'bytes=0-0', // Request just the first byte
       },

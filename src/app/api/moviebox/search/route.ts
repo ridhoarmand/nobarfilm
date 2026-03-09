@@ -16,6 +16,13 @@ function filterCounts(counts: ContentTypeCount[] | undefined) {
   return counts.filter((item) => typeof item?.subjectType === 'number' && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
 }
 
+const MOVIEBOX_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+  'Accept-Encoding': 'gzip',
+  'Sec-WebSocket-Version': '13',
+  'Cache-Control': 'no-cache',
+};
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -26,7 +33,10 @@ export async function GET(request: NextRequest) {
       return encryptedResponse([]);
     }
 
-    const response = await fetch(`${UPSTREAM_API}/search?query=${encodeURIComponent(query)}&page=${page}`, { next: { revalidate: 300 } });
+    const response = await fetch(`${UPSTREAM_API}/search?query=${encodeURIComponent(query)}&page=${page}`, {
+      headers: MOVIEBOX_HEADERS,
+      next: { revalidate: 300 },
+    });
 
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch data' }, { status: response.status });

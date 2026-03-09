@@ -10,11 +10,6 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'pbcdnw.aoneroom.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
         hostname: '**.aoneroom.com',
         pathname: '/**',
       },
@@ -34,7 +29,6 @@ const nextConfig: NextConfig = {
         destination: '/movie',
         permanent: false,
       },
-
       {
         source: '/dracin',
         destination: '/dracin/dramabox',

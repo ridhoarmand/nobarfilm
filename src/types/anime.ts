@@ -1,4 +1,5 @@
-export interface Anime {  id: number;
+export interface Anime {
+  id: number;
   title: string;
   japanese_title?: string | null;
   endpoint: string;
@@ -18,6 +19,10 @@ export interface Anime {  id: number;
   genres?: Genre[];
   episodes?: Episode[];
   batches?: Batch[];
+  latest_episode?: {
+    episode_number: number;
+    date: string;
+  };
 }
 
 export interface Episode {

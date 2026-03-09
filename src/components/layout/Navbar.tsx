@@ -1,5 +1,4 @@
-'use client';
-import Link from 'next/link';
+'use client';import Link from 'next/link';
 import { Search, Menu, X, User, LogOut, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -35,6 +34,8 @@ export function Navbar() {
       // Check if we are in dracin section
       if (pathname.startsWith('/dracin')) {
         router.push(`/dracin/search?platform=${encodeURIComponent(currentPlatform)}&q=${encodeURIComponent(searchQuery)}`);
+      } else if (pathname.startsWith('/anime')) {
+        router.push(`/anime/search?q=${encodeURIComponent(searchQuery)}`);
       } else {
         // Default to movie/moviebox search
         router.push(`/movie/search?q=${encodeURIComponent(searchQuery)}`);
@@ -53,7 +54,6 @@ export function Navbar() {
   // Navigation items
   const navItems = [
     { href: '/movie', label: 'Movie' },
-    { href: '/anime', label: 'Anime' },
     { href: '/dracin', label: 'Dracin' },
   ];
 
@@ -157,6 +157,8 @@ export function Navbar() {
                 onClick={() => {
                   if (pathname.startsWith('/dracin')) {
                     router.push(`/dracin/search?platform=${encodeURIComponent(currentPlatform)}`);
+                  } else if (pathname.startsWith('/anime')) {
+                    router.push('/anime/search');
                   } else {
                     router.push('/movie/search');
                   }
