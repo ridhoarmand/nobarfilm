@@ -131,7 +131,7 @@ export default function MoviePage() {
         <div className="relative -mt-12 sm:-mt-20 lg:-mt-20 pb-16 space-y-12">
           {/* Continue Watching Section */}
           {user && continueWatchingData && continueWatchingData.length > 0 && (
-            <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto">
+            <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 pl-1 border-l-4 border-red-600">Continue Watching</h2>
 
               <div className="relative">
@@ -174,7 +174,7 @@ export default function MoviePage() {
           ))}
 
           {/* 3. Discover More (Load More Grid) */}
-          <section className="px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto">
+          <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-6 pl-1 border-l-4 border-red-600">Discover More</h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">

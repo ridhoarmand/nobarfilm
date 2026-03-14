@@ -144,7 +144,7 @@ export function Hero({ slides }: HeroProps) {
       {/* Content */}
       {/* Adjusted pb-24 for mobile to avoid clash with upcoming section */}
       <div className="absolute inset-0 flex items-end sm:items-center pb-28 sm:pb-0 pointer-events-none">
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-8 lg:px-16 w-full z-10 pointer-events-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 w-full z-10 pointer-events-auto">
           <div className={`max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl transition-all duration-1000 transform ${isTransitioning ? 'translate-y-10 opacity-0' : 'translate-y-0 opacity-100'}`}>
             <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-3 sm:mb-6 drop-shadow-lg leading-tight line-clamp-2">{currentSlide.title}</h1>
 

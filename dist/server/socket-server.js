@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const socket_io_1 = require("socket.io");
@@ -20,19 +21,13 @@ io.on('connection', (socket) => {
                 playback: {
                     currentPosition: 0,
                     isPlaying: false,
-                    isBuffering: false,
                     lastActionBy: '', // System
                     timestamp: Date.now(),
                 },
                 chatHistory: [],
-                hostSocketId: socket.id, // First joiner is host
             });
         }
         const room = rooms.get(roomCode);
-        // If host disconnected, assign new host
-        if (!room.hostSocketId || !room.participants.has(room.hostSocketId)) {
-            room.hostSocketId = socket.id;
-        }
         // Create participant object
         const participant = {
             id: user.id, // temporary ID for socket session if needed, but we use auth ID usually
@@ -41,7 +36,7 @@ io.on('connection', (socket) => {
             user_id: user.id,
             display_name: user.name,
             avatar_url: user.avatar || null,
-            is_host: socket.id === room.hostSocketId, // Check if this user is host
+            is_host: room.participants.size === 0, // First joiner is host logic (simplified)
             is_connected: true,
             last_seen_at: new Date().toISOString(),
             joined_at: new Date().toISOString(),
@@ -61,70 +56,36 @@ io.on('connection', (socket) => {
     socket.on('play', ({ roomCode, time }) => {
         const room = rooms.get(roomCode);
         if (room) {
-            const participant = room.participants.get(socket.id);
             room.playback = {
                 currentPosition: time,
                 isPlaying: true,
-                isBuffering: false,
                 lastActionBy: socket.id,
                 timestamp: Date.now(),
             };
-            socket.to(roomCode).emit('play', {
-                time,
-                userId: socket.id,
-                displayName: (participant === null || participant === void 0 ? void 0 : participant.display_name) || 'Someone',
-            });
+            // Broadcast to everyone (including sender for sync confirmation, or exclude sender)
+            // Usually exclude sender to avoid loop, but for strict sync, include sender?
+            // Standard: broadcast to others
+            socket.to(roomCode).emit('play', { time, userId: socket.id });
         }
     });
     socket.on('pause', ({ roomCode, time }) => {
         const room = rooms.get(roomCode);
         if (room) {
-            const participant = room.participants.get(socket.id);
             room.playback = {
                 currentPosition: time,
                 isPlaying: false,
-                isBuffering: false,
                 lastActionBy: socket.id,
                 timestamp: Date.now(),
             };
-            socket.to(roomCode).emit('pause', {
-                time,
-                userId: socket.id,
-                displayName: (participant === null || participant === void 0 ? void 0 : participant.display_name) || 'Someone',
-            });
+            socket.to(roomCode).emit('pause', { time, userId: socket.id });
         }
     });
     socket.on('seek', ({ roomCode, time }) => {
         const room = rooms.get(roomCode);
         if (room) {
-            const participant = room.participants.get(socket.id);
             room.playback.currentPosition = time;
             room.playback.timestamp = Date.now();
-            socket.to(roomCode).emit('seek', {
-                time,
-                userId: socket.id,
-                displayName: (participant === null || participant === void 0 ? void 0 : participant.display_name) || 'Someone',
-            });
-        }
-    });
-    socket.on('buffering', ({ roomCode, isBuffering }) => {
-        const room = rooms.get(roomCode);
-        if (room) {
-            room.playback.isBuffering = isBuffering;
-            // Broadcast to everyone (including sender? No, sender knows they are buffering)
-            // Actually, for UI "Waiting for...", we need to know WHO is buffering.
-            socket.to(roomCode).emit('buffering', { userId: socket.id, isBuffering });
-        }
-    });
-    // Periodic position sync from host to keep server state fresh
-    // This ensures new joiners get accurate playback position
-    socket.on('sync-position', ({ roomCode, time, isPlaying }) => {
-        const room = rooms.get(roomCode);
-        if (room) {
-            room.playback.currentPosition = time;
-            room.playback.isPlaying = isPlaying;
-            room.playback.timestamp = Date.now();
-            // Don't broadcast - this is just to keep server state fresh
+            socket.to(roomCode).emit('seek', { time, userId: socket.id });
         }
     });
     socket.on('chat-message', ({ roomCode, message }) => {
@@ -141,51 +102,23 @@ io.on('connection', (socket) => {
                     message,
                     timestamp: new Date().toISOString(),
                 };
-                // Store in history (limit to last 100 for better persistence)
+                // Store in history (limit to last 50)
                 room.chatHistory.push(chatMsg);
-                if (room.chatHistory.length > 100)
+                if (room.chatHistory.length > 50)
                     room.chatHistory.shift();
                 io.to(roomCode).emit('chat-message', chatMsg);
-            }
-        }
-    });
-    // User action event for system notifications (seek, play, pause, etc.)
-    // These don't get stored in chat history to avoid spam
-    socket.on('user-action', ({ roomCode, action, message }) => {
-        const room = rooms.get(roomCode);
-        if (room) {
-            const participant = room.participants.get(socket.id);
-            if (participant) {
-                // Broadcast to others (not stored in chat history)
-                socket.to(roomCode).emit('user-action', {
-                    userId: participant.user_id,
-                    displayName: participant.display_name,
-                    action,
-                    message,
-                });
             }
         }
     });
     socket.on('disconnect', () => {
         // Find which room the socket was in
         rooms.forEach((room, roomCode) => {
-            var _a;
             if (room.participants.has(socket.id)) {
                 const participant = room.participants.get(socket.id);
                 room.participants.delete(socket.id);
                 if (participant) {
-                    // Notify others that user left
                     socket.to(roomCode).emit('user-left', participant.user_id);
-                    // Clear buffering state for disconnected user
-                    // This prevents "waiting for user" overlay from getting stuck
-                    socket.to(roomCode).emit('buffering', { userId: socket.id, isBuffering: false });
                     console.log(`User ${participant.display_name} left room ${roomCode}`);
-                }
-                // If host disconnected, assign new host
-                if (room.hostSocketId === socket.id && room.participants.size > 0) {
-                    const newHostId = (_a = room.participants.keys().next().value) !== null && _a !== void 0 ? _a : null;
-                    room.hostSocketId = newHostId;
-                    console.log(`Host transferred to ${newHostId} in room ${roomCode}`);
                 }
                 // Clean up empty rooms
                 if (room.participants.size === 0) {
@@ -197,7 +130,6 @@ io.on('connection', (socket) => {
     });
 });
 const PORT = parseInt(process.env.SOCKET_PORT || '4000');
-const HOST = '0.0.0.0'; // Bind to all interfaces for local network access
-httpServer.listen(PORT, HOST, () => {
-    console.log(`Socket.IO server running on ${HOST}:${PORT}`);
+httpServer.listen(PORT, () => {
+    console.log(`Socket.IO server running on port ${PORT}`);
 });

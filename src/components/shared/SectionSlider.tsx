@@ -23,7 +23,7 @@ export function SectionSlider({ title, items, isRanked = false }: SectionSliderP
   if (items.length === 0) return null;
 
   return (
-    <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto">
+    <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 pl-1 border-l-4 border-red-600">{title}</h2>
 
       <div className="relative">

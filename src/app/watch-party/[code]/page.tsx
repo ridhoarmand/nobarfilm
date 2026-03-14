@@ -197,7 +197,7 @@ export default function WatchPartyRoomPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-black pt-20 pb-10">
-        <div className="max-w-[1920px] mx-auto px-4 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="flex flex-col xl:flex-row gap-6">
             <div className="flex-grow space-y-4">
               <div className="relative aspect-video bg-zinc-900 rounded-xl overflow-hidden group">

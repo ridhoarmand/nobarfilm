@@ -1,5 +1,4 @@
-export class ApiError extends Error {
-  status: number;
+export class ApiError extends Error {  status: number;
   data?: unknown;
 
   constructor(message: string, status: number, data?: unknown) {
@@ -26,17 +25,11 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
   }
 
   const json = await response.json();
-  
-  // Backwards compatibility if there's any old encrypted cached data still hitting this
-  if (json.data && typeof json.data === 'string') {
-    const { decryptData } = await import('@/lib/crypto');
-    return decryptData(json.data);
-  }
-  
+
   // Return the unwrapped data if it's our API format, otherwise return the raw JSON
   if (json.success !== undefined && json.data !== undefined) {
     return json.data;
   }
-  
+
   return json;
 }

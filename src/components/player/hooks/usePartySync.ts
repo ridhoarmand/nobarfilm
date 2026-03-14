@@ -8,13 +8,20 @@ const getSocketUrl = () => {
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
+    // For specific domain overrides
     if (hostname.includes('nobarfilm.ridhoarmand')) {
       return 'https://socket.ridhoarmand.eu.org';
     }
-    return `${window.location.protocol}//${hostname}:4000`;
+    
+    // In local dev, socket runs on 4000. In prod docker, it's combined on 3000.
+    if (process.env.NODE_ENV === 'development') {
+      return `${window.location.protocol}//${hostname}:4000`;
+    }
+    return window.location.origin;
   }
 
-  return 'http://localhost:4000';
+  // Fallback for SSR
+  return process.env.NODE_ENV === 'development' ? 'http://localhost:4000' : 'http://localhost:3000';
 };
 
 // Callback interface - page.tsx will implement these
