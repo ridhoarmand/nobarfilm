@@ -21,7 +21,8 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
     }
 
     // Throw error with status to be caught by React Query
-    throw new ApiError(errorData?.error || errorData?.message || 'An error occurred', response.status, errorData);
+    const message = errorData?.error || errorData?.message || `HTTP Error ${response.status}`;
+    throw new ApiError(message, response.status, errorData);
   }
 
   const json = await response.json();

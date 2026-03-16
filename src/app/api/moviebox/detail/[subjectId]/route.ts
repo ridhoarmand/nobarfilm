@@ -1,8 +1,6 @@
-import { safeJson, encryptedResponse, getMovieboxHeaders } from "@/lib/api-utils";
+import { encryptedResponse } from "@/lib/api-utils";
+import { movieBoxService } from "@/lib/moviebox";
 import { NextRequest, NextResponse } from "next/server";
-
-const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api").replace(/\/+$/, "") + "/moviebox";
-
 
 export async function GET(
   request: NextRequest,
@@ -11,22 +9,10 @@ export async function GET(
   const { subjectId } = await params;
 
   try {
-    const response = await fetch(`${UPSTREAM_API}/detail?subjectId=${subjectId}`, {
-      headers: getMovieboxHeaders(),
-      next: { revalidate: 600 },
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch data" },
-        { status: response.status }
-      );
-    }
-
-    const data = await safeJson(response);
+    const data = await movieBoxService.getDetail(subjectId);
     return encryptedResponse(data);
   } catch (error) {
-    console.error("API Error:", error);
+    console.error("[detail] API Error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

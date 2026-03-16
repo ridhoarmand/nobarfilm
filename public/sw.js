@@ -35,8 +35,44 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch with cache fallback
+// Fetch with smart caching
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Cache static assets (JS, CSS, Fonts)
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.endsWith('.woff2')) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // Cache Proxy Images
+  if (url.pathname.startsWith('/api/proxy/image')) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);

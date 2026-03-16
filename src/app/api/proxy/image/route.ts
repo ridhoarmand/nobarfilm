@@ -18,7 +18,16 @@ export async function GET(request: NextRequest) {
     let response: Response | null = null;
 
     // Try wsrv.nl first - it handles SSL issues, CORS, and image conversion
-    const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(decodedUrl)}&output=jpg&q=85`;
+    const w = searchParams.get('w');
+    const h = searchParams.get('h');
+    const output = searchParams.get('output') || 'webp';
+    const quality = searchParams.get('q') || '80';
+
+    let wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(decodedUrl)}&output=${output}&q=${quality}`;
+    if (w) wsrvUrl += `&w=${w}`;
+    if (h) wsrvUrl += `&h=${h}`;
+    wsrvUrl += '&fit=cover';
+
     response = await fetch(wsrvUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -28,7 +37,11 @@ export async function GET(request: NextRequest) {
     // Fallback: Try alternative weserv domain
     if (!response.ok) {
       console.log('wsrv.nl failed, trying images.weserv.nl...');
-      const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(decodedUrl)}&output=jpg&q=85`;
+      let weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(decodedUrl)}&output=${output}&q=${quality}`;
+      if (w) weservUrl += `&w=${w}`;
+      if (h) weservUrl += `&h=${h}`;
+      weservUrl += '&fit=cover';
+      
       response = await fetch(weservUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

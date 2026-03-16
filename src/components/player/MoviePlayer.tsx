@@ -258,7 +258,9 @@ export const MoviePlayer = forwardRef<MediaPlayerInstance, MoviePlayerProps>(({ 
           {poster && <Poster className="vds-poster object-contain" src={poster} alt="Poster" />}
           {tracks}
         </MediaProvider>
-        <DefaultVideoLayout icons={defaultLayoutIcons} />
+        <DefaultVideoLayout 
+          icons={defaultLayoutIcons} 
+        />
       </MediaPlayer>
 
       {/* Visual Feedback */}

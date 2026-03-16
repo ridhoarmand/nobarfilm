@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server';
 
 export async function safeJson<T>(response: Response): Promise<T> {
   const text = await response.text();
+  
+  if (process.env.DEBUG_HTTP) {
+    console.log(`[HTTP DEBUG] URL: ${response.url}`);
+    console.log(`[HTTP DEBUG] Status: ${response.status}`);
+    console.log(`[HTTP DEBUG] Headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
+    console.log(`[HTTP DEBUG] Body (truncated):`, text.substring(0, 500));
+  }
+
   if (!text || !text.trim()) {
     throw new Error(`Empty response from upstream: ${response.url}`);
   }
   try {
     return JSON.parse(text);
   } catch (error) {
-    console.error('JSON Parse Error:', error);
-    console.error('Raw Text (truncated):', text.substring(0, 200));
-    throw new Error('Invalid JSON response from upstream');
+    console.error(`[safeJson] Parse Error for ${response.url}`);
+    console.error(`[safeJson] Status: ${response.status}`);
+    console.error(`[safeJson] Raw Text (truncated):`, text.substring(0, 500));
+    throw new Error(`Invalid JSON response from upstream (${response.status})`);
   }
 }
 
@@ -24,14 +33,9 @@ export function encryptedResponse(data: unknown, status = 200) {
  */
 export function getMovieboxHeaders() {
   return {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
-    'Referer': 'https://api.sansekai.my.id/',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+    'Accept-Encoding': 'gzip',
+    'Sec-WebSocket-Version': '13',
     'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': '"Windows"',
   };
 }

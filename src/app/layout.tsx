@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { Inter } from 'next/font/google';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ServiceWorkerRegistration } from '@/components/providers/ServiceWorkerRegistration';
 import { DownloadManager } from '@/components/download/DownloadManager';
 import { ClientToaster } from '@/components/layout/ClientToaster';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: 'NobarFilm - Watch Together',
@@ -32,8 +35,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="font-sans antialiased">
+    <html lang="en" className={`dark ${inter.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://api.sansekai.my.id" />
+        <link rel="preconnect" href="https://wsrv.nl" />
+        <link rel="preconnect" href="https://images.weserv.nl" />
+        <script
+          type="speculationrules"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              prerender: [
+                {
+                  source: 'list',
+                  urls: [], // We can dynamically populate this if needed, or use 'where'
+                },
+              ],
+              prefetch: [
+                {
+                  source: 'list',
+                  urls: [],
+                  where: { href_matches: '/*' },
+                  eagerness: 'moderate',
+                },
+              ],
+            }),
+          }}
+        />
+      </head>
+      <body className="font-sans antialiased text-white selection:bg-red-500/30">
         <ServiceWorkerRegistration />
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>

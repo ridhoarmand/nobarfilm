@@ -4,7 +4,8 @@ import { useMovieBoxDetail, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film } from 'lucide-react';
-import { Suspense, useCallback, useRef } from 'react';
+import { Suspense, useCallback, useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 function WatchContent() {
   const params = useParams();
@@ -20,6 +21,8 @@ function WatchContent() {
   const season = seasonParam !== null ? parseInt(seasonParam) : undefined;
   const episode = episodeParam !== null ? parseInt(episodeParam) : undefined;
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
+  
+  const [qualityIndex, setQualityIndex] = useState(0);
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
@@ -33,7 +36,7 @@ function WatchContent() {
     data: playbackData,
     isLoading: isLoadingPlayback,
     error: playbackError,
-  } = useMovieBoxPlaybackUrl(subjectId, effectiveSeason, effectiveEpisode, 0, {
+  } = useMovieBoxPlaybackUrl(subjectId, effectiveSeason, effectiveEpisode, qualityIndex, {
     // Wait for detail to load first so isSeries is known, preventing wrong fetches
     enabled: !!subjectId && !isLoadingDetail,
   });
@@ -123,8 +126,8 @@ function WatchContent() {
               kind: 'subtitles',
               label: cap.lanName || cap.lan,
               srcLang: cap.lan,
-              src: cap.url,
-              default: cap.lan === 'en',
+              src: `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
+              default: (cap.lan || '').includes('id') || (cap.lanName || '').toLowerCase().includes('indonesia'),
             }))}
             onProgress={handleProgress}
             onEnded={() => {}}
@@ -136,6 +139,34 @@ function WatchContent() {
           </div>
         )}
       </div>
+
+      {/* Quality Selector */}
+      {playbackData && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-2">Kualitas:</span>
+            {/* Note: We fetch from sourcesData for the full list if needed, 
+                but useMovieBoxPlaybackUrl currently handles selection internally via index.
+                For a better UI, we should probably fetch sources first.
+            */}
+            {/* Temporary Quality Buttons based on common Moviebox qualities */}
+            {[0, 1, 2].map((idx) => (
+              <button
+                key={idx}
+                onClick={() => setQualityIndex(idx)}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs font-medium border transition-all",
+                  qualityIndex === idx 
+                    ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20" 
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                )}
+              >
+                {idx === 0 ? '720p/1080p' : idx === 1 ? '480p' : '360p'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Movie Info Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

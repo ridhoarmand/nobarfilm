@@ -127,12 +127,28 @@ export function Hero({ slides }: HeroProps) {
       <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {/* Mobile Image (Portrait Optimized) */}
         <div className="block sm:hidden relative w-full h-full">
-          <Image unoptimized src={mobileImage} alt={currentSlide.title} fill className="object-cover object-top" priority sizes="100vw" />
+          <Image 
+            src={`/api/proxy/image?url=${encodeURIComponent(mobileImage)}&w=600&output=webp`} 
+            alt={currentSlide.title} 
+            fill 
+            className="object-cover object-top" 
+            priority 
+            fetchPriority="high"
+            sizes="100vw" 
+          />
         </div>
 
         {/* Desktop Image (Landscape Optimized) */}
         <div className="hidden sm:block relative w-full h-full">
-          <Image unoptimized src={desktopImage} alt={currentSlide.title} fill className="object-cover object-center" priority sizes="100vw" />
+          <Image 
+            src={`/api/proxy/image?url=${encodeURIComponent(desktopImage)}&w=1440&output=webp`} 
+            alt={currentSlide.title} 
+            fill 
+            className="object-cover object-center" 
+            priority 
+            fetchPriority="high"
+            sizes="100vw" 
+          />
         </div>
 
         {/* Gradient Overlays */}

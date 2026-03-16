@@ -138,21 +138,55 @@ video[aria-hidden='true'] {
   object-fit: cover !important;
 }
 
-/* Subtitle/Caption Optimization */
+/* Subtitle/Caption Optimization (Netflix Style - Refined) */
 .media-player {
-  /* Reduce default font size and add shadow for better readability without mass */
-  --media-captions-font-size: 0.85rem !important;
-  --media-captions-text-shadow: 0 1px 2px rgb(0 0 0 / 80%), 0 0 1px rgb(0 0 0 / 80%) !important;
+  /* Remove background, use thin high-contrast text shadow */
+  --media-vtt-cue-background: transparent !important;
+  --media-vtt-cue-color: #fff !important;
+  --media-vtt-cue-text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8), 0px 0px 1px rgba(0, 0, 0, 0.8) !important;
+  
+  /* Font styling - Smaller and cleaner */
+  --media-vtt-cue-font-family: var(--font-inter), sans-serif !important;
+  --media-vtt-cue-font-size: 1rem !important; 
+  --media-vtt-cue-font-weight: 500 !important;
+  --media-vtt-cue-line-height: 1.2 !important;
+  
+  /* Position and padding */
+  --media-captions-padding: 3% !important;
 }
 
-/* Responsive subtitle size for vertical content */
-.media-player[data-aspect-ratio='9/16'] {
-  --media-captions-font-size: 0.75rem !important;
+/* 
+ * AGGRESSIVE OVERRIDES for Shadow DOM and non-CSS variable engines 
+ * Targets both native ::cue and Vidstack's custom rendering
+ */
+::cue,
+[part="cue"],
+.vds-caption-cue,
+.vds-captions [data-vds-cue] {
+  background-color: transparent !important;
+  background: none !important;
+  color: #ffffff !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8), 0px 0px 1px rgba(0, 0, 0, 0.8) !important;
+  font-family: var(--font-inter), sans-serif !important;
+  font-size: var(--media-vtt-cue-font-size, 0.95rem) !important;
 }
 
-/* Ensure captions don't overlap with critical UI on mobile */
+/* Ensure background container is also transparent */
+[part="captions"],
+.vds-captions {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Responsive subtitle size */
 @media (max-width: 768px) {
   .media-player {
-    --media-captions-font-size: 0.7rem !important;
+    --media-vtt-cue-font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .media-player {
+    --media-vtt-cue-font-size: 0.7rem !important;
   }
 }

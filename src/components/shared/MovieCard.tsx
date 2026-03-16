@@ -33,14 +33,13 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
           )}
 
           {/* Main Image */}
-          <Image unoptimized
-            src={movie.cover.url}
+          <Image 
+            src={`/api/proxy/image?url=${encodeURIComponent(movie.cover.url)}&w=400&output=webp`}
             alt={movie.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover transition-transform duration-500 group-hover/card:scale-110"
             priority={priority}
-            quality={80}
           />
 
           {/* Desktop Hover Overlay (Play Icon) */}
