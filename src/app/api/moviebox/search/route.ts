@@ -1,8 +1,8 @@
-import { safeJson, encryptedResponse } from '@/lib/api-utils';
+import { safeJson, encryptedResponse, getMovieboxHeaders } from '@/lib/api-utils';
 import { NextRequest, NextResponse } from 'next/server';
 import { SearchResponse, Subject, ContentTypeCount } from '@/types/api';
 
-const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api') + '/moviebox';
+const UPSTREAM_API = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.sansekai.my.id/api').replace(/\/+$/, '') + '/moviebox';
 
 const ALLOWED_SUBJECT_TYPES = new Set([1, 2]);
 
@@ -16,12 +16,6 @@ function filterCounts(counts: ContentTypeCount[] | undefined) {
   return counts.filter((item) => typeof item?.subjectType === 'number' && ALLOWED_SUBJECT_TYPES.has(item.subjectType));
 }
 
-const MOVIEBOX_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
-  'Accept-Encoding': 'gzip',
-  'Sec-WebSocket-Version': '13',
-  'Cache-Control': 'no-cache',
-};
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response = await fetch(`${UPSTREAM_API}/search?query=${encodeURIComponent(query)}&page=${page}`, {
-      headers: MOVIEBOX_HEADERS,
+      headers: getMovieboxHeaders(),
       next: { revalidate: 300 },
     });
 
