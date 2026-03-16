@@ -1,63 +1,74 @@
-# 1. Base image with shared dependencies
+# 1. Base image
 FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY package.json package-lock.json* .npmrc ./
+RUN npm ci --legacy-peer-deps
 
-# 2. Install dependencies only when needed
-FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm install && npm cache clean --force
+# Create a dedicated production dependencies stage
+# This ensures modules like socket.io (used in our custom server) are included
+# even if Next.js standalone tracing doesn't "see" them.
+FROM base AS prod-deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json package-lock.json* .npmrc ./
+RUN npm ci --omit=dev --legacy-peer-deps
 
-# 3. Rebuild the source code only when needed
+
+# 2. Builder stage
 FROM base AS builder
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Disable telemetry
-ENV NEXT_TELEMETRY_DISABLED 1
-
-# Skip env validation for static build
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
 
-# Declare build arguments
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
-ARG NEXT_PUBLIC_SOCKET_URL
+# Build environment variables (Placeholders for build process)
+ARG NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co"
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY="placeholder-key"
 
-# Set as environment variables for the build
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
-ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 
+# Build the application
 RUN npm run build
-RUN npm run build:server
 
-# Install production dependencies only (for smaller image)
-RUN rm -rf node_modules
-RUN npm install --omit=dev --ignore-scripts && npm cache clean --force
+# Build the custom socket server
+RUN npx tsc --project tsconfig.server.json
 
-# 4. Production image, copy all the files and run next
+
+# 3. Production image
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# 1. Copy standalone output (The optimized Next.js server and traced deps)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# 2. Add complete production dependencies for the custom server
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+# 3. Add the compiled custom server
 COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
 
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
 
-# Default command to run custom Next.js server
+# We run our custom unified server (Next.js + Socket.io)
 CMD ["node", "dist/server/index.js"]
