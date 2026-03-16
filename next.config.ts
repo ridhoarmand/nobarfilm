@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
+  output: 'standalone',
   // Note: Cross-origin warning in dev is safe to ignore (mobile testing)
   // Only affects development, not production
 
