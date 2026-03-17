@@ -20,7 +20,7 @@ interface RoomState {
 const rooms = new Map<string, RoomState>();
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  // console.log('User connected:', socket.id);
 
   socket.on('join-room', ({ roomCode, user }) => {
     socket.join(roomCode);
@@ -74,7 +74,7 @@ io.on('connection', (socket) => {
       chatHistory: room.chatHistory,
     });
 
-    console.log(`User ${user.name} joined room ${roomCode}`);
+    // console.log(`User ${user.name} joined room ${roomCode}`);
   });
 
   socket.on('play', ({ roomCode, time }) => {

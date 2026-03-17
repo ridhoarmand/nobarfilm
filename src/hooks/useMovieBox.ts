@@ -162,11 +162,11 @@ export function useMovieBoxPlaybackUrl(
       // Check localStorage cache first
       const cached = getCachedStreamData(cacheKey);
       if (cached) {
-        console.log('[Stream Cache] Using cached stream URL');
+        // console.log('[Stream Cache] Using cached stream URL');
         return { streamUrl: cached.streamUrl, captions: cached.captions };
       }
 
-      console.log('[Stream Cache] Fetching fresh stream URL');
+      // console.log('[Stream Cache] Fetching fresh stream URL');
       const sources = await fetchJson<SourcesResponse>(url);
 
       if (!sources.downloads || sources.downloads.length === 0) {

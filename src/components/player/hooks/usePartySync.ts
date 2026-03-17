@@ -59,7 +59,7 @@ export function usePartySync(roomCode: string, callbacks: PartySyncCallbacks, en
     if (!enabled || !roomCode || !user) return;
 
     const socketUrl = getSocketUrl();
-    console.log('[Hook] Connecting to:', socketUrl);
+    // console.log('[Hook] Connecting to:', socketUrl);
 
     const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> = io(socketUrl, {
       transports: ['websocket'],
@@ -72,7 +72,7 @@ export function usePartySync(roomCode: string, callbacks: PartySyncCallbacks, en
     }, 0);
 
     newSocket.on('connect', () => {
-      console.log('[Hook] Connected:', newSocket.id);
+      // console.log('[Hook] Connected:', newSocket.id);
       newSocket.emit('join-room', {
         roomCode,
         user: {
@@ -121,7 +121,7 @@ export function usePartySync(roomCode: string, callbacks: PartySyncCallbacks, en
 
     return () => {
       clearTimeout(timer);
-      console.log('[Hook] Disconnecting');
+      // console.log('[Hook] Disconnecting');
       newSocket.disconnect();
       socketRef.current = null;
       setSocket(null);

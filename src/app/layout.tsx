@@ -47,15 +47,12 @@ export default function RootLayout({
               prerender: [
                 {
                   source: 'list',
-                  urls: [], // We can dynamically populate this if needed, or use 'where'
+                  urls: [],
                 },
               ],
               prefetch: [
                 {
-                  source: 'list',
                   urls: [],
-                  where: { href_matches: '/*' },
-                  eagerness: 'moderate',
                 },
               ],
             }),
