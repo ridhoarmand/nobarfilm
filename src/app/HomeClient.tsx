@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useMovieBoxHomepage, useInfiniteMovieBoxTrending } from '@/hooks/useMovieBox';
 import { useContinueWatching } from '@/hooks/useContinueWatching';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Hero, HeroSlide } from '@/components/home/Hero';
 import { Navbar } from '@/components/layout/Navbar';
 import { LoadingPage } from '@/components/shared/LoadingSkeleton';
-import { Subject, BannerItem, HomepageResponse } from '@/types/api';
+import { Subject, BannerItem } from '@/types/api';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import dynamic from 'next/dynamic';

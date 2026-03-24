@@ -231,6 +231,6 @@ io.on('connection', (socket) => {
 const PORT = parseInt(process.env.SOCKET_PORT || '4000');
 const HOST = '0.0.0.0'; // Bind to all interfaces for local network access
 
-httpServer.listen(PORT, () => {
-  console.log(`Socket.IO server running on http://localhost:${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`Socket.IO server running on http://${HOST}:${PORT}`);
 });

@@ -73,7 +73,11 @@ export default function DetailPage() {
         <div className="relative h-[60vh] md:h-[70vh] overflow-hidden">
           {/* Background Image */}
           <div className="absolute inset-0">
-            <Image unoptimized src={subject.cover.url} alt={subject.title} fill className="object-cover" priority sizes="100vw" />
+            {subject?.cover?.url ? (
+              <Image unoptimized src={subject.cover.url} alt={subject?.title || 'Cover'} fill className="object-cover" priority sizes="100vw" />
+            ) : (
+              <div className="w-full h-full bg-zinc-900" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
           </div>
@@ -81,7 +85,7 @@ export default function DetailPage() {
           {/* Content */}
           <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-end pb-12">
             <div className="max-w-3xl">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4">{subject.title}</h1>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4">{subject?.title || 'Unknown Title'}</h1>
 
               {/* Meta Info */}
               <div className="flex flex-wrap items-center gap-4 text-sm sm:text-base mb-6">
@@ -156,10 +160,10 @@ export default function DetailPage() {
                       {/* Watch Party Button */}
                       <WatchPartyButton
                         subject={{
-                          id: subject.subjectId,
-                          type: subject.subjectType,
-                          title: subject.title,
-                          coverUrl: subject.cover.url,
+                          id: subject?.subjectId || subjectId,
+                          type: subject?.subjectType || 1,
+                          title: subject?.title || 'Movie',
+                          coverUrl: subject?.cover?.url || '',
                         }}
                       />
                     </>
@@ -256,7 +260,7 @@ export default function DetailPage() {
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         subjectId={subjectId}
-        title={subject.title}
+        title={subject?.title || 'Unknown Movie'}
         seasonNumber={downloadParams.season}
         episodeNumber={downloadParams.episode}
       />

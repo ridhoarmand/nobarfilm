@@ -15,7 +15,7 @@ export async function safeJson<T>(response: Response): Promise<T> {
   }
   try {
     return JSON.parse(text);
-  } catch (error) {
+  } catch {
     console.error(`[safeJson] Parse Error for ${response.url}`);
     console.error(`[safeJson] Status: ${response.status}`);
     console.error(`[safeJson] Raw Text (truncated):`, text.substring(0, 500));

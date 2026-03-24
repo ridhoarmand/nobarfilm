@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, MutableRefObject } from 'react';
+import { useEffect, useState } from 'react';
 interface UseIntersectionObserverProps extends IntersectionObserverInit {
   freezeOnceVisible?: boolean;
 }
@@ -12,6 +12,8 @@ export function useIntersectionObserver({ threshold = 0, root = null, rootMargin
     setEntry(entry);
   };
 
+  const thresholdString = JSON.stringify(threshold);
+
   useEffect(() => {
     const hasIOSupport = !!window.IntersectionObserver;
 
@@ -23,7 +25,8 @@ export function useIntersectionObserver({ threshold = 0, root = null, rootMargin
     observer.observe(node);
 
     return () => observer.disconnect();
-  }, [node, JSON.stringify(threshold), root, rootMargin, frozen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node, thresholdString, root, rootMargin, frozen]);
 
   return { ref: setNode, entry, inView: !!entry?.isIntersecting };
 }

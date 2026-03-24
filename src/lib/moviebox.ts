@@ -88,10 +88,19 @@ export const movieBoxService = {
     const cached = serverCache.get<DetailResponse>(key);
     if (cached) return cached;
 
-    const response = await fetch(`${UPSTREAM_API}/detail/${subjectId}`, {
+    // Try query param first
+    let response = await fetch(`${UPSTREAM_API}/detail?subjectId=${subjectId}`, {
       headers: getMovieboxHeaders(),
       next: { revalidate: 1800 },
     });
+
+    // Fallback to path param if 404
+    if (!response.ok && response.status === 404) {
+      response = await fetch(`${UPSTREAM_API}/detail/${subjectId}`, {
+        headers: getMovieboxHeaders(),
+        next: { revalidate: 1800 },
+      });
+    }
 
     if (!response.ok) throw new Error(`Upstream Error: ${response.status}`);
     const data = await safeJson<DetailResponse>(response);
@@ -111,10 +120,22 @@ export const movieBoxService = {
     const cached = serverCache.get<SourcesResponse>(key);
     if (cached) return cached;
 
-    const response = await fetch(`${UPSTREAM_API}/sources/${subjectId}${queryString ? `?${queryString}` : ''}`, {
+    // Query params approach: ?subjectId=foo&season=...
+    const fullQueryProps = new URLSearchParams(query);
+    fullQueryProps.set('subjectId', subjectId);
+    
+    let response = await fetch(`${UPSTREAM_API}/sources?${fullQueryProps.toString()}`, {
       headers: getMovieboxHeaders(),
       next: { revalidate: 300 },
     });
+
+    // Fallback to path param approach if 404
+    if (!response.ok && response.status === 404) {
+      response = await fetch(`${UPSTREAM_API}/sources/${subjectId}${queryString ? `?${queryString}` : ''}`, {
+        headers: getMovieboxHeaders(),
+        next: { revalidate: 300 },
+      });
+    }
 
     if (!response.ok) throw new Error(`Upstream Error: ${response.status}`);
     const data = await safeJson<SourcesResponse>(response);

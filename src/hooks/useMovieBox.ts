@@ -173,8 +173,11 @@ export function useMovieBoxPlaybackUrl(
         throw new Error('No playback sources available');
       }
 
+      // Sort downloads descending by resolution (so index 0 is the highest quality)
+      const sortedDownloads = [...sources.downloads].sort((a, b) => (b.resolution || 0) - (a.resolution || 0));
+
       // Select quality (default to first available)
-      const selectedSource = sources.downloads[quality] || sources.downloads[0];
+      const selectedSource = sortedDownloads[quality] || sortedDownloads[0];
 
       // Generate stream URL via API proxy
       const streamResponse = await fetchJson<{ streamUrl?: string }>(`${API_BASE}/generate-link-stream-video?url=${encodeURIComponent(selectedSource.url)}`);

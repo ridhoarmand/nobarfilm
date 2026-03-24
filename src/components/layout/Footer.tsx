@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Github, Send, AlertTriangle } from 'lucide-react';
+import { Github, AlertTriangle } from 'lucide-react';
 
 export function Footer() {
   return (
