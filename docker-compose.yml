@@ -12,7 +12,8 @@ services:
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY}
       - CLIENT_URL=https://film.idho.eu.org
-      - NEXT_PUBLIC_COOKIE_DOMAIN=film.idho.eu.org
+      - NEXT_PUBLIC_COOKIE_DOMAIN=.idho.eu.org
+      - NEXT_PUBLIC_SUPABASE_STORAGE_KEY=${NEXT_PUBLIC_SUPABASE_STORAGE_KEY}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--spider", "--tries=1", "http://127.0.0.1:3000"]
       interval: 30s

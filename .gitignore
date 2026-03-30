@@ -16,6 +16,9 @@
 # docs
 /docs
 
+# supabase
+/supabase
+
 # next.js
 /.next/
 /out/

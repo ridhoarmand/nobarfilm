@@ -4,6 +4,9 @@ on:
     branches: ['master']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   # Ganti dengan nama repository di Docker Hub
   IMAGE_NAME: nobarfilm
@@ -14,6 +17,34 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
+          PORTAINER_ACCESS_TOKEN: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          required=(
+            DOCKER_USERNAME
+            DOCKER_PASSWORD
+            PORTAINER_URL
+            PORTAINER_ACCESS_TOKEN
+          )
+
+          missing=()
+          for key in "${required[@]}"; do
+            if [[ -z "${!key:-}" ]]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "Missing required secrets: ${missing[*]}" >&2
+            exit 1
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -35,9 +66,6 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
 
       - name: Redeploy Portainer Stack
         uses: wirgen/portainer-stack-redeploy-action@v1.1
