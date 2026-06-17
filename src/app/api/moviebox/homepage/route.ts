@@ -1,13 +1,17 @@
-import { encryptedResponse } from '@/lib/api-utils';
+import { encryptedResponse, getClientToken } from '@/lib/api-utils';
 import { movieBoxService } from '@/lib/moviebox';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = await movieBoxService.getHomepage();
+    const clientToken = getClientToken(request);
+    const data = await movieBoxService.getHomepage(clientToken);
     return encryptedResponse(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[homepage] API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Internal Server Error' },
+      { status: error.message?.includes('Akses Terbatas') ? 403 : 500 }
+    );
   }
 }

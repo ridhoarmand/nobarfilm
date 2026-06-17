@@ -13,14 +13,8 @@ const nextConfig: NextConfig = {
         hostname: '**.aoneroom.com',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: '**.sansekai.my.id',
-        pathname: '/**',
-      },
     ],
   },
-  serverExternalPackages: ['socket.io'], // Ensure socket.io is handled correctly
   transpilePackages: ['@vidstack/react', 'vidstack'],
   async redirects() {
     return [

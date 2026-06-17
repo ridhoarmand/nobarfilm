@@ -37,7 +37,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${inter.variable}`}>
       <head>
-        <link rel="preconnect" href="https://api.sansekai.my.id" />
         <link rel="preconnect" href="https://wsrv.nl" />
         <link rel="preconnect" href="https://images.weserv.nl" />
         <script

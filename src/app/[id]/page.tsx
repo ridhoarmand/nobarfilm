@@ -9,7 +9,6 @@ import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Star, Calendar, Clock, Download } from 'lucide-react';
-import { WatchPartyButton } from '@/components/watch-party/WatchPartyButton';
 
 export default function DetailPage() {
   const params = useParams();
@@ -156,16 +155,6 @@ export default function DetailPage() {
                           <span>Download</span>
                         </button>
                       )}
-
-                      {/* Watch Party Button */}
-                      <WatchPartyButton
-                        subject={{
-                          id: subject?.subjectId || subjectId,
-                          type: subject?.subjectType || 1,
-                          title: subject?.title || 'Movie',
-                          coverUrl: subject?.cover?.url || '',
-                        }}
-                      />
                     </>
                   );
                 })()}
@@ -256,14 +245,18 @@ export default function DetailPage() {
       <Footer />
 
       {/* Download Modal */}
-      <DownloadModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
-        subjectId={subjectId}
-        title={subject?.title || 'Unknown Movie'}
-        seasonNumber={downloadParams.season}
-        episodeNumber={downloadParams.episode}
-      />
+      {isDownloadModalOpen && (
+        <DownloadModal
+          isOpen={isDownloadModalOpen}
+          onClose={() => setIsDownloadModalOpen(false)}
+          subjectId={subjectId}
+          title={subject?.title || 'Unknown Movie'}
+          subjectType={subject?.subjectType}
+          releaseDate={subject?.releaseDate}
+          seasonNumber={downloadParams.season}
+          episodeNumber={downloadParams.episode}
+        />
+      )}
     </>
   );
 }

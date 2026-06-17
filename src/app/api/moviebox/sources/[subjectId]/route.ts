@@ -1,4 +1,4 @@
-import { encryptedResponse } from "@/lib/api-utils";
+import { encryptedResponse, getClientToken } from "@/lib/api-utils";
 import { movieBoxService } from "@/lib/moviebox";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -9,16 +9,23 @@ export async function GET(
   const { subjectId } = await params;
   const searchParams = request.nextUrl.searchParams;
   
-  // Handle season/episode for movies (0/0) or series
-  const season = searchParams.get("season") !== null ? parseInt(searchParams.get("season")!) : 0;
-  const episode = searchParams.get("episode") !== null ? parseInt(searchParams.get("episode")!) : 1;
+  const seasonRaw = searchParams.get('season');
+  const episodeRaw = searchParams.get('episode');
+  const seasonParsed = seasonRaw !== null ? parseInt(seasonRaw, 10) : undefined;
+  const episodeParsed = episodeRaw !== null ? parseInt(episodeRaw, 10) : undefined;
+  const season = Number.isFinite(seasonParsed) ? seasonParsed : undefined;
+  const episode = Number.isFinite(episodeParsed) ? episodeParsed : undefined;
 
   try {
-    const data = await movieBoxService.getSources(subjectId, season, episode);
+    const clientToken = getClientToken(request);
+    const data = await movieBoxService.getSources(subjectId, season, episode, clientToken);
     return encryptedResponse(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[sources] API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Internal Server Error' },
+      { status: error.message?.includes('Akses Terbatas') ? 403 : 500 }
+    );
   }
 }
 

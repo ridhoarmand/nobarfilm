@@ -1,8 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { useAuth } from '@/components/providers/AuthProvider';
-import { SaveProgressPayload } from '@/types/watch-history';
+import { ContinueWatchingItem } from '@/types/watch-history';
 
 interface UseMovieBoxWatchHistoryParams {
   subjectId: string;
@@ -14,64 +13,80 @@ interface UseMovieBoxWatchHistoryParams {
 }
 
 export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
-  const { user } = useAuth();
   const { subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes } = params;
 
   // Fetch initial progress
   const { data: progressData } = useQuery({
     queryKey: ['watch-progress', subjectId, currentEpisode],
     queryFn: async () => {
-      if (!user || !subjectId) return null;
-      const res = await fetch(`/api/watch-history/progress?subject_id=${subjectId}&episode=${currentEpisode || 0}`);
-      if (!res.ok) return null;
-      return res.json();
+      if (typeof window === 'undefined') return null;
+      const historyJson = localStorage.getItem('nobarfilm_watch_history');
+      if (!historyJson) return null;
+      try {
+        const items = JSON.parse(historyJson) as ContinueWatchingItem[];
+        const match = items.find(
+          (item) => item.subject_id === subjectId && item.current_episode === (currentEpisode || 1)
+        );
+        return match || null;
+      } catch (e) {
+        console.error('Failed to parse watch history:', e);
+        return null;
+      }
     },
-    enabled: !!user && !!subjectId,
+    enabled: !!subjectId,
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
 
   const saveProgress = useCallback(
     async (progressSeconds: number, durationSeconds: number) => {
-      if (!user) {
-        console.warn('User not authenticated, skipping watch history save');
+      if (typeof window === 'undefined' || !subjectId || !title || durationSeconds === 0) {
         return;
       }
 
-      if (!subjectId || !title || durationSeconds === 0) {
-        console.warn('Missing required fields for watch history');
-        return;
+      const progress_percent = Math.round((progressSeconds / durationSeconds) * 100);
+      const isCompleted = progress_percent >= 95; // Complete if 95%+ watched
+
+      const historyJson = localStorage.getItem('nobarfilm_watch_history');
+      let items: ContinueWatchingItem[] = [];
+      if (historyJson) {
+        try {
+          items = JSON.parse(historyJson);
+        } catch (e) {
+          console.error('Failed to parse watch history:', e);
+        }
       }
 
-      const payload: SaveProgressPayload = {
+      // Filter out this subject_id to avoid duplicate entries (we show latest watched)
+      items = items.filter((item) => item.subject_id !== subjectId);
+
+      const newItem: ContinueWatchingItem = {
+        id: subjectId,
         subject_id: subjectId,
         subject_type: subjectType,
         title,
-        cover_url: coverUrl,
+        cover_url: coverUrl || null,
         current_episode: currentEpisode || 1,
-        total_episodes: totalEpisodes,
+        total_episodes: totalEpisodes || null,
         progress_seconds: Math.floor(progressSeconds),
         duration_seconds: Math.floor(durationSeconds),
+        progress_percent,
+        last_watched_at: new Date().toISOString(),
       };
 
-      try {
-        const response = await fetch('/api/watch-history/update', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('Failed to save watch history:', error);
-        }
-      } catch (error) {
-        console.error('Error saving watch history:', error);
+      // Only save if not completed (completed items are removed from continue watching list)
+      if (!isCompleted) {
+        items.push(newItem);
       }
+
+      // Limit to 15 items
+      if (items.length > 15) {
+        items = items.slice(-15);
+      }
+
+      localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
     },
-    [user, subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes],
+    [subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes],
   );
 
   return {

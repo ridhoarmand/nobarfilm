@@ -14,7 +14,7 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
     <div className="w-full">
       <Link href={`/${movie.subjectId}`} className="group/card block w-full relative">
         {/* POSTER IMAGE CONTAINER */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-600/50 group-hover/card:shadow-red-900/20 group-hover/card:-translate-y-1">
+        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-600/50 group-hover/card:shadow-red-900/20 group-hover/card:-translate-y-1" style={{ position: 'relative' }}>
           {/* Rank Badge - Top Left (Consistent & Readable) */}
           {rank && (
             <div className="absolute top-0 left-0 z-30 bg-red-600 shadow-lg flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-br-xl">
@@ -34,12 +34,13 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
 
           {/* Main Image */}
           <Image 
-            src={`/api/proxy/image?url=${encodeURIComponent(movie.cover.url)}&w=400&output=webp`}
+            src={movie.cover.url}
             alt={movie.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover transition-transform duration-500 group-hover/card:scale-110"
             priority={priority}
+            loading={priority ? 'eager' : 'lazy'}
           />
 
           {/* Desktop Hover Overlay (Play Icon) */}

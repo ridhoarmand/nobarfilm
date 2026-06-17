@@ -18,17 +18,10 @@ export default async function MoviePage() {
 
   // Prefetch critical data on the server in PARALLEL to minimize TTFB
   try {
-    await Promise.all([
-      queryClient.prefetchQuery({
-        queryKey: movieBoxQueryKeys.homepage,
-        queryFn: () => movieBoxService.getHomepage(),
-      }),
-      queryClient.prefetchInfiniteQuery({
-        queryKey: ['moviebox', 'trending', 'infinite'],
-        queryFn: ({ pageParam }) => movieBoxService.getTrending(pageParam as number),
-        initialPageParam: 0,
-      }),
-    ]);
+    await queryClient.prefetchQuery({
+      queryKey: movieBoxQueryKeys.homepage,
+      queryFn: () => movieBoxService.getHomepage(),
+    });
   } catch (error) {
     console.error('[SSR Prefetch] Error:', error);
   }

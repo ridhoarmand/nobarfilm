@@ -1,4 +1,3 @@
-// Sansekai MovieBox API Types// Based on documented API responses// ============================================// Common Types
 // ============================================
 
 export interface Image {
@@ -52,6 +51,7 @@ export interface Subject {
   hasResource: boolean;
   trailer?: Trailer | null;
   detailPath: string;
+  h5DetailPath?: string;
   staffList?: Staff[];
   appointmentCnt?: number;
   appointmentDate?: string;
