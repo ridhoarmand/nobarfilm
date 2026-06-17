@@ -1,6 +1,7 @@
 import { encryptedResponse } from '@/lib/api-utils';
-import { serverCache, cacheKeys, cacheTTL } from '@/lib/cache';
+import { serverCache, cacheKeys } from '@/lib/cache';
 import { NextRequest, NextResponse } from 'next/server';
+
 
 
 export async function GET(request: NextRequest) {
@@ -24,11 +25,10 @@ export async function GET(request: NextRequest) {
   console.log(`[Cache] MISS for stream link: ${url.substring(0, 50)}...`);
 
   try {
-    const origin = request.nextUrl.origin;
     const params = new URLSearchParams({ url });
     if (referer) params.set('referer', referer);
     const fallback = {
-      streamUrl: `${origin}/api/proxy/video?${params.toString()}`,
+      streamUrl: `/api/proxy/video?${params.toString()}`,
       mode: 'proxy',
     };
 
