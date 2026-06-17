@@ -15,7 +15,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  transpilePackages: ['@vidstack/react', 'vidstack'],
   async redirects() {
     return [
       // API routes that might need redirection from old structure if any
