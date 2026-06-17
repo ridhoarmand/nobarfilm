@@ -27,6 +27,7 @@ export function Hero({ slides }: HeroProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Touch state for Swipe support
   const touchStartX = useRef(0);
@@ -104,6 +105,16 @@ export function Hero({ slides }: HeroProps) {
     return () => clearInterval(interval);
   }, [safeSlides.length, isPaused, nextSlide]);
 
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
   const currentSlide = safeSlides[currentIndex];
   if (!currentSlide) return null;
 
@@ -125,29 +136,16 @@ export function Hero({ slides }: HeroProps) {
     >
       {/* Background Image Container */}
       <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        {/* Mobile Image (Portrait Optimized) */}
-        <div className="block sm:hidden relative w-full h-full">
-          <Image 
-            src={`/api/proxy/image?url=${encodeURIComponent(mobileImage)}&w=600&output=webp`} 
-            alt={currentSlide.title} 
-            fill 
-            className="object-cover object-top" 
-            priority 
+        <div className="relative w-full h-full" style={{ position: 'relative' }}>
+          <Image
+            src={isMobile ? mobileImage : desktopImage}
+            alt={currentSlide.title}
+            fill
+            className={isMobile ? 'object-cover object-top' : 'object-cover object-center'}
+            priority
+            loading="eager"
             fetchPriority="high"
-            sizes="100vw" 
-          />
-        </div>
-
-        {/* Desktop Image (Landscape Optimized) */}
-        <div className="hidden sm:block relative w-full h-full">
-          <Image 
-            src={`/api/proxy/image?url=${encodeURIComponent(desktopImage)}&w=1440&output=webp`} 
-            alt={currentSlide.title} 
-            fill 
-            className="object-cover object-center" 
-            priority 
-            fetchPriority="high"
-            sizes="100vw" 
+            sizes="100vw"
           />
         </div>
 

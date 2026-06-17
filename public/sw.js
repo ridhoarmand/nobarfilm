@@ -3,7 +3,7 @@ importScripts('https://cdn.jsdelivr.net/npm/web-streams-polyfill@2.0.2/dist/pony
 importScripts('https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/sw.js');
 
 // PWA Cache for offline support
-const CACHE_NAME = 'nobarfilm-v1';
+const CACHE_NAME = 'nobarfilm-v2';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -37,7 +37,19 @@ self.addEventListener('activate', (event) => {
 
 // Fetch with smart caching
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(event.request.url);
+
+  // Always prefer network for page navigations to avoid stale HTML/RSC payloads.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   // Cache static assets (JS, CSS, Fonts)
   if (url.pathname.startsWith('/_next/static/') || url.pathname.endsWith('.woff2')) {

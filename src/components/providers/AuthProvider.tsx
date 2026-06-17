@@ -1,133 +1,123 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import { AuthContextType, UserProfile } from '@/lib/supabase/types';
-import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
-import toast from 'react-hot-toast';
+import { createContext, useContext, useState, useEffect } from 'react';
+
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface AuthContextType {
+  user: { id: string; email: string } | null;
+  profile: UserProfile | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, fullName?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      }
-      setIsLoading(false);
-    });
+    // Restore from localStorage
+    const savedToken = localStorage.getItem('nobarfilm_moviebox_token');
+    const savedUser = localStorage.getItem('nobarfilm_moviebox_user');
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setProfile(null);
+    if (savedToken && savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        setUser({ id: parsed.userId, email: parsed.email || '' });
+        setProfile({
+          id: parsed.userId,
+          full_name: parsed.nickname || null,
+          avatar_url: parsed.avatar || null,
+        });
+      } catch (e) {
+        console.error('Failed to parse saved user:', e);
+        localStorage.removeItem('nobarfilm_moviebox_token');
+        localStorage.removeItem('nobarfilm_moviebox_user');
       }
-    });
-
-    return () => subscription.unsubscribe();
+    }
+    setIsLoading(false);
   }, []);
 
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no rows returned, which is ok for new users
-        console.error('Error loading profile:', error);
-        return;
-      }
-
-      if (data) {
-        setProfile(data);
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    }
-  };
-
   const login = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || 'Login failed');
+      }
 
-      toast.success('Login successful!');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to login';
-      toast.error(message);
-      throw error;
+      const { token, user: movieboxUser } = json.data;
+
+      localStorage.setItem('nobarfilm_moviebox_token', token);
+      localStorage.setItem(
+        'nobarfilm_moviebox_user',
+        JSON.stringify({ ...movieboxUser, email })
+      );
+
+      setUser({ id: movieboxUser.userId, email });
+      setProfile({
+        id: movieboxUser.userId,
+        full_name: movieboxUser.nickname || null,
+        avatar_url: movieboxUser.avatar || null,
+      });
+    } catch (err) {
+      console.error('Login error:', err);
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const register = async (email: string, password: string, fullName?: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      // Create profile
-      if (error) throw error;
-
-      // Profile is automatically created by DB trigger "handle_new_user"
-
-      toast.success('Registration successful! Please check your email for verification.');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to register';
-      toast.error(message);
-      throw error;
-    }
+  const register = async () => {
+    throw new Error('Registration is not supported. Please register via the MovieBox app.');
   };
 
   const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      setUser(null);
-      setProfile(null);
-      toast.success('Logged out successfully');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to logout';
-      toast.error(message);
-      throw error;
-    }
+    localStorage.removeItem('nobarfilm_moviebox_token');
+    localStorage.removeItem('nobarfilm_moviebox_user');
+    setUser(null);
+    setProfile(null);
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
-
-      if (error) throw error;
-
-      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
-      toast.success('Profile updated successfully');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to update profile';
-      toast.error(message);
-      throw error;
+    if (profile) {
+      const updatedProfile = { ...profile, ...updates };
+      setProfile(updatedProfile);
+      
+      const savedUser = localStorage.getItem('nobarfilm_moviebox_user');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          localStorage.setItem(
+            'nobarfilm_moviebox_user',
+            JSON.stringify({
+              ...parsed,
+              nickname: updatedProfile.full_name,
+              avatar: updatedProfile.avatar_url,
+            })
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
   };
 

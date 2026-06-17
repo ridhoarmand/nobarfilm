@@ -18,7 +18,7 @@ export function CastList({ cast, maxItems = 10 }: CastListProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {displayCast.map((actor, index) => (
           <div key={`${actor.staffId}-${index}`} className="group">
-            <div className="aspect-[2/3] relative overflow-hidden rounded-lg bg-zinc-900 mb-2">
+            <div className="aspect-[2/3] relative overflow-hidden rounded-lg bg-zinc-900 mb-2" style={{ position: 'relative' }}>
               {actor.avatarUrl ? (
                 <Image unoptimized
                   src={actor.avatarUrl}

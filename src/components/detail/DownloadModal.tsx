@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { X, Download as DownloadIcon, Film, FileText } from 'lucide-react';
-import { useMovieBoxSources, useMovieBoxDetail } from '@/hooks/useMovieBox';
+import { useMovieBoxSources } from '@/hooks/useMovieBox';
 import toast from 'react-hot-toast';
 
 interface DownloadModalProps {
@@ -9,29 +9,31 @@ interface DownloadModalProps {
   onClose: () => void;
   subjectId: string;
   title: string;
+  subjectType?: number;
+  releaseDate?: string;
   seasonNumber?: number;
   episodeNumber?: number;
 }
 
-export function DownloadModal({ isOpen, onClose, subjectId, title, seasonNumber, episodeNumber }: DownloadModalProps) {
+export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, releaseDate, seasonNumber, episodeNumber }: DownloadModalProps) {
   const [selectedQuality, setSelectedQuality] = useState(0);
   const [selectedSubtitle, setSelectedSubtitle] = useState<number | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const { data: sourcesData, isLoading } = useMovieBoxSources(subjectId, seasonNumber || 0, episodeNumber || 0);
-  const { data: detailData } = useMovieBoxDetail(subjectId);
+  const { data: sourcesData, isLoading } = useMovieBoxSources(subjectId, seasonNumber || 0, episodeNumber || 0, {
+    enabled: isOpen,
+  });
 
   if (!isOpen) return null;
 
   const downloads = sourcesData?.downloads || [];
   const captions = sourcesData?.captions || [];
-  const subject = detailData?.subject;
-  const isSeries = subject?.subjectType === 2;
+  const isSeries = subjectType === 2;
 
   // Generate smart filename
   const generateFilename = (type: 'video' | 'subtitle', subtitleLang?: string) => {
     const cleanTitle = title.replace(/[<>:"/\\|?*]/g, ''); // Remove invalid chars
-    const year = subject?.releaseDate ? new Date(subject.releaseDate).getFullYear() : '';
+    const year = releaseDate ? new Date(releaseDate).getFullYear() : '';
     const quality = downloads[selectedQuality]?.resolution || 720;
 
     if (isSeries && seasonNumber !== undefined && episodeNumber !== undefined) {
@@ -65,7 +67,7 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, seasonNumber,
 
     try {
       const filename = generateFilename('video');
-      const streamUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/moviebox/direct-stream?url=${encodeURIComponent(source.url)}`;
+      const streamUrl = `/api/moviebox/generate-link-stream-video?url=${encodeURIComponent(source.url)}`;
 
       // Import download helper dynamically
       const { startDownload } = await import('@/lib/utils/downloadHelper');

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
 export async function safeJson<T>(response: Response): Promise<T> {
   const text = await response.text();
@@ -38,4 +38,12 @@ export function getMovieboxHeaders() {
     'Sec-WebSocket-Version': '13',
     'Cache-Control': 'no-cache',
   };
+}
+
+export function getClientToken(request: Request | NextRequest): string | null {
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  return null;
 }

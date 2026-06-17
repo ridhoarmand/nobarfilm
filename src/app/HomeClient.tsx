@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { useMovieBoxHomepage, useInfiniteMovieBoxTrending } from '@/hooks/useMovieBox';
+import { useMovieBoxHomepage } from '@/hooks/useMovieBox';
 import { useContinueWatching } from '@/hooks/useContinueWatching';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,6 @@ import { Navbar } from '@/components/layout/Navbar';
 import { LoadingPage } from '@/components/shared/LoadingSkeleton';
 import { Subject, BannerItem } from '@/types/api';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const ContinueWatchingCard = dynamic(() => import('@/components/shared/ContinueWatchingCard').then((mod) => mod.ContinueWatchingCard));
@@ -26,23 +25,6 @@ export function HomeClient() {
   
   // These will now use the prefetched data from HydrationBoundary
   const { data: homeData, isLoading: isHomeLoading, error: homeError } = useMovieBoxHomepage();
-
-  // useInfiniteQuery from our hook
-  const { 
-    data: trendingData, 
-    fetchNextPage, 
-    hasNextPage, 
-    isFetchingNextPage 
-  } = useInfiniteMovieBoxTrending();
-
-  // Flattens all pages into a single list
-  const trendingMovies = trendingData?.pages.flatMap((page) => page.subjectList || []) || [];
-
-  const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  };
 
   // Handle Initial Loading state - SEAMLESS HYDRATION
   // We NEVER return a full-page loading skeleton if we have homeData (from hydration)
@@ -125,8 +107,9 @@ export function HomeClient() {
                     <button
                       onClick={() => continueWatchingRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}
                       className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
+                      aria-label="Scroll left"
                     >
-                      <ChevronLeft className="w-6 h-6" />
+                      <span className="block w-6 h-6 text-2xl leading-none">&lt;</span>
                     </button>
                     <div ref={continueWatchingRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
                       {continueWatchingData.map((item) => (
@@ -136,8 +119,9 @@ export function HomeClient() {
                     <button
                       onClick={() => continueWatchingRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}
                       className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
+                      aria-label="Scroll right"
                     >
-                      <ChevronRight className="w-6 h-6" />
+                      <span className="block w-6 h-6 text-2xl leading-none">&gt;</span>
                     </button>
                   </div>
                 </section>
@@ -152,34 +136,6 @@ export function HomeClient() {
                 />
               ))}
 
-              <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                <h2 className="text-xl sm:text-2xl font-bold text-white mb-6 pl-1 border-l-4 border-red-600">Discover More</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                  {trendingMovies.map((movie) => (
-                    <div key={movie.subjectId}>
-                      <MovieCard movie={movie} />
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-center mt-12 mb-8">
-                  {isFetchingNextPage ? (
-                    <div className="flex items-center space-x-2 text-white">
-                      <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                      <span>Loading more...</span>
-                    </div>
-                  ) : hasNextPage ? (
-                    <button
-                      onClick={handleLoadMore}
-                      className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-900/20"
-                    >
-                      Load More Movies
-                    </button>
-                  ) : (
-                    <p className="text-gray-500">No more movies to load</p>
-                  )}
-                </div>
-              </section>
             </div>
           </>
         )}

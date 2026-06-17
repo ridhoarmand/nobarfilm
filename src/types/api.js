@@ -1,5 +1,4 @@
 "use strict";
-// Sansekai MovieBox API Types// Based on documented API responses
 // ============================================
 // Common Types
 // ============================================

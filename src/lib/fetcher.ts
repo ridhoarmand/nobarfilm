@@ -10,7 +10,18 @@ export class ApiError extends Error {  status: number;
 }
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
+  const headers = new Headers(options?.headers);
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('nobarfilm_moviebox_token');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
 
   if (!response.ok) {
     let errorData;

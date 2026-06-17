@@ -1,17 +1,19 @@
 'use client';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useMovieBoxDetail, useMovieBoxPlaybackUrl } from '@/hooks/useMovieBox';
+import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film } from 'lucide-react';
-import { Suspense, useCallback, useRef, useState } from 'react';
+import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2 } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 function WatchContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const subjectId = params.id as string;
+  const { isAuthenticated } = useAuth();
 
   const seasonParam = searchParams.get('season');
   const episodeParam = searchParams.get('episode');
@@ -23,6 +25,7 @@ function WatchContent() {
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
   
   const [qualityIndex, setQualityIndex] = useState(0);
+  const [audioIndex, setAudioIndex] = useState(0);
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
@@ -31,6 +34,32 @@ function WatchContent() {
   // For movies: use provided params (season=0,episode=0) or no season/episode for API
   const effectiveSeason = isSeries ? (season ?? 1) : (season === 0 ? 0 : undefined);
   const effectiveEpisode = isSeries ? (episode ?? 1) : (episode === 0 ? 0 : undefined);
+
+  const {
+    data: playerMetadata,
+    isLoading: isLoadingMetadata,
+  } = useMovieBoxPlayerMetadata(subjectId, effectiveSeason, effectiveEpisode, {
+    enabled: !!subjectId && !isLoadingDetail,
+  });
+
+  const availableSeasons = useMemo(() => playerMetadata?.seasons || [], [playerMetadata]);
+  const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
+  const availableQualities = useMemo(() => playerMetadata?.qualities || [], [playerMetadata]);
+  const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
+
+  useEffect(() => {
+    if (playerMetadata?.selected) {
+      const nextSeason = playerMetadata.selected.season;
+      const nextEpisode = playerMetadata.selected.episode;
+      if (season !== nextSeason || episode !== nextEpisode) {
+        const params = new URLSearchParams();
+        if (typeof nextSeason === 'number') params.set('season', String(nextSeason));
+        if (typeof nextEpisode === 'number') params.set('episode', String(nextEpisode));
+        if (resumeTime > 0) params.set('t', String(resumeTime));
+        router.replace(`/watch/${subjectId}?${params.toString()}`);
+      }
+    }
+  }, [episode, playerMetadata, resumeTime, router, season, subjectId]);
 
   const {
     data: playbackData,
@@ -69,7 +98,7 @@ function WatchContent() {
   const isLoading = isLoadingDetail || isLoadingPlayback;
   const error = detailError || playbackError;
 
-  if (isLoading) {
+  if (isLoading || isLoadingMetadata) {
     return (
       <div className="h-screen bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -86,9 +115,16 @@ function WatchContent() {
         <AlertCircle className="w-14 h-14 text-red-600" />
         <h1 className="text-xl text-white font-bold">Tidak dapat memutar konten</h1>
         <p className="text-zinc-400 max-w-md text-sm">{error?.message || 'Konten tidak ditemukan atau sumber tidak tersedia.'}</p>
-        <button onClick={() => router.back()} className="mt-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition">
-          Kembali
-        </button>
+        <div className="flex gap-3 mt-2">
+          <button onClick={() => router.back()} className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition">
+            Kembali
+          </button>
+          {!isAuthenticated && (
+            <button onClick={() => router.push('/login')} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-semibold transition">
+              Sign In Akun MovieBox
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -141,29 +177,101 @@ function WatchContent() {
       </div>
 
       {/* Quality Selector */}
-      {playbackData && (
+      {(playerMetadata || playbackData) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-2">Kualitas:</span>
-            {/* Note: We fetch from sourcesData for the full list if needed, 
-                but useMovieBoxPlaybackUrl currently handles selection internally via index.
-                For a better UI, we should probably fetch sources first.
-            */}
-            {/* Temporary Quality Buttons based on common Moviebox qualities */}
-            {[0, 1, 2].map((idx) => (
-              <button
-                key={idx}
-                onClick={() => setQualityIndex(idx)}
-                className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium border transition-all",
-                  qualityIndex === idx 
-                    ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20" 
-                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                )}
-              >
-                {idx === 0 ? '720p/1080p' : idx === 1 ? '480p' : '360p'}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            {availableSeasons.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Season</span>
+                {availableSeasons.map((item) => {
+                  const active = item === (effectiveSeason ?? item);
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => {
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('season', String(item));
+                        params.set('episode', '1');
+                        router.replace(`/watch/${subjectId}?${params.toString()}`);
+                      }}
+                      className={cn(
+                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
+                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                      )}
+                    >
+                      S{item}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {availableEpisodes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Episode</span>
+                {availableEpisodes.slice(0, 12).map((item) => {
+                  const active = item === (effectiveEpisode ?? item);
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => {
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('episode', String(item));
+                        router.replace(`/watch/${subjectId}?${params.toString()}`);
+                      }}
+                      className={cn(
+                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
+                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                      )}
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {availableQualities.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Quality</span>
+                {availableQualities.map((item, idx) => {
+                  const active = qualityIndex === idx;
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => setQualityIndex(idx)}
+                      className={cn(
+                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
+                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                      )}
+                    >
+                      {item}p
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {audioOptions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1 flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Audio</span>
+                {audioOptions.map((item, idx) => {
+                  const active = audioIndex === idx;
+                  return (
+                    <button
+                      key={item.code}
+                      onClick={() => setAudioIndex(idx)}
+                      className={cn(
+                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
+                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

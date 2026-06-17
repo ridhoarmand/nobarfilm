@@ -228,9 +228,25 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = parseInt(process.env.SOCKET_PORT || '4000');
 const HOST = '0.0.0.0'; // Bind to all interfaces for local network access
+const BASE_PORT = parseInt(process.env.SOCKET_PORT || '4000', 10);
 
-httpServer.listen(PORT, HOST, () => {
-  console.log(`Socket.IO server running on http://${HOST}:${PORT}`);
-});
+function startServer(port: number) {
+  httpServer.once('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      const nextPort = port + 1;
+      console.warn(`Socket.IO port ${port} is in use, retrying on ${nextPort}`);
+      startServer(nextPort);
+      return;
+    }
+
+    console.error('Socket.IO server failed to start:', error);
+    process.exit(1);
+  });
+
+  httpServer.listen(port, HOST, () => {
+    console.log(`Socket.IO server running on http://${HOST}:${port}`);
+  });
+}
+
+startServer(BASE_PORT);

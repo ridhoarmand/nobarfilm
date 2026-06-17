@@ -1,155 +1,145 @@
-'use client';import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Button } from '@/components/common/Button';
+import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
-function LoginContent() {
+export default function LoginPage() {
+  const { login, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { login, isAuthenticated } = useAuth();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const redirect = searchParams.get('redirect') || '/';
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push(redirect);
+    if (isAuthenticated && !isLoading) {
+      router.replace('/');
     }
-  }, [isAuthenticated, router, redirect]);
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
+          <p className="text-zinc-500 text-sm">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return null;
+  }
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
+    setError(null);
+    setLoading(true);
 
     try {
       await login(email, password);
-      router.push(redirect);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to login');
-      }
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <>
-      <Navbar />
-      <main className="bg-black min-h-screen pt-20 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-        <div className="w-full max-w-md">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">Welcome Back</h1>
-            <p className="text-gray-400">Sign in to continue watching</p>
-          </div>
+    <div className="relative min-h-screen flex items-center justify-center bg-black overflow-hidden font-sans text-white px-4">
+      {/* Background glow effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-red-950/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-red-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-          {/* Login Form */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@example.com"
-                    className="w-full pl-11 pr-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
-                  />
-                </div>
-              </div>
+      {/* Main Container */}
+      <div className="w-full max-w-md z-10">
+        {/* Brand/Logo */}
+        <div className="text-center mb-8">
+          <Link href="/">
+            <h1 className="text-4xl font-extrabold tracking-tight text-red-600 drop-shadow-[0_0_15px_rgba(220,38,38,0.4)] hover:text-red-500 transition-colors duration-300">
+              NobarFilm
+            </h1>
+          </Link>
+          <p className="mt-2 text-sm text-zinc-400">
+            Sign in with your MovieBox account
+          </p>
+        </div>
 
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    className="w-full pl-11 pr-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
-                  />
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {error && <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg text-red-500 text-sm">{error}</div>}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white font-semibold rounded-lg transition"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Register Link */}
-            <div className="mt-6 text-center">
-              <p className="text-gray-400 text-sm">
-                Don&apos;t have an account?{' '}
-                <Link href="/auth/register" className="text-red-500 hover:text-red-400 font-medium transition">
-                  Sign up
-                </Link>
-              </p>
+        {/* Card */}
+        <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-8 shadow-2xl">
+          {error && (
+            <div className="mb-6 bg-red-950/50 border border-red-500/30 text-red-200 text-sm rounded-lg p-3">
+              {error}
             </div>
-          </div>
+          )}
 
-          {/* Demo Note */}
-          <div className="mt-6 p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg">
-            <p className="text-xs text-gray-500 text-center">
-              <strong className="text-gray-400">Note:</strong> You need to setup Supabase first before authentication works.
-            </p>
-          </div>
-        </div>
-      </main>
-    </>
-  );
-}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 focus:border-red-500/50 rounded-xl py-3 px-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-500/50 transition-all"
+                disabled={loading}
+              />
+            </div>
 
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="bg-black min-h-screen pt-20 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
+            {/* Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 focus:border-red-500/50 rounded-xl py-3 px-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-500/50 transition-all"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-red-600 hover:bg-red-700 hover:shadow-[0_0_15px_rgba(220,38,38,0.4)] text-white py-3 rounded-xl font-semibold transition-all duration-300 transform active:scale-[0.98]"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Signing In...</span>
+                </div>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
         </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
+
+        {/* Footer info */}
+        <div className="mt-8 text-center text-xs text-zinc-500">
+          <p>This login connects directly and securely to the MovieBox service.</p>
+        </div>
+      </div>
+    </div>
   );
 }
