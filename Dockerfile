@@ -9,29 +9,14 @@ COPY package.json package-lock.json* .npmrc ./
 RUN npm ci --legacy-peer-deps
 
 
-FROM base AS prod-deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-COPY package.json package-lock.json* .npmrc ./
-RUN npm ci --omit=dev --legacy-peer-deps
-
-
 # 3. Builder stage
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV SKIP_ENV_VALIDATION=1
-
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-
 # Build the application
 RUN npm run build
-
-# Build the custom socket server
-RUN npx tsc --project tsconfig.server.json
 
 
 # 4. Production image
@@ -54,10 +39,6 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 # 2. Add static files and assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# 2. Add complete production dependencies for the custom server
-COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
-# 3. Add the compiled custom server
-COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 
 USER nextjs
 
@@ -65,5 +46,4 @@ EXPOSE 3000
 
 ENV PORT=3000
 
-# We run our custom unified server (Next.js + Socket.io) on the same port
-CMD ["node", "dist/server/index.js"]
+CMD ["node", "server.js"]

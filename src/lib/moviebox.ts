@@ -26,7 +26,8 @@ function getH5Headers(referer?: string): Record<string, string> {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json, text/plain, */*',
     'Referer': referer || 'https://lok-lok.cc/',
-    'Origin': 'https://lok-lok.cc'
+    'Origin': 'https://lok-lok.cc',
+    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
   };
 }
 
@@ -231,6 +232,9 @@ async function callMobileApi(
     'Host': HOST,
     'User-Agent': 'okhttp/4.12.0',
     'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'id-ID',
+    'lang': 'id',
+    'locale': 'id_ID',
     'X-Client-Type': 'android',
     'X-App-Version': '3.0.15',
     'X-Client-Token': trClientToken,
@@ -387,7 +391,8 @@ export const movieBoxService = {
           }
         }
       } catch (err: any) {
-        console.warn('[MovieBox SDK] H5 homepage fetch failed, falling back to Mobile API:', err.message);
+        console.error('[MovieBox SDK] H5 homepage fetch failed:', err.message);
+        throw err;
       }
     }
 
@@ -622,7 +627,8 @@ export const movieBoxService = {
           }
         }
       } catch (err: any) {
-        console.warn('[MovieBox SDK] H5 detail fetch failed, falling back to Mobile API:', err.message);
+        console.error('[MovieBox SDK] H5 detail fetch failed:', err.message);
+        throw err;
       }
     }
 

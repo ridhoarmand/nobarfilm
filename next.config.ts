@@ -15,7 +15,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['socket.io'], // Ensure socket.io is handled correctly
   transpilePackages: ['@vidstack/react', 'vidstack'],
   async redirects() {
     return [
