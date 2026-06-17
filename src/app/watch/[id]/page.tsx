@@ -30,10 +30,10 @@ function WatchContent() {
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
   const isSeries = detail?.subject?.subjectType === 2;
-  // For series: use provided season/episode or default to S1E1
-  // For movies: use provided params (season=0,episode=0) or no season/episode for API
-  const effectiveSeason = isSeries ? (season ?? 1) : (season === 0 ? 0 : undefined);
-  const effectiveEpisode = isSeries ? (episode ?? 1) : (episode === 0 ? 0 : undefined);
+  // For series: use provided URL params or default to S1E1
+  // For movies: always use season=0, episode=0 (no URL params needed)
+  const effectiveSeason = isSeries ? (season ?? 1) : 0;
+  const effectiveEpisode = isSeries ? (episode ?? 1) : 0;
 
   const {
     data: playerMetadata,
@@ -47,19 +47,24 @@ function WatchContent() {
   const availableQualities = useMemo(() => playerMetadata?.qualities || [], [playerMetadata]);
   const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
 
+  // Only redirect URL for series to canonicalize S/E in the address bar.
+  // Movies always use season=0/episode=0 and don't need URL params.
+  // NOTE: isSeries is intentionally excluded from deps — it's only an early-exit guard
+  // and subjectType is stable once the detail response arrives.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (playerMetadata?.selected) {
-      const nextSeason = playerMetadata.selected.season;
-      const nextEpisode = playerMetadata.selected.episode;
-      if (season !== nextSeason || episode !== nextEpisode) {
-        const params = new URLSearchParams();
-        if (typeof nextSeason === 'number') params.set('season', String(nextSeason));
-        if (typeof nextEpisode === 'number') params.set('episode', String(nextEpisode));
-        if (resumeTime > 0) params.set('t', String(resumeTime));
-        router.replace(`/watch/${subjectId}?${params.toString()}`);
-      }
+    if (!isSeries || !playerMetadata?.selected) return;
+    const nextSeason = playerMetadata.selected.season;
+    const nextEpisode = playerMetadata.selected.episode;
+    if (season !== nextSeason || episode !== nextEpisode) {
+      const params = new URLSearchParams();
+      if (typeof nextSeason === 'number') params.set('season', String(nextSeason));
+      if (typeof nextEpisode === 'number') params.set('episode', String(nextEpisode));
+      if (resumeTime > 0) params.set('t', String(resumeTime));
+      router.replace(`/watch/${subjectId}?${params.toString()}`);
     }
   }, [episode, playerMetadata, resumeTime, router, season, subjectId]);
+
 
   const {
     data: playbackData,

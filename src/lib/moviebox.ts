@@ -18,7 +18,8 @@ import {
 const GATEWAY_SECRET = '76iRl07s0xSN9jqmEWAt79EBJZulIQIsV64FZr2O';
 const keyBuffer = Buffer.from(GATEWAY_SECRET, 'base64');
 const HOST = 'api6.aoneroom.com';
-const H5_UPSTREAM = 'https://lok-lok.cc/wefeed-h5api-bff';
+// h5-api.aoneroom.com is the stable direct API (same content as lok-lok.cc but no SSL cert mismatch)
+const H5_UPSTREAM = 'https://h5-api.aoneroom.com/wefeed-h5api-bff';
 const ALLOWED_SUBJECT_TYPES = new Set([1, 2]);
 
 function getH5Headers(referer?: string): Record<string, string> {
@@ -413,30 +414,44 @@ export const movieBoxService = {
     const subjectsList: Subject[] = [];
     let bannerSection: BannerItem[] = [];
 
+    // NOTE: Mobile API banner format differs from H5:
+    //   - BANNER: items are in item.banner.banners[].subject (each entry has a .subject sub-object)
+    //   - SUBJECTS_*: items are in item.subjects[] (same as H5)
     let pos = 0;
     for (const item of items) {
       if (item.type === 'BANNER') {
-        const bannerItems: BannerItem[] = (item.subjects || []).map((sub: any) => {
-          const normSub = normalizeSubject(sub);
-          subjectsList.push(normSub);
-          return {
-            id: normSub.subjectId,
-            title: normSub.title,
-            image: normSub.cover,
-            url: `/detail/${normSub.subjectId}`,
-            subjectId: normSub.subjectId,
-            subjectType: normSub.subjectType,
-            subject: normSub,
-          };
-        });
+        const rawBanners: any[] = Array.isArray(item.banner?.banners) ? item.banner.banners : [];
+        const bannerItems: BannerItem[] = rawBanners
+          .filter((b: any) => b.subject && b.subject.subjectId)
+          .map((b: any) => {
+            const normSub = normalizeSubject(b.subject);
+            subjectsList.push(normSub);
+            return {
+              id: normSub.subjectId,
+              title: normSub.title,
+              // Use banner's own wide-format image if available, fall back to subject cover
+              image: normalizeCover(b.image?.url || normSub.cover?.url, 600),
+              url: `/detail/${normSub.subjectId}`,
+              subjectId: normSub.subjectId,
+              subjectType: normSub.subjectType,
+              subject: normSub,
+            };
+          });
         bannerSection = bannerItems;
-        operatingList.push({
-          type: 'BANNER',
-          position: pos++,
-          title: item.title || 'Featured',
-          banner: { items: bannerItems }
-        });
-      } else if (item.type === 'SUBJECTS_MOVIE') {
+        if (bannerItems.length > 0) {
+          operatingList.push({
+            type: 'BANNER',
+            position: pos++,
+            title: item.title || 'Featured',
+            banner: { items: bannerItems }
+          });
+        }
+      } else if (
+        item.type === 'SUBJECTS_MOVIE' ||
+        item.type === 'SUBJECTS_SERIES' ||
+        item.type === 'SUBJECTS_DRAMA' ||
+        (typeof item.type === 'string' && item.type.startsWith('SUBJECTS_'))
+      ) {
         const rawSubs = Array.isArray(item.subjects) ? item.subjects : [];
         const normSubs = rawSubs
           .map((sub: any) => normalizeSubject(sub))
@@ -453,6 +468,7 @@ export const movieBoxService = {
         }
       }
     }
+
 
     const topPickList = bannerSection.map(i => i.subject).filter(Boolean);
     if (topPickList.length === 0) {
