@@ -34,6 +34,15 @@ export enum SubjectType {
 // Movie/Series Subject Types
 // ============================================
 
+export interface DubInfo {
+  subjectId: string;
+  lanName: string;
+  lanCode: string;
+  original: boolean;
+  type: number;
+  detailPath: string;
+}
+
 export interface Subject {
   subjectId: string;
   subjectType: SubjectType;
@@ -60,6 +69,7 @@ export interface Subject {
   postTitle?: string;
   thumbnail?: string;
   recommendation_reason?: string;
+  dubs?: DubInfo[];
 }
 
 export interface Staff {
