@@ -133,6 +133,13 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="mt-6 text-center text-sm">
+            <span className="text-zinc-400">Belum punya akun? </span>
+            <Link href="/register" className="text-red-500 hover:text-red-400 font-medium transition-colors">
+              Daftar Sekarang
+            </Link>
+          </div>
         </div>
 
         {/* Footer info */}

@@ -25,7 +25,6 @@ function WatchContent() {
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
   
   const [qualityIndex, setQualityIndex] = useState(0);
-  const [audioIndex, setAudioIndex] = useState(0);
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
@@ -46,6 +45,31 @@ function WatchContent() {
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
   const availableQualities = useMemo(() => playerMetadata?.qualities || [], [playerMetadata]);
   const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
+
+  const audioIndex = useMemo(() => {
+    const idx = audioOptions.findIndex((opt) => opt.code === subjectId);
+    return idx !== -1 ? idx : 0;
+  }, [audioOptions, subjectId]);
+
+  const handleAudioChange = useCallback((newSubjectId: string) => {
+    if (newSubjectId === subjectId) return;
+    
+    const videoElement = document.querySelector('video');
+    const currentTime = videoElement ? Math.floor(videoElement.currentTime) : 0;
+    
+    const params = new URLSearchParams();
+    if (isSeries) {
+      if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
+      if (typeof effectiveEpisode === 'number') params.set('episode', String(effectiveEpisode));
+    }
+    if (currentTime > 0) {
+      params.set('t', String(currentTime));
+    } else if (resumeTime > 0) {
+      params.set('t', String(resumeTime));
+    }
+    
+    router.replace(`/watch/${newSubjectId}?${params.toString()}`);
+  }, [subjectId, isSeries, effectiveSeason, effectiveEpisode, resumeTime, router]);
 
   // Only redirect URL for series to canonicalize S/E in the address bar.
   // Movies always use season=0/episode=0 and don't need URL params.
@@ -265,7 +289,7 @@ function WatchContent() {
                   return (
                     <button
                       key={item.code}
-                      onClick={() => setAudioIndex(idx)}
+                      onClick={() => handleAudioChange(item.code)}
                       className={cn(
                         'px-3 py-1 rounded-md text-xs font-medium border transition-all',
                         active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',

@@ -13,7 +13,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName?: string) => Promise<void>;
+  register: (email: string, password: string, code: string, inviteCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
@@ -86,8 +86,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async () => {
-    throw new Error('Registration is not supported. Please register via the MovieBox app.');
+  const register = async (email: string, password: string, code: string, inviteCode: string = '') => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, code, inviteCode }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || 'Registration failed');
+      }
+
+      const { token, user: movieboxUser } = json.data;
+
+      localStorage.setItem('nobarfilm_moviebox_token', token);
+      localStorage.setItem(
+        'nobarfilm_moviebox_user',
+        JSON.stringify({ ...movieboxUser, email })
+      );
+
+      setUser({ id: movieboxUser.userId, email });
+      setProfile({
+        id: movieboxUser.userId,
+        full_name: movieboxUser.nickname || null,
+        avatar_url: movieboxUser.avatar || null,
+      });
+    } catch (err) {
+      console.error('Register error:', err);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = async () => {

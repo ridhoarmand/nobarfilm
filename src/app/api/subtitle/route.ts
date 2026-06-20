@@ -1,9 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';// Helper function to convert SRT to VTT
-function srtToVtt(srtContent: string): string {
-  // Replace comma with dot in timestamps (00:00:00,000 --> 00:00:00.000)
-  const vttContent = srtContent.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+import { NextRequest, NextResponse } from 'next/server';
 
-  // Add WEBVTT header
+// Helper function to convert SRT to VTT
+function srtToVtt(srtContent: string): string {
+  // Remove UTF-8 BOM if present
+  const cleanContent = srtContent.replace(/^\uFEFF/, '').trim();
+
+  // If the content is already WebVTT, return it as-is
+  if (cleanContent.startsWith('WEBVTT')) {
+    return cleanContent;
+  }
+
+  // Replace comma with dot in timestamps (00:00:00,000 --> 00:00:00.000)
+  const vttContent = cleanContent.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+
+  // Add WEBWTT header
   return `WEBVTT\n\n${vttContent}`;
 }
 
@@ -36,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Return the response with correct Content-Type for VTT
     return new NextResponse(vttContent, {
       headers: {
-        'Content-Type': 'text/vtt',
+        'Content-Type': 'text/vtt; charset=utf-8',
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=3600',
       },

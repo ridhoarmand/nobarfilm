@@ -94,6 +94,14 @@ function normalizeSubject(sub: any): Subject {
       avatarUrl: st.avatarUrl || '',
       detailPath: `/staff/${st.staffId}`,
     })) : [],
+    dubs: Array.isArray(sub.dubs) ? sub.dubs.map((d: any) => ({
+      subjectId: String(d.subjectId || ''),
+      lanName: String(d.lanName || ''),
+      lanCode: String(d.lanCode || ''),
+      original: Boolean(d.original),
+      type: typeof d.type === 'number' ? d.type : 0,
+      detailPath: String(d.detailPath || ''),
+    })) : [],
   };
 }
 
@@ -203,7 +211,8 @@ async function callMobileApi(
   queryParams: Record<string, string> = {},
   body: any = null,
   retryOn401 = true,
-  clientToken?: string | null
+  clientToken?: string | null,
+  clientIp?: string | null
 ): Promise<any> {
   const timestamp = Date.now();
   const trClientToken = generateClientToken(timestamp);
@@ -218,10 +227,19 @@ async function callMobileApi(
 
   const url = `https://${HOST}${fullPathWithQuery}`;
   
+  const noAuthPaths = [
+    '/wefeed-mobile-bff/user-api/login',
+    '/wefeed-mobile-bff/user-api/register',
+    '/wefeed-mobile-bff/user-api/get-sms-code',
+    '/wefeed-mobile-bff/user-api/check-sms-code',
+    '/wefeed-mobile-bff/user-api/check-mail-account',
+    '/wefeed-mobile-bff/user-api/check-phone-account'
+  ];
+
   let token: string | null = null;
   if (clientToken) {
     token = clientToken;
-  } else if (path !== '/wefeed-mobile-bff/user-api/login') {
+  } else if (!noAuthPaths.includes(path)) {
     try {
       token = await getAccessToken();
     } catch (err) {
@@ -242,6 +260,11 @@ async function callMobileApi(
     'x-tr-signature': signature,
     'x-tr-signature-method': 'HmacMD5',
   };
+
+  if (clientIp) {
+    headers['X-Forwarded-For'] = clientIp;
+    headers['X-Real-IP'] = clientIp;
+  }
 
   if (bodyStr) {
     headers['Content-Type'] = 'application/json';
@@ -281,7 +304,7 @@ async function callMobileApi(
 }
 
 export const movieBoxService = {
-  async loginUser(email: string, passwordPlain: string): Promise<any> {
+  async loginUser(email: string, passwordPlain: string, clientIp?: string | null): Promise<any> {
     const md5Password = crypto.createHash('md5').update(passwordPlain).digest('hex');
     const payload = {
       authType: 1,
@@ -292,7 +315,7 @@ export const movieBoxService = {
 
     const response = await callMobileApi('POST', '/wefeed-mobile-bff/user-api/login', {
       host: HOST
-    }, payload, false); // retryOn401 = false
+    }, payload, false, null, clientIp); // retryOn401 = false
 
     return response;
   },
@@ -304,6 +327,56 @@ export const movieBoxService = {
     }, null, false, clientToken);
 
     return response;
+  },
+
+  async checkMailAccount(email: string, clientIp?: string | null): Promise<any> {
+    const payload = {
+      authType: 1,
+      mail: email,
+      package_name: 'com.moviebox.android'
+    };
+    return await callMobileApi('POST', '/wefeed-mobile-bff/user-api/check-mail-account', {
+      host: HOST
+    }, payload, false, null, clientIp);
+  },
+
+  async getSmsCode(email: string, type: number = 1, clientIp?: string | null): Promise<any> {
+    const payload = {
+      authType: 1,
+      mail: email,
+      type: type,
+      package_name: 'com.moviebox.android'
+    };
+    return await callMobileApi('POST', '/wefeed-mobile-bff/user-api/get-sms-code', {
+      host: HOST
+    }, payload, false, null, clientIp);
+  },
+
+  async checkSmsCode(email: string, code: string, clientIp?: string | null): Promise<any> {
+    const payload = {
+      authType: 1,
+      mail: email,
+      verificationCode: code,
+      package_name: 'com.moviebox.android'
+    };
+    return await callMobileApi('POST', '/wefeed-mobile-bff/user-api/check-sms-code', {
+      host: HOST
+    }, payload, false, null, clientIp);
+  },
+
+  async registerUser(email: string, code: string, passwordPlain: string, inviteCode: string = '', clientIp?: string | null): Promise<any> {
+    const md5Password = crypto.createHash('md5').update(passwordPlain).digest('hex');
+    const payload = {
+      authType: 1,
+      mail: email,
+      verificationCode: code,
+      password: md5Password,
+      inviteCode: inviteCode,
+      package_name: 'com.moviebox.android'
+    };
+    return await callMobileApi('POST', '/wefeed-mobile-bff/user-api/register', {
+      host: HOST
+    }, payload, false, null, clientIp);
   },
 
   async getHomepage(clientToken?: string | null): Promise<HomepageResponse> {
@@ -540,7 +613,7 @@ export const movieBoxService = {
       throw new Error(`Mobile Gateway search error: ${response.message || 'unknown error'}`);
     }
 
-    const searchList = Array.isArray(response.data?.searchList) ? response.data.searchList : [];
+    const searchList = Array.isArray(response.data?.results) ? response.data.results : [];
     const parsed: Subject[] = searchList
       .filter((item: any) => item.topicType === 'SUBJECT' && Array.isArray(item.subjects))
       .flatMap((item: any) => item.subjects.map((sub: any) => normalizeSubject(sub)))
@@ -958,5 +1031,9 @@ export const movieBoxService = {
       serverCache.set(key, fallbackData, 120);
       return fallbackData;
     }
+  },
+
+  async testCall(method: string, path: string, queryParams: any, body: any, clientToken?: string | null): Promise<any> {
+    return await callMobileApi(method, path, queryParams, body, false, clientToken);
   }
 };

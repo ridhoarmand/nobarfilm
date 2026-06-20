@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const loginRes = await movieBoxService.loginUser(email, password);
+    const clientIp = request.headers.get('x-forwarded-for') || '';
+    const loginRes = await movieBoxService.loginUser(email, password, clientIp);
 
     if (loginRes.code !== 0 || !loginRes.data?.token) {
       return NextResponse.json(

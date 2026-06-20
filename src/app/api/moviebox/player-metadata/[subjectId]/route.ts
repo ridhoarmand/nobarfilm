@@ -33,6 +33,25 @@ export async function GET(
       .filter((q) => Number.isFinite(q))
       .sort((a, b) => b - a);
 
+    const dubs = detail.subject?.dubs || [];
+    const audioDubs = dubs.filter((d: any) => d.type === 0);
+    const audioOptions: Array<{ code: string; label: string }> = [];
+
+    const hasOriginal = audioDubs.some((d: any) => d.original === true || d.subjectId === subjectId);
+    if (!hasOriginal) {
+      audioOptions.push({
+        code: subjectId,
+        label: 'Original Audio',
+      });
+    }
+
+    for (const d of audioDubs) {
+      audioOptions.push({
+        code: d.subjectId,
+        label: d.lanName || 'Audio Track',
+      });
+    }
+
     return encryptedResponse({
       subjectId,
       selected: {
@@ -42,7 +61,7 @@ export async function GET(
       seasons: seasons.map((item) => item.se).filter((item) => item > 0),
       episodes,
       qualities,
-      audioOptions: inferAudioOptions(detail.subject?.title || ''),
+      audioOptions,
       subtitles: [],
       playerMode: 'direct',
       embedUrl: null,
