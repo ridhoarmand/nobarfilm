@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Download as DownloadIcon, Film, FileText } from 'lucide-react';
 import { useMovieBoxSources } from '@/hooks/useMovieBox';
 import toast from 'react-hot-toast';
@@ -30,6 +30,28 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
   const captions = sourcesData?.captions || [];
   const isSeries = subjectType === 2;
 
+  // Auto-select subtitle when captions are loaded
+  useEffect(() => {
+    if (captions.length > 0 && selectedSubtitle === null) {
+      // Find Indonesian first, then English, then default to first
+      const idIndex = captions.findIndex(
+        (c) => (c.lanName || '').toLowerCase().includes('indonesia') || (c.lan || '').toLowerCase().includes('id')
+      );
+      if (idIndex !== -1) {
+        setSelectedSubtitle(idIndex);
+      } else {
+        const enIndex = captions.findIndex(
+          (c) => (c.lanName || '').toLowerCase().includes('english') || (c.lan || '').toLowerCase().includes('en')
+        );
+        if (enIndex !== -1) {
+          setSelectedSubtitle(enIndex);
+        } else {
+          setSelectedSubtitle(0);
+        }
+      }
+    }
+  }, [captions, selectedSubtitle]);
+
   // Generate smart filename
   const generateFilename = (type: 'video' | 'subtitle', subtitleLang?: string) => {
     const cleanTitle = title.replace(/[<>:"/\\|?*]/g, ''); // Remove invalid chars
@@ -45,7 +67,7 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
       if (type === 'video') {
         return `${base} - ${quality}p.mp4`;
       } else {
-        return `${base} - ${subtitleLang || 'Subtitle'}.srt`;
+        return `${base} - ${quality}p - ${subtitleLang || 'Subtitle'}.srt`;
       }
     } else {
       // Movie format: "Movie Title (2024) - 720p.mp4"
@@ -54,7 +76,7 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
       if (type === 'video') {
         return `${base} - ${quality}p.mp4`;
       } else {
-        return `${base} - ${subtitleLang || 'Subtitle'}.srt`;
+        return `${base} - ${quality}p - ${subtitleLang || 'Subtitle'}.srt`;
       }
     }
   };
@@ -67,15 +89,18 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
 
     try {
       const filename = generateFilename('video');
-      const streamUrl = `/api/moviebox/generate-link-stream-video?url=${encodeURIComponent(source.url)}`;
+      const referer = `https://lok-lok.cc/spa/videoPlayPage/movies/${subjectId}`;
+      const streamUrl = `/api/proxy/video?url=${encodeURIComponent(source.url)}&filename=${encodeURIComponent(filename)}&referer=${encodeURIComponent(referer)}`;
 
-      // Import download helper dynamically
-      const { startDownload } = await import('@/lib/utils/downloadHelper');
+      // Direct browser download
+      const a = document.createElement('a');
+      a.href = streamUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
-      // Start download (will run in background via Download Manager)
-      startDownload(streamUrl, filename, 'video');
-
-      // Close modal immediately (download continues in background)
+      // Close modal immediately
       toast.success(`Download started: ${filename}`, { duration: 4000 });
       onClose();
     } catch (error) {
@@ -96,12 +121,15 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
 
     try {
       const filename = generateFilename('subtitle', subtitle.lanName);
+      const subtitleUrl = `/api/subtitle?url=${encodeURIComponent(subtitle.url)}&format=srt&filename=${encodeURIComponent(filename)}`;
 
-      // Import download helper dynamically
-      const { startDownload } = await import('@/lib/utils/downloadHelper');
-
-      // Start subtitle download
-      startDownload(subtitle.url, filename, 'subtitle');
+      // Direct browser download
+      const a = document.createElement('a');
+      a.href = subtitleUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       // Close modal
       toast.success(`Subtitle download started: ${filename}`, { duration: 4000 });

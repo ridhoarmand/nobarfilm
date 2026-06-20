@@ -1,25 +1,26 @@
 # 🎬 NobarFilm
 
-Platform streaming dengan fitur nonton bareng (watch party). Mendukung sumber konten seperti Movie dan Anime.
+Platform streaming film dan series TV yang mirip dengan Netflix. Project ini dibangun menggunakan Next.js App Router terbaru, fokus pada performa cepat dan user experience yang modern.
 
-## Fitur
+## Fitur Utama
 
-- **Multi-platform streaming** - Support Movie dan Anime
-- **Download manager** - Download film/series dengan progress tracking
-- **Watch party** - Nonton bareng secara real-time dengan sinkronisasi otomatis (pause, play, skip)
-- **PWA** - Dapat diinstall sebagai aplikasi native
-- **Watch history** - Melanjutkan playback dari posisi terakhir (memerlukan login)
-- **Multi-quality** - Pilihan kualitas video dari 360p hingga 1080p
+- **Streaming Film & Series** - Akses ribuan judul film dan serial TV.
+- **Search Engine** - Cari film dan series dengan keyword secara instan.
+- **Multi-quality** - Pilihan kualitas resolusi video dari 360p hingga 1080p.
+- **Dua Bahasa / Dubbing** - Mendukung pergantian trek audio/dubbing (misalnya dubbing bahasa Inggris, Arab, dll.) yang secara otomatis melanjutkan posisi menonton (*resume play*).
+- **Subtitle Manager** - Integrasi subtitle eksternal (.srt) yang otomatis dikonversi menjadi WebVTT secara optimal lengkap dengan dukungan encoding utf-8.
+- **Download Manager** - Unduh film/series untuk ditonton secara offline secara langsung dari browser dengan visualisasi progress.
+- **PWA (Progressive Web App)** - Dapat diinstall di HP/Desktop layaknya aplikasi native dengan dukungan Service Worker.
+- **Watch History** - Menyimpan riwayat tontonan terakhir (memerlukan akun/login).
 
 ## Tech Stack
 
-- Next.js 16 (App Router)
-- TypeScript
-- TailwindCSS
-- React Query (TanStack Query)
-- Plyr (video player)
-- Socket.IO (watch party sync)
-- Supabase (auth & database)
+- **Framework**: Next.js 16 (App Router) & React 19
+- **Language**: TypeScript
+- **Styling**: TailwindCSS v4
+- **State Management**: React Query (TanStack Query) & Zustand
+- **Video Player**: HTML5 Video Player (Native Player)
+- **Upstream Integration**: MovieBox Mobile & H5 APIs
 
 ## Install & Setup
 
@@ -29,72 +30,58 @@ Platform streaming dengan fitur nonton bareng (watch party). Mendukung sumber ko
 
 ### Development
 
-```bash
-# Clone repo
-git clone https://github.com/ridhoarmand/nobarfilm.git
-cd nobarfilm
+1. **Clone repository:**
+   ```bash
+   git clone https://github.com/ridhoarmand/nobarfilm.git
+   cd nobarfilm
+   ```
 
-# Install dependencies
-npm install
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-# Copy environment variables
-cp .env.example .env.local
-# Edit .env.local sesuai kebutuhan
+3. **Setup environment variables:**
+   Buat file `.env.local` di root direktori:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Lalu konfigurasikan variabel berikut pada `.env.local`:
+   - `MOVIEBOX_MASTER_EMAIL`: Email akun MovieBox untuk guest fallback.
+   - `MOVIEBOX_MASTER_PASSWORD`: Password akun MovieBox untuk guest fallback.
 
-# Run dev server
-npm run dev
+4. **Jalankan dev server:**
+   ```bash
+   npm run dev
+   ```
+   Buka browser di `http://localhost:3000`.
 
-# Run socket server
-npm run socket
-```
-
-Buka browser di `http://localhost:3000`
-
-### Build Production
+### Production Build
 
 ```bash
 npm run build
 npm start
 ```
 
-## Deployment
-
-### Docker
-
-```bash
-docker build -t nobarfilm .
-docker run -d -p 3000:3000 nobarfilm
-```
-
-### Docker Compose
-
-```bash
-docker-compose up -d
-```
-
 ## Project Structure
 
 ```
 src/
-├── app/                  # Next.js App Router pages
-│   ├── api/             # API routes (proxy ke upstream APIs)
-│   ├── anime/           # Anime pages
-│   ├── movie/           # Movie pages
-│   ├── watch/           # Watch page (Movie)
-│   └── watch-party/     # Watch party rooms
+├── app/                  # Next.js App Router pages & API routes
+│   ├── [id]/            # Halaman detail film / series
+│   ├── api/             # API routes (auth, moviebox SDK proxy, subtitle converter)
+│   ├── auth/            # Halaman Login & Register
+│   ├── search/          # Halaman pencarian film
+│   └── watch/           # Halaman video streaming player
 ├── components/          # React components
-│   ├── player/         # Video player & hooks
-│   ├── layout/         # Navbar, Footer
-│   └── ...
-├── hooks/              # Custom hooks (useMovieBox, etc)
-├── lib/                # Utils & helpers
-└── types/              # TypeScript types
+│   ├── cards/          # Komponen kartu media (UnifiedMediaCard)
+│   ├── layout/         # Layout utama (Navbar, Footer)
+│   └── player/         # Video player component (MoviePlayer)
+├── hooks/              # Custom React hooks (useMovieBox, dll)
+├── lib/                # Utility, API utils & SDK moviebox
+└── types/              # TypeScript type definitions
 ```
 
-## Notes
-
-- Watch party memerlukan Socket.IO server (lihat `src/server/socket-server.ts`)
-- Authentication dan watch history menggunakan Supabase
-- Video sources di-proxy melalui Next.js API routes untuk menghindari CORS
-
+---
 Project ini dibuat untuk pembelajaran dan eksperimen. Jika menemukan bug atau memiliki saran, silakan buat issue atau pull request.
+

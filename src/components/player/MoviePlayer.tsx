@@ -68,7 +68,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   if (!isClient) return <div className="relative w-full aspect-video bg-black rounded-xl" />;
 
   return (
-    <div className="relative w-full max-w-7xl rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850">
+    <div className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850">
       <video
         ref={videoRef}
         src={currentSrc}
@@ -77,7 +77,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         autoPlay={autoPlay}
         playsInline
         crossOrigin="anonymous"
-        className="w-full h-auto bg-black block"
+        className="w-full h-full object-contain bg-black block"
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
           onProgress?.(video.currentTime, video.duration || 0);

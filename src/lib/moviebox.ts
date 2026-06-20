@@ -102,6 +102,7 @@ function normalizeSubject(sub: any): Subject {
       type: typeof d.type === 'number' ? d.type : 0,
       detailPath: String(d.detailPath || ''),
     })) : [],
+    coverHorizontalUrl: sub.coverHorizontalUrl || sub.coverHorizontal || sub.horizontalCover || sub.highCover || '',
   };
 }
 

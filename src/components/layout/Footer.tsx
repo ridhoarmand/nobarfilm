@@ -37,16 +37,6 @@ export function Footer() {
                     Film & Series
                   </a>
                 </li>
-                <li>
-                  <a href="https://dracin.idho.eu.org" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
-                    Dracin
-                  </a>
-                </li>
-                <li>
-                  <a href="https://drakor.idho.eu.org" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
-                    Drakor
-                  </a>
-                </li>
               </ul>
             </div>
 

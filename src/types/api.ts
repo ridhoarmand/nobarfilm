@@ -70,6 +70,7 @@ export interface Subject {
   thumbnail?: string;
   recommendation_reason?: string;
   dubs?: DubInfo[];
+  coverHorizontalUrl?: string;
 }
 
 export interface Staff {

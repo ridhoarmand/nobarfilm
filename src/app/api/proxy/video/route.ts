@@ -5,6 +5,7 @@ export async function GET(req: NextRequest) {
   const urlParams = req.nextUrl.searchParams;
   const url = urlParams.get('url');
   const refererParam = urlParams.get('referer');
+  const filename = urlParams.get('filename');
 
   if (!url) {
     return new NextResponse('Missing URL parameter', { status: 400 });
@@ -44,11 +45,16 @@ export async function GET(req: NextRequest) {
     const isVtt = contentType.includes('text/vtt') || lowUrl.endsWith('.vtt') || lowUrl.endsWith('.srt');
 
     // 3. IF BINARY (MP4, TS, etc) -> STREAM DIRECTLY
-    if (!isM3u8 && !isVtt && (lowUrl.includes('.mp4') || lowUrl.includes('.ts') || contentType.includes('video/'))) {
+    if (!isM3u8 && !isVtt) {
       const responseHeaders = new Headers();
       responseHeaders.set('Content-Type', contentType || 'video/mp4');
       responseHeaders.set('Access-Control-Allow-Origin', '*');
       responseHeaders.set('Accept-Ranges', 'bytes');
+
+      if (filename) {
+        const safeFilename = filename.replace(/[^a-zA-Z0-9._\- ]/g, '_');
+        responseHeaders.set('Content-Disposition', `attachment; filename="${safeFilename}"`);
+      }
 
       const contentLength = upstreamRes.headers.get('content-length');
       if (contentLength) responseHeaders.set('Content-Length', contentLength);

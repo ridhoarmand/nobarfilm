@@ -20,6 +20,7 @@ function srtToVtt(srtContent: string): string {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
+  const format = searchParams.get('format') || 'vtt';
 
   if (!url) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
@@ -39,6 +40,20 @@ export async function GET(request: NextRequest) {
     }
 
     const srtContent = await response.text();
+
+    if (format === 'srt') {
+      const headers: Record<string, string> = {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600',
+      };
+      const filename = searchParams.get('filename');
+      if (filename) {
+        const safeFilename = filename.replace(/[^a-zA-Z0-9._\- ]/g, '_');
+        headers['Content-Disposition'] = `attachment; filename="${safeFilename}"`;
+      }
+      return new NextResponse(srtContent, { headers });
+    }
 
     // Convert to WebVTT
     const vttContent = srtToVtt(srtContent);

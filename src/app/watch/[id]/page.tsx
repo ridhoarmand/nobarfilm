@@ -184,7 +184,7 @@ function WatchContent() {
         {playbackData?.streamUrl ? (
           <MoviePlayer
             src={playbackData.streamUrl}
-            poster={subject?.cover?.url}
+            poster={subject?.coverHorizontalUrl || subject?.cover?.url}
             autoPlay
             initialTime={resumeTime}
             subtitles={playbackData.captions?.map((cap) => ({
