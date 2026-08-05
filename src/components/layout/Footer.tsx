@@ -29,12 +29,12 @@ export function Footer() {
               <ul className="space-y-2">
                 <li>
                   <a href="https://anime.idho.eu.org" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
-                    Anime
+                    NobarAnime
                   </a>
                 </li>
                 <li>
                   <a href="https://film.idho.eu.org" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white text-sm transition">
-                    Film & Series
+                    NobarFilm
                   </a>
                 </li>
               </ul>
