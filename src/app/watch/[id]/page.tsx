@@ -3,9 +3,10 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Check, Download } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Check, Download, Search } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { SubtitleModal } from '@/components/player/SubtitleModal';
 
 function WatchContent() {
   const params = useParams();
@@ -24,6 +25,8 @@ function WatchContent() {
   
   const [qualityIndex, setQualityIndex] = useState(0);
   const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number | null>(0);
+  const [isSubtitleModalOpen, setIsSubtitleModalOpen] = useState(false);
+  const [customSubtitles, setCustomSubtitles] = useState<Array<{ label: string; src: string }>>([]);
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
@@ -129,15 +132,24 @@ function WatchContent() {
   }, [playbackData?.captions]);
 
   const formattedSubtitles = useMemo(() => {
-    if (!playbackData?.captions) return [];
-    return playbackData.captions.map((cap) => ({
+    const builtInSubs = (playbackData?.captions || []).map((cap) => ({
       kind: 'subtitles',
       label: cap.lanName || cap.lan,
       srcLang: cap.lan,
       src: `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
       default: false,
     }));
-  }, [playbackData]);
+
+    const uploadedSubs = customSubtitles.map((custom) => ({
+      kind: 'subtitles',
+      label: custom.label,
+      srcLang: 'custom',
+      src: custom.src,
+      default: false,
+    }));
+
+    return [...builtInSubs, ...uploadedSubs];
+  }, [playbackData, customSubtitles]);
 
   const subject = detail?.subject;
 
@@ -301,8 +313,38 @@ function WatchContent() {
                     );
                   })
                 ) : (
-                  <span className="text-xs text-zinc-500 italic">Tidak ada subtitle tersedia</span>
+                  <span className="text-xs text-zinc-500 italic">Tidak ada subtitle bawaan</span>
                 )}
+
+                {/* Custom Subtitles buttons if uploaded */}
+                {customSubtitles.map((custom, idx) => {
+                  const customIndex = (playbackData?.captions?.length || 0) + idx;
+                  const active = selectedSubtitleIndex === customIndex;
+                  return (
+                    <button
+                      key={`custom-${idx}`}
+                      onClick={() => setSelectedSubtitleIndex(customIndex)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5',
+                        active
+                          ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-900/30 font-semibold'
+                          : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                      )}
+                    >
+                      {active && <Check className="w-3.5 h-3.5 text-white" />}
+                      {custom.label}
+                    </button>
+                  );
+                })}
+
+                {/* Button to open Subtitle Search & Upload Modal */}
+                <button
+                  onClick={() => setIsSubtitleModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm ml-auto sm:ml-2"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  Cari / Upload Subtitle...
+                </button>
               </div>
             </div>
 
@@ -538,6 +580,22 @@ function WatchContent() {
           </div>
         </div>
       </div>
+
+      {/* Subtitle Search & Upload Modal */}
+      <SubtitleModal
+        isOpen={isSubtitleModalOpen}
+        onClose={() => setIsSubtitleModalOpen(false)}
+        title={subject?.title || 'Film'}
+        captions={playbackData?.captions || []}
+        selectedIndex={selectedSubtitleIndex}
+        onSelectSubtitle={(idx) => setSelectedSubtitleIndex(idx)}
+        onCustomSubtitleUpload={(newSub) => {
+          const newIdx = (playbackData?.captions?.length || 0) + customSubtitles.length;
+          setCustomSubtitles((prev) => [...prev, newSub]);
+          setSelectedSubtitleIndex(newIdx);
+        }}
+        customSubtitles={customSubtitles}
+      />
     </div>
   );
 }
