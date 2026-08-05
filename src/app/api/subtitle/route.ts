@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
     }
 
     const srtContent = await response.text();
+    const isDownload = searchParams.get('download') === 'true' || Boolean(searchParams.get('filename'));
+    const requestedFilename = searchParams.get('filename') || `subtitle.${format}`;
+    const safeFilename = requestedFilename.replace(/[^a-zA-Z0-9._\- ]/g, '_');
 
     if (format === 'srt') {
       const headers: Record<string, string> = {
@@ -50,9 +53,7 @@ export async function GET(request: NextRequest) {
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=3600',
       };
-      const filename = searchParams.get('filename');
-      if (filename) {
-        const safeFilename = filename.replace(/[^a-zA-Z0-9._\- ]/g, '_');
+      if (isDownload) {
         headers['Content-Disposition'] = `attachment; filename="${safeFilename}"`;
       }
       return new NextResponse(srtContent, { headers });
@@ -60,15 +61,16 @@ export async function GET(request: NextRequest) {
 
     // Convert to WebVTT
     const vttContent = srtToVtt(srtContent);
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/vtt; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=3600',
+    };
+    if (isDownload) {
+      headers['Content-Disposition'] = `attachment; filename="${safeFilename}"`;
+    }
 
-    // Return the response with correct Content-Type for VTT
-    return new NextResponse(vttContent, {
-      headers: {
-        'Content-Type': 'text/vtt; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
+    return new NextResponse(vttContent, { headers });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Subtitle proxy error:', message);

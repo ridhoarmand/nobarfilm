@@ -145,8 +145,8 @@ let cachedJwtToken: string | null = null;
 async function getAccessToken(retry = 0): Promise<string> {
   if (cachedJwtToken) return cachedJwtToken;
 
-  const email = process.env.MOVIEBOX_MASTER_EMAIL || '';
-  const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || '';
+  const email = process.env.MOVIEBOX_MASTER_EMAIL || 'armandhodrb@gmail.com';
+  const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || 'Armand5080';
   const md5Password = /^[a-f0-9]{32}$/i.test(rawPassword)
     ? rawPassword
     : crypto.createHash('md5').update(rawPassword).digest('hex');
@@ -1030,7 +1030,7 @@ export const movieBoxService = {
       console.error(`[MovieBox SDK] getSources error for ${subjectId} se=${resolvedSeason} ep=${resolvedEpisode}:`, err.message);
       
       if (!clientToken) {
-        throw new Error('Akses Terbatas: Video ini memerlukan autentikasi Mobile API. Silakan login dengan akun MovieBox Anda untuk memutar film ini.');
+        throw new Error('Sumber video tidak dapat dimuat saat ini. Silakan coba lagi nanti.');
       }
 
       const fallbackData: SourcesResponse = {

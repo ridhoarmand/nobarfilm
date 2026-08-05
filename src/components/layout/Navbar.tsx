@@ -3,15 +3,12 @@ import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/components/providers/AuthProvider';
-
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, profile, logout } = useAuth();
 
   // Handle scroll effect
   useEffect(() => {
@@ -86,38 +83,6 @@ export function Navbar() {
               </button>
             )}
 
-            {/* Auth Controls */}
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.full_name || 'User'}
-                    className="w-8 h-8 rounded-full border border-white/20 object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center text-xs font-semibold text-red-500">
-                    {(profile?.full_name || 'U').charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="hidden sm:inline text-sm font-medium text-zinc-300">
-                  {profile?.full_name || 'User'}
-                </span>
-                <button
-                  onClick={() => logout()}
-                  className="bg-zinc-850 hover:bg-zinc-800 border border-zinc-700/60 text-xs px-3 py-1.5 rounded-lg text-zinc-300 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                className="bg-red-600 hover:bg-red-700 text-sm font-semibold px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_20px_rgba(220,38,38,0.5)]"
-              >
-                Sign In
-              </Link>
-            )}
           </div>
         </div>
       </div>
