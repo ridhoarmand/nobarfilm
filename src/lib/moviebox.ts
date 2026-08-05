@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { safeJson, getMovieboxHeaders } from './api-utils';
 import { serverCache, cacheKeys, cacheTTL } from './cache';
 import {
   HomepageResponse,
@@ -936,6 +935,17 @@ export const movieBoxService = {
         }
       } catch (h5Err: any) {
         console.warn('[MovieBox SDK] Guest mode H5 sources fetch failed:', h5Err.message);
+      }
+
+      // Try Master Account token as automatic fallback when H5 API fails for guest users
+      try {
+        console.log(`[MovieBox SDK] Guest mode: Attempting Master Account token fallback for ${subjectId}`);
+        const masterToken = await getAccessToken();
+        if (masterToken) {
+          return await this.getSources(subjectId, season, episode, masterToken);
+        }
+      } catch (masterErr: any) {
+        console.warn('[MovieBox SDK] Master account token fallback failed:', masterErr.message);
       }
 
       throw new Error('Akses Terbatas: Video ini memerlukan autentikasi Mobile API. Silakan login dengan akun MovieBox Anda untuk memutar film ini.');

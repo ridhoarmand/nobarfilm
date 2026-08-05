@@ -24,10 +24,11 @@ export async function GET(req: NextRequest) {
       headers['Range'] = range;
     }
 
-    // 1. Fetch from Upstream using native fetch
+    // 1. Fetch from Upstream using native fetch with 15s timeout
     const upstreamRes = await fetch(url, {
       headers,
       redirect: 'follow',
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {

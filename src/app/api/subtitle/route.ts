@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Helper function to convert SRT to VTT
 function srtToVtt(srtContent: string): string {
-  // Remove UTF-8 BOM if present
-  const cleanContent = srtContent.replace(/^\uFEFF/, '').trim();
+  // Remove UTF-8 BOM if present and normalize line breaks
+  const cleanContent = srtContent.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trim();
 
   // If the content is already WebVTT, return it as-is
   if (cleanContent.startsWith('WEBVTT')) {
@@ -11,7 +11,9 @@ function srtToVtt(srtContent: string): string {
   }
 
   // Replace comma with dot in timestamps (00:00:00,000 --> 00:00:00.000)
-  const vttContent = cleanContent.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+  const vttContent = cleanContent
+    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+    .replace(/(\d{2}:\d{2}),(\d{3})/g, '00:$1.$2');
 
   // Add WEBWTT header
   return `WEBVTT\n\n${vttContent}`;
@@ -27,11 +29,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch subtitle content from external server
+    // Fetch subtitle content from external server with referer header
     const response = await fetch(url, {
       headers: {
-        // Mimic a browser to avoid some blocking
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://lok-lok.cc/',
+        'Origin': 'https://lok-lok.cc',
       },
     });
 
