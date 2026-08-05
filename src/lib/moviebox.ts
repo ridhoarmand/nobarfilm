@@ -146,7 +146,7 @@ async function getAccessToken(retry = 0): Promise<string> {
   if (cachedJwtToken) return cachedJwtToken;
 
   const email = process.env.MOVIEBOX_MASTER_EMAIL || 'armandhodrb@gmail.com';
-  const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || 'Armand5080';
+  const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || 'Armandho1234567890';
   const md5Password = /^[a-f0-9]{32}$/i.test(rawPassword)
     ? rawPassword
     : crypto.createHash('md5').update(rawPassword).digest('hex');
