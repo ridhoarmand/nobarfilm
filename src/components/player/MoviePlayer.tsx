@@ -13,6 +13,7 @@ interface MoviePlayerProps {
     src: string;
     default?: boolean;
   }>;
+  activeSubtitleIndex?: number | null;
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
@@ -23,6 +24,7 @@ interface MoviePlayerProps {
 export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   src,
   subtitles = [],
+  activeSubtitleIndex,
   poster,
   onEnded,
   onProgress,
@@ -55,13 +57,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   }, [speed, initialTime]);
 
-  // Handle HLS stream loading via hls.js with native fallback
+  // Handle stream loading via hls.js (only for .m3u8) with native fallback
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !currentSrc) return;
 
     let hls: Hls | null = null;
-    const isHls = currentSrc.includes('.m3u8') || currentSrc.includes('/api/proxy/video');
+    const lowerSrc = currentSrc.toLowerCase();
+    const isHls = lowerSrc.includes('.m3u8') || lowerSrc.includes('format=m3u8');
 
     if (isHls && Hls.isSupported()) {
       hls = new Hls({
@@ -81,6 +84,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
+          if (data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
+            console.warn('[HLS] Stream is not HLS manifest, falling back to native src load');
+            hls?.destroy();
+            hls = null;
+            video.src = currentSrc;
+            if (autoPlay) video.play().catch(() => {});
+            return;
+          }
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.warn('[HLS] Network error, attempting load restart...');
@@ -91,8 +102,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
               hls?.recoverMediaError();
               break;
             default:
-              console.error('[HLS] Unrecoverable fatal error');
+              console.warn('[HLS] Fatal error, falling back to native video src');
               hls?.destroy();
+              hls = null;
+              video.src = currentSrc;
+              if (autoPlay) video.play().catch(() => {});
               break;
           }
         }
@@ -110,6 +124,24 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       }
     };
   }, [currentSrc, autoPlay]);
+
+  // Handle active subtitle track selection from parent
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !video.textTracks) return;
+
+    const timer = setTimeout(() => {
+      for (let i = 0; i < video.textTracks.length; i++) {
+        if (activeSubtitleIndex === i) {
+          video.textTracks[i].mode = 'showing';
+        } else {
+          video.textTracks[i].mode = 'disabled';
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [activeSubtitleIndex, subtitles]);
 
   // Expose video DOM element to the ref
   useEffect(() => {

@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2 } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Check } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -25,12 +25,11 @@ function WatchContent() {
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
   
   const [qualityIndex, setQualityIndex] = useState(0);
+  const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number | null>(0);
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
   const isSeries = detail?.subject?.subjectType === 2;
-  // For series: use provided URL params or default to S1E1
-  // For movies: always use season=0, episode=0 (no URL params needed)
   const effectiveSeason = isSeries ? (season ?? 1) : 0;
   const effectiveEpisode = isSeries ? (episode ?? 1) : 0;
 
@@ -94,11 +93,6 @@ function WatchContent() {
     router.replace(`/watch/${newSubjectId}?${params.toString()}`);
   }, [subjectId, isSeries, effectiveSeason, effectiveEpisode, resumeTime, router]);
 
-  // Only redirect URL for series to canonicalize S/E in the address bar.
-  // Movies always use season=0/episode=0 and don't need URL params.
-  // NOTE: isSeries is intentionally excluded from deps — it's only an early-exit guard
-  // and subjectType is stable once the detail response arrives.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isSeries || !playerMetadata?.selected) return;
     const nextSeason = playerMetadata.selected.season;
@@ -112,15 +106,40 @@ function WatchContent() {
     }
   }, [episode, playerMetadata, resumeTime, router, season, subjectId]);
 
-
   const {
     data: playbackData,
     isLoading: isLoadingPlayback,
     error: playbackError,
   } = useMovieBoxPlaybackUrl(subjectId, effectiveSeason, effectiveEpisode, qualityIndex, {
-    // Wait for detail to load first so isSeries is known, preventing wrong fetches
     enabled: !!subjectId && !isLoadingDetail,
   });
+
+  // Auto-select Indonesian subtitle or default to 0 on caption load
+  useEffect(() => {
+    if (playbackData?.captions && playbackData.captions.length > 0) {
+      const idIdx = playbackData.captions.findIndex(
+        (c) => (c.lanName || '').toLowerCase().includes('indonesia') || (c.lan || '').toLowerCase().includes('id')
+      );
+      queueMicrotask(() => {
+        if (idIdx !== -1) {
+          setSelectedSubtitleIndex(idIdx);
+        } else {
+          setSelectedSubtitleIndex(0);
+        }
+      });
+    }
+  }, [playbackData?.captions]);
+
+  const formattedSubtitles = useMemo(() => {
+    if (!playbackData?.captions) return [];
+    return playbackData.captions.map((cap) => ({
+      kind: 'subtitles',
+      label: cap.lanName || cap.lan,
+      srcLang: cap.lan,
+      src: `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
+      default: false,
+    }));
+  }, [playbackData]);
 
   const subject = detail?.subject;
 
@@ -210,13 +229,8 @@ function WatchContent() {
             poster={subject?.coverHorizontalUrl || subject?.cover?.url}
             autoPlay
             initialTime={resumeTime}
-            subtitles={playbackData.captions?.map((cap) => ({
-              kind: 'subtitles',
-              label: cap.lanName || cap.lan,
-              srcLang: cap.lan,
-              src: `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
-              default: (cap.lan || '').includes('id') || (cap.lanName || '').toLowerCase().includes('indonesia'),
-            }))}
+            subtitles={formattedSubtitles}
+            activeSubtitleIndex={selectedSubtitleIndex}
             onProgress={handleProgress}
             onEnded={() => {}}
           />
@@ -228,63 +242,192 @@ function WatchContent() {
         )}
       </div>
 
-      {/* Quality Selector */}
+      {/* Control Panel: Season, Episode, Quality, Audio, Subtitle */}
       {(playerMetadata || playbackData) && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {availableSeasons.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-md space-y-6">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-red-500" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pengaturan Media & Player</h2>
+              </div>
+              {playbackData?.streamUrl && (
+                <span className="text-xs text-green-400 bg-green-950/60 border border-green-800/50 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Ready to Play
+                </span>
+              )}
+            </div>
+
+            {/* 1. Subtitle / Caption Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
+                <MessageSquare className="w-4 h-4 text-red-500" /> Subtitle
+              </span>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Season</span>
-                {availableSeasons.map((item) => {
-                  const active = item === (effectiveSeason ?? item);
-                  return (
-                    <button
-                      key={item}
-                      onClick={() => {
-                        setQualityIndex(0);
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.set('season', String(item));
-                        params.set('episode', '1');
-                        router.replace(`/watch/${subjectId}?${params.toString()}`);
-                      }}
-                      className={cn(
-                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
-                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                      )}
-                    >
-                      S{item}
-                    </button>
-                  );
-                })}
+                <button
+                  onClick={() => setSelectedSubtitleIndex(null)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5',
+                    selectedSubtitleIndex === null
+                      ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                  )}
+                >
+                  Matikan Subtitle
+                </button>
+                {playbackData?.captions && playbackData.captions.length > 0 ? (
+                  playbackData.captions.map((cap, idx) => {
+                    const active = selectedSubtitleIndex === idx;
+                    return (
+                      <button
+                        key={cap.id || idx}
+                        onClick={() => setSelectedSubtitleIndex(idx)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5',
+                          active
+                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                        )}
+                      >
+                        {active && <Check className="w-3.5 h-3.5 text-white" />}
+                        {cap.lanName || cap.lan}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-zinc-500 italic">Tidak ada subtitle tersedia</span>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Resolusi / Quality */}
+            {availableQualities.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-zinc-800/40 pt-4">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
+                  <Film className="w-4 h-4 text-red-500" /> Resolusi
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {availableQualities.map((item, idx) => {
+                    const active = qualityIndex === idx;
+                    return (
+                      <button
+                        key={item}
+                        onClick={() => setQualityIndex(idx)}
+                        className={cn(
+                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1',
+                          active
+                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                        )}
+                      >
+                        {item >= 720 && <span className="text-[10px] bg-white/20 px-1 rounded mr-0.5">HD</span>}
+                        {item}p
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {availableEpisodes.length > 0 && (
-              <div className="flex flex-col gap-2 w-full">
-                {episodeChunks.length > 1 && (
-                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Range</span>
-                    {episodeChunks.map((chunk, idx) => {
-                      const start = chunk[0];
-                      const end = chunk[chunk.length - 1];
-                      const active = idx === activeEpisodeRange;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => setActiveEpisodeRange(idx)}
-                          className={cn(
-                            'px-2.5 py-0.5 rounded text-xs font-medium border transition-all',
-                            active ? 'bg-zinc-700 border-zinc-500 text-white font-bold' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                          )}
-                        >
-                          {start} - {end}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+            {/* 3. Audio / Dubbing */}
+            {audioOptions.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-zinc-800/40 pt-4">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
+                  <Volume2 className="w-4 h-4 text-red-500" /> Audio
+                </span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Episode</span>
+                  {audioOptions.map((item, idx) => {
+                    const active = audioIndex === idx;
+                    return (
+                      <button
+                        key={item.code}
+                        onClick={() => handleAudioChange(item.code)}
+                        className={cn(
+                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                          active
+                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 4. Season Selector */}
+            {availableSeasons.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-zinc-800/40 pt-4">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
+                  <Tv className="w-4 h-4 text-red-500" /> Season
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {availableSeasons.map((item) => {
+                    const active = item === (effectiveSeason ?? item);
+                    return (
+                      <button
+                        key={item}
+                        onClick={() => {
+                          setQualityIndex(0);
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.set('season', String(item));
+                          params.set('episode', '1');
+                          router.replace(`/watch/${subjectId}?${params.toString()}`);
+                        }}
+                        className={cn(
+                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                          active
+                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                        )}
+                      >
+                        Season {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 5. Episode Selector */}
+            {availableEpisodes.length > 0 && (
+              <div className="flex flex-col gap-2 border-t border-zinc-800/40 pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
+                    <Film className="w-4 h-4 text-red-500" /> Episode
+                  </span>
+                  
+                  {episodeChunks.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mr-1">Range:</span>
+                      {episodeChunks.map((chunk, idx) => {
+                        const start = chunk[0];
+                        const end = chunk[chunk.length - 1];
+                        const active = idx === activeEpisodeRange;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveEpisodeRange(idx)}
+                            className={cn(
+                              'px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
+                              active
+                                ? 'bg-zinc-700 border-zinc-500 text-white font-bold'
+                                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200',
+                            )}
+                          >
+                            {start} - {end}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 sm:pl-[116px]">
                   {(episodeChunks[activeEpisodeRange] || availableEpisodes).map((item) => {
                     const active = item === (effectiveEpisode ?? item);
                     return (
@@ -297,8 +440,10 @@ function WatchContent() {
                           router.replace(`/watch/${subjectId}?${params.toString()}`);
                         }}
                         className={cn(
-                          'px-3 py-1 rounded-md text-xs font-medium border transition-all',
-                          active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all min-w-[42px]',
+                          active
+                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
                         )}
                       >
                         {item}
@@ -309,47 +454,6 @@ function WatchContent() {
               </div>
             )}
 
-            {availableQualities.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Quality</span>
-                {availableQualities.map((item, idx) => {
-                  const active = qualityIndex === idx;
-                  return (
-                    <button
-                      key={item}
-                      onClick={() => setQualityIndex(idx)}
-                      className={cn(
-                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
-                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                      )}
-                    >
-                      {item}p
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {audioOptions.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1 flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" /> Audio</span>
-                {audioOptions.map((item, idx) => {
-                  const active = audioIndex === idx;
-                  return (
-                    <button
-                      key={item.code}
-                      onClick={() => handleAudioChange(item.code)}
-                      className={cn(
-                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
-                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       )}
