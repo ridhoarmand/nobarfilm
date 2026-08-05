@@ -46,6 +46,29 @@ function WatchContent() {
   const availableQualities = useMemo(() => playerMetadata?.qualities || [], [playerMetadata]);
   const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
 
+  const [activeEpisodeRange, setActiveEpisodeRange] = useState(0);
+
+  const episodeChunks = useMemo(() => {
+    if (availableEpisodes.length <= 15) return [availableEpisodes];
+    const chunks = [];
+    const size = 25;
+    for (let i = 0; i < availableEpisodes.length; i += size) {
+      chunks.push(availableEpisodes.slice(i, i + size));
+    }
+    return chunks;
+  }, [availableEpisodes]);
+
+  useEffect(() => {
+    if (episodeChunks.length > 1 && effectiveEpisode) {
+      const idx = episodeChunks.findIndex((chunk) => chunk.includes(effectiveEpisode));
+      if (idx !== -1) {
+        queueMicrotask(() => {
+          setActiveEpisodeRange(idx);
+        });
+      }
+    }
+  }, [effectiveEpisode, episodeChunks]);
+
   const audioIndex = useMemo(() => {
     const idx = audioOptions.findIndex((opt) => opt.code === subjectId);
     return idx !== -1 ? idx : 0;
@@ -218,6 +241,7 @@ function WatchContent() {
                     <button
                       key={item}
                       onClick={() => {
+                        setQualityIndex(0);
                         const params = new URLSearchParams(searchParams.toString());
                         params.set('season', String(item));
                         params.set('episode', '1');
@@ -236,27 +260,52 @@ function WatchContent() {
             )}
 
             {availableEpisodes.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Episode</span>
-                {availableEpisodes.slice(0, 12).map((item) => {
-                  const active = item === (effectiveEpisode ?? item);
-                  return (
-                    <button
-                      key={item}
-                      onClick={() => {
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.set('episode', String(item));
-                        router.replace(`/watch/${subjectId}?${params.toString()}`);
-                      }}
-                      className={cn(
-                        'px-3 py-1 rounded-md text-xs font-medium border transition-all',
-                        active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                      )}
-                    >
-                      {item}
-                    </button>
-                  );
-                })}
+              <div className="flex flex-col gap-2 w-full">
+                {episodeChunks.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Range</span>
+                    {episodeChunks.map((chunk, idx) => {
+                      const start = chunk[0];
+                      const end = chunk[chunk.length - 1];
+                      const active = idx === activeEpisodeRange;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveEpisodeRange(idx)}
+                          className={cn(
+                            'px-2.5 py-0.5 rounded text-xs font-medium border transition-all',
+                            active ? 'bg-zinc-700 border-zinc-500 text-white font-bold' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          )}
+                        >
+                          {start} - {end}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mr-1">Episode</span>
+                  {(episodeChunks[activeEpisodeRange] || availableEpisodes).map((item) => {
+                    const active = item === (effectiveEpisode ?? item);
+                    return (
+                      <button
+                        key={item}
+                        onClick={() => {
+                          setQualityIndex(0);
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.set('episode', String(item));
+                          router.replace(`/watch/${subjectId}?${params.toString()}`);
+                        }}
+                        className={cn(
+                          'px-3 py-1 rounded-md text-xs font-medium border transition-all',
+                          active ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                        )}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
