@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, forwardRef, useSyncExternalStore } from 'react';
+import Hls from 'hls.js';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 
 interface MoviePlayerProps {
@@ -54,6 +55,62 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   }, [speed, initialTime]);
 
+  // Handle HLS stream loading via hls.js with native fallback
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !currentSrc) return;
+
+    let hls: Hls | null = null;
+    const isHls = currentSrc.includes('.m3u8') || currentSrc.includes('/api/proxy/video');
+
+    if (isHls && Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 90,
+      });
+
+      hls.loadSource(currentSrc);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoPlay) {
+          video.play().catch(() => {});
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.warn('[HLS] Network error, attempting load restart...');
+              hls?.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.warn('[HLS] Media error, attempting recovery...');
+              hls?.recoverMediaError();
+              break;
+            default:
+              console.error('[HLS] Unrecoverable fatal error');
+              hls?.destroy();
+              break;
+          }
+        }
+      });
+    } else {
+      video.src = currentSrc;
+      if (autoPlay) {
+        video.play().catch(() => {});
+      }
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [currentSrc, autoPlay]);
+
   // Expose video DOM element to the ref
   useEffect(() => {
     if (ref) {
@@ -71,10 +128,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     <div className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850">
       <video
         ref={videoRef}
-        src={currentSrc}
         poster={poster || ''}
         controls
-        autoPlay={autoPlay}
         playsInline
         crossOrigin="anonymous"
         className="w-full h-full object-contain bg-black block"
