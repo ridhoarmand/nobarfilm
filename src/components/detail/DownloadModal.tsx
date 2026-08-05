@@ -24,33 +24,35 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
     enabled: isOpen,
   });
 
-  if (!isOpen) return null;
-
   const downloads = sourcesData?.downloads || [];
   const captions = sourcesData?.captions || [];
   const isSeries = subjectType === 2;
 
   // Auto-select subtitle when captions are loaded
   useEffect(() => {
-    if (captions.length > 0 && selectedSubtitle === null) {
+    if (isOpen && captions.length > 0 && selectedSubtitle === null) {
       // Find Indonesian first, then English, then default to first
       const idIndex = captions.findIndex(
         (c) => (c.lanName || '').toLowerCase().includes('indonesia') || (c.lan || '').toLowerCase().includes('id')
       );
-      if (idIndex !== -1) {
-        setSelectedSubtitle(idIndex);
-      } else {
-        const enIndex = captions.findIndex(
-          (c) => (c.lanName || '').toLowerCase().includes('english') || (c.lan || '').toLowerCase().includes('en')
-        );
-        if (enIndex !== -1) {
-          setSelectedSubtitle(enIndex);
+      queueMicrotask(() => {
+        if (idIndex !== -1) {
+          setSelectedSubtitle(idIndex);
         } else {
-          setSelectedSubtitle(0);
+          const enIndex = captions.findIndex(
+            (c) => (c.lanName || '').toLowerCase().includes('english') || (c.lan || '').toLowerCase().includes('en')
+          );
+          if (enIndex !== -1) {
+            setSelectedSubtitle(enIndex);
+          } else {
+            setSelectedSubtitle(0);
+          }
         }
-      }
+      });
     }
-  }, [captions, selectedSubtitle]);
+  }, [isOpen, captions, selectedSubtitle]);
+
+  if (!isOpen) return null;
 
   // Generate smart filename
   const generateFilename = (type: 'video' | 'subtitle', subtitleLang?: string) => {

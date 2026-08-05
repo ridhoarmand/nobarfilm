@@ -20,32 +20,72 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function setAuthCookies(token: string, userData: any) {
+  if (typeof document === 'undefined') return;
+  const isIdhoDomain = window.location.hostname.endsWith('idho.eu.org');
+  const domainAttr = isIdhoDomain ? '; domain=.idho.eu.org' : '';
+  const maxAge = '; max-age=2592000; path=/; SameSite=Lax';
+  document.cookie = `nobar_token=${encodeURIComponent(token)}${domainAttr}${maxAge}`;
+  document.cookie = `nobar_user=${encodeURIComponent(JSON.stringify(userData))}${domainAttr}${maxAge}`;
+}
+
+function clearAuthCookies() {
+  if (typeof document === 'undefined') return;
+  const isIdhoDomain = window.location.hostname.endsWith('idho.eu.org');
+  const domainAttr = isIdhoDomain ? '; domain=.idho.eu.org' : '';
+  const expires = '; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+  document.cookie = `nobar_token=${domainAttr}${expires}`;
+  document.cookie = `nobar_user=${domainAttr}${expires}`;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Restore from localStorage
-    const savedToken = localStorage.getItem('nobarfilm_moviebox_token');
-    const savedUser = localStorage.getItem('nobarfilm_moviebox_user');
+    // Restore from localStorage or subdomain cookies
+    let savedToken = localStorage.getItem('nobarfilm_moviebox_token');
+    let savedUser = localStorage.getItem('nobarfilm_moviebox_user');
+
+    if (!savedToken && typeof document !== 'undefined') {
+      const matchToken = document.cookie.match(/(?:^|; )nobar_token=([^;]*)/);
+      const matchUser = document.cookie.match(/(?:^|; )nobar_user=([^;]*)/);
+      if (matchToken && matchUser) {
+        try {
+          savedToken = decodeURIComponent(matchToken[1]);
+          savedUser = decodeURIComponent(matchUser[1]);
+          localStorage.setItem('nobarfilm_moviebox_token', savedToken);
+          localStorage.setItem('nobarfilm_moviebox_user', savedUser);
+        } catch {}
+      }
+    }
 
     if (savedToken && savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        setUser({ id: parsed.userId, email: parsed.email || '' });
-        setProfile({
+        const nextUser = { id: parsed.userId, email: parsed.email || '' };
+        const nextProfile = {
           id: parsed.userId,
           full_name: parsed.nickname || null,
           avatar_url: parsed.avatar || null,
+        };
+        queueMicrotask(() => {
+          setUser(nextUser);
+          setProfile(nextProfile);
+          setIsLoading(false);
         });
+        return;
       } catch (e) {
         console.error('Failed to parse saved user:', e);
         localStorage.removeItem('nobarfilm_moviebox_token');
         localStorage.removeItem('nobarfilm_moviebox_user');
+        clearAuthCookies();
       }
     }
-    setIsLoading(false);
+    queueMicrotask(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -65,12 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { token, user: movieboxUser } = json.data;
+      const userData = { ...movieboxUser, email };
 
       localStorage.setItem('nobarfilm_moviebox_token', token);
-      localStorage.setItem(
-        'nobarfilm_moviebox_user',
-        JSON.stringify({ ...movieboxUser, email })
-      );
+      localStorage.setItem('nobarfilm_moviebox_user', JSON.stringify(userData));
+      setAuthCookies(token, userData);
 
       setUser({ id: movieboxUser.userId, email });
       setProfile({
@@ -103,12 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { token, user: movieboxUser } = json.data;
+      const userData = { ...movieboxUser, email };
 
       localStorage.setItem('nobarfilm_moviebox_token', token);
-      localStorage.setItem(
-        'nobarfilm_moviebox_user',
-        JSON.stringify({ ...movieboxUser, email })
-      );
+      localStorage.setItem('nobarfilm_moviebox_user', JSON.stringify(userData));
+      setAuthCookies(token, userData);
 
       setUser({ id: movieboxUser.userId, email });
       setProfile({
@@ -127,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     localStorage.removeItem('nobarfilm_moviebox_token');
     localStorage.removeItem('nobarfilm_moviebox_user');
+    clearAuthCookies();
     setUser(null);
     setProfile(null);
   };
