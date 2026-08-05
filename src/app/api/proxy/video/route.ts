@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
       Accept: '*/*',
-      Referer: refererParam || new URL(url).origin + '/',
-      // NOTE: Do NOT send Origin header - video CDN returns 403 if Origin doesn't match their whitelist
+      Referer: refererParam || 'https://themoviebox.org/',
+      Origin: 'https://themoviebox.org',
     };
 
     if (range) {

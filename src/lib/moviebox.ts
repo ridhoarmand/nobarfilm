@@ -147,7 +147,9 @@ async function getAccessToken(retry = 0): Promise<string> {
 
   const email = process.env.MOVIEBOX_MASTER_EMAIL || '';
   const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || '';
-  const md5Password = crypto.createHash('md5').update(rawPassword).digest('hex');
+  const md5Password = /^[a-f0-9]{32}$/i.test(rawPassword)
+    ? rawPassword
+    : crypto.createHash('md5').update(rawPassword).digest('hex');
   const payload = {
     authType: 1,
     mail: email,
@@ -183,7 +185,8 @@ async function getAccessToken(retry = 0): Promise<string> {
     });
 
     if (!res.ok) {
-      throw new Error(`Login HTTP error: ${res.status}`);
+      const errTxt = await res.text().catch(() => '');
+      throw new Error(`Login HTTP error ${res.status}: ${errTxt}`);
     }
 
     const data: any = await res.json();
