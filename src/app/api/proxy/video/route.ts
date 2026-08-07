@@ -13,12 +13,18 @@ export async function GET(req: NextRequest) {
 
   try {
     const range = req.headers.get('range');
+    const isMobileCdn = url.includes('/bt/') || url.includes('hcdn3.') || url.includes('hcdn');
     const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+      'User-Agent': isMobileCdn
+        ? 'okhttp/4.9.0'
+        : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
       Accept: '*/*',
-      Referer: refererParam || 'https://themoviebox.org/',
-      Origin: 'https://themoviebox.org',
     };
+
+    if (!isMobileCdn) {
+      headers['Referer'] = refererParam || 'https://themoviebox.org/';
+      headers['Origin'] = 'https://themoviebox.org';
+    }
 
     if (range) {
       headers['Range'] = range;
