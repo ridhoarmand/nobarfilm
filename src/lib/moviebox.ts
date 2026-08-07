@@ -823,135 +823,130 @@ export const movieBoxService = {
     const cached = serverCache.get<SourcesResponse>(key);
     if (cached) return cached;
 
-    if (!clientToken) {
-      try {
-        console.log(`[MovieBox SDK] Guest mode: Fetching sources from H5 API for ${subjectId}`);
-        
-        // Fetch detail first to get original H5 detailPath
-        const detail = await this.getDetail(subjectId, clientToken);
-        let detailPath = detail.subject.h5DetailPath || '';
+    // ALWAYS try H5 API first because it provides direct working MP4 streams for all subjects
+    try {
+      console.log(`[MovieBox SDK] Fetching sources from H5 API for ${subjectId}`);
+      
+      // Fetch detail first to get original H5 detailPath
+      const detail = await this.getDetail(subjectId);
+      let detailPath = detail.subject.h5DetailPath || '';
 
-        // Fallback: If detailPath is empty (e.g. from stale cache), fetch directly from detail API
-        if (!detailPath) {
-          console.log(`[MovieBox SDK] detailPath is empty in getDetail cache. Fetching fresh detail from H5...`);
-          try {
-            const freshRes = await fetch(`${H5_UPSTREAM}/detail?subjectId=${subjectId}`, {
-              headers: getH5Headers(),
-            });
-            if (freshRes.ok) {
-              const freshData = await freshRes.json();
-              detailPath = freshData.data?.subject?.detailPath || '';
-              console.log(`[MovieBox SDK] Fresh detailPath: ${detailPath}`);
-            }
-          } catch (freshErr: any) {
-            console.error(`[MovieBox SDK] Fresh detailPath fetch failed:`, freshErr.message);
+      // Fallback: If detailPath is empty (e.g. from stale cache), fetch directly from H5 detail API
+      if (!detailPath) {
+        console.log(`[MovieBox SDK] detailPath is empty in getDetail cache. Fetching fresh detail from H5...`);
+        try {
+          const freshRes = await fetch(`${H5_UPSTREAM}/detail?subjectId=${subjectId}`, {
+            headers: getH5Headers(),
+          });
+          if (freshRes.ok) {
+            const freshData = await freshRes.json();
+            detailPath = freshData.data?.subject?.detailPath || '';
+            console.log(`[MovieBox SDK] Fresh detailPath: ${detailPath}`);
           }
+        } catch (freshErr: any) {
+          console.error(`[MovieBox SDK] Fresh detailPath fetch failed:`, freshErr.message);
         }
-
-        const query = new URLSearchParams();
-        query.set('subjectId', subjectId);
-        query.set('se', resolvedSeason.toString());
-        query.set('ep', resolvedEpisode.toString());
-        if (detailPath) {
-          query.set('detailPath', detailPath);
-        }
-
-        // Form the correct Referer play page path required by LokLok H5 play API
-        const playReferer = detailPath 
-          ? `https://lok-lok.cc/spa/videoPlayPage/movies/${detailPath}`
-          : 'https://lok-lok.cc/';
-
-        const h5Res = await fetch(`${H5_UPSTREAM}/subject/play?${query.toString()}`, {
-          headers: getH5Headers(playReferer),
-          next: { revalidate: 300 },
-        });
-
-        if (h5Res.ok) {
-          const rawPlay = await h5Res.json();
-          if (rawPlay.code === 0 && rawPlay.data?.streams && rawPlay.data.streams.length > 0) {
-            const streams = rawPlay.data.streams;
-            
-            const downloads = streams
-              .map((item: any) => ({
-                id: String(item.id || ''),
-                url: String(item.url || ''),
-                resolution: parseInt(String(item.resolutions || 0), 10),
-                size: String(item.size || '0'),
-              }))
-              .filter((item: any) => item.url && item.resolution > 0)
-              .sort((a: any, b: any) => b.resolution - a.resolution);
-
-            const processedSources = downloads.map((item: any) => ({
-              id: item.id || `stream-${item.resolution}`,
-              quality: item.resolution,
-              directUrl: item.url,
-              size: item.size,
-              format: 'mp4',
-            }));
-
-            let captions: Caption[] = [];
-            if (downloads.length > 0) {
-              const streamId = downloads[0].id;
-              try {
-                // Pass detailPath and playReferer to caption fetch as well
-                const captionUrl = `${H5_UPSTREAM}/subject/caption?format=MP4&id=${streamId}&subjectId=${subjectId}${detailPath ? `&detailPath=${detailPath}` : ''}`;
-                const capRes = await fetch(captionUrl, {
-                  headers: getH5Headers(playReferer),
-                  next: { revalidate: 1800 }
-                });
-                if (capRes.ok) {
-                  const rawCap = await capRes.json();
-                  if (rawCap.code === 0 && Array.isArray(rawCap.data?.captions)) {
-                    captions = rawCap.data.captions
-                      .map((item: any, index: number) => ({
-                        id: String(item.id || `caption-${index}`),
-                        lan: String(item.lan || ''),
-                        lanName: String(item.lanName || item.lan || ''),
-                        url: String(item.url || ''),
-                        size: String(item.size || '0'),
-                        delay: typeof item.delay === 'number' ? item.delay : 0,
-                      }))
-                      .filter((item: any) => Boolean(item.url));
-                  }
-                }
-              } catch (capErr: any) {
-                console.error(`[MovieBox SDK] Guest mode: Failed to fetch captions for streamId ${streamId}:`, capErr.message);
-              }
-            }
-
-            const data: SourcesResponse = {
-              downloads,
-              captions,
-              processedSources,
-              limited: false,
-              limitedCode: '',
-              freeNum: 999,
-              hasResource: downloads.length > 0,
-            };
-
-            console.log('[MovieBox SDK] Guest mode: H5 sources retrieved successfully');
-            serverCache.set(key, data, 120);
-            return data;
-          } else {
-            console.log(`[MovieBox SDK] Guest mode: H5 play returned no streams or hasResource=false for ${subjectId}`);
-          }
-        }
-      } catch (h5Err: any) {
-        console.warn('[MovieBox SDK] Guest mode H5 sources fetch failed:', h5Err.message);
       }
 
-      // Try Master Account token as automatic fallback when H5 API fails for guest users
+      const query = new URLSearchParams();
+      query.set('subjectId', subjectId);
+      query.set('se', resolvedSeason.toString());
+      query.set('ep', resolvedEpisode.toString());
+      if (detailPath) {
+        query.set('detailPath', detailPath);
+      }
+
+      // Form the correct Referer play page path required by LokLok H5 play API
+      const playReferer = detailPath 
+        ? `https://lok-lok.cc/spa/videoPlayPage/movies/${detailPath}`
+        : 'https://lok-lok.cc/';
+
+      const h5Res = await fetch(`${H5_UPSTREAM}/subject/play?${query.toString()}`, {
+        headers: getH5Headers(playReferer),
+        next: { revalidate: 300 },
+      });
+
+      if (h5Res.ok) {
+        const rawPlay = await h5Res.json();
+        if (rawPlay.code === 0 && rawPlay.data?.streams && rawPlay.data.streams.length > 0) {
+          const streams = rawPlay.data.streams;
+          
+          const downloads = streams
+            .map((item: any) => ({
+              id: String(item.id || ''),
+              url: String(item.url || ''),
+              resolution: parseInt(String(item.resolutions || 0), 10),
+              size: String(item.size || '0'),
+            }))
+            .filter((item: any) => item.url && item.resolution > 0)
+            .sort((a: any, b: any) => b.resolution - a.resolution);
+
+          const processedSources = downloads.map((item: any) => ({
+            id: item.id || `stream-${item.resolution}`,
+            quality: item.resolution,
+            directUrl: item.url,
+            size: item.size,
+            format: 'mp4',
+          }));
+
+          let captions: Caption[] = [];
+          if (downloads.length > 0) {
+            const streamId = downloads[0].id;
+            try {
+              const captionUrl = `${H5_UPSTREAM}/subject/caption?format=MP4&id=${streamId}&subjectId=${subjectId}${detailPath ? `&detailPath=${detailPath}` : ''}`;
+              const capRes = await fetch(captionUrl, {
+                headers: getH5Headers(playReferer),
+                next: { revalidate: 1800 }
+              });
+              if (capRes.ok) {
+                const rawCap = await capRes.json();
+                if (rawCap.code === 0 && Array.isArray(rawCap.data?.captions)) {
+                  captions = rawCap.data.captions
+                    .map((item: any, index: number) => ({
+                      id: String(item.id || `caption-${index}`),
+                      lan: String(item.lan || ''),
+                      lanName: String(item.lanName || item.lan || ''),
+                      url: String(item.url || ''),
+                      size: String(item.size || '0'),
+                      delay: typeof item.delay === 'number' ? item.delay : 0,
+                    }))
+                    .filter((item: any) => Boolean(item.url));
+                }
+              }
+            } catch (capErr: any) {
+              console.error(`[MovieBox SDK] Failed to fetch captions for streamId ${streamId}:`, capErr.message);
+            }
+          }
+
+          const data: SourcesResponse = {
+            downloads,
+            captions,
+            processedSources,
+            limited: false,
+            limitedCode: '',
+            freeNum: 999,
+            hasResource: downloads.length > 0,
+          };
+
+          console.log('[MovieBox SDK] H5 sources retrieved successfully');
+          serverCache.set(key, data, 120);
+          return data;
+        } else {
+          console.log(`[MovieBox SDK] H5 play returned no streams for ${subjectId}`);
+        }
+      }
+      // Fallback to Master Account token if H5 API failed
       try {
-        console.log(`[MovieBox SDK] Guest mode: Attempting Master Account token fallback for ${subjectId}`);
+        console.log(`[MovieBox SDK] Attempting Master Account token fallback for ${subjectId}`);
         const masterToken = await getAccessToken();
-        if (masterToken) {
+        if (masterToken && masterToken !== clientToken) {
           return await this.getSources(subjectId, season, episode, masterToken);
         }
       } catch (masterErr: any) {
         console.warn('[MovieBox SDK] Master account token fallback failed:', masterErr.message);
       }
-
-      throw new Error('Akses Terbatas: Video ini memerlukan autentikasi Mobile API. Silakan login dengan akun MovieBox Anda untuk memutar film ini.');
+    } catch (h5Err: any) {
+      console.warn('[MovieBox SDK] H5 sources fetch failed:', h5Err.message);
     }
 
     try {
