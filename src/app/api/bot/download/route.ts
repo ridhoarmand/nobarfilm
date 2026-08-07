@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
         type: isSeries ? 'Series' : 'Movie',
         season,
         episode,
-        watchUrl: `https://film.idho.eu.org/watch/${subject.subjectId}?season=${season}&episode=${episode}`,
+        watchUrl: isSeries
+          ? `https://film.idho.eu.org/watch/${subject.subjectId}?season=${season}&episode=${episode}`
+          : `https://film.idho.eu.org/watch/${subject.subjectId}`,
       },
       videoDownloads,
       subtitles,

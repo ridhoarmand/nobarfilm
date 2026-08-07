@@ -101,11 +101,11 @@ function WatchContent() {
     if (season !== nextSeason || episode !== nextEpisode) {
       const params = new URLSearchParams();
       if (typeof nextSeason === 'number') params.set('season', String(nextSeason));
-      if (typeof nextEpisode === 'number') params.set('episode', String(nextEpisode));
       if (resumeTime > 0) params.set('t', String(resumeTime));
-      router.replace(`/watch/${subjectId}?${params.toString()}`);
+      const paramStr = params.toString();
+      router.replace(`/watch/${subjectId}${paramStr ? `?${paramStr}` : ''}`);
     }
-  }, [episode, playerMetadata, resumeTime, router, season, subjectId]);
+  }, [episode, isSeries, playerMetadata, resumeTime, router, season, subjectId]);
 
   const {
     data: playbackData,
