@@ -19,6 +19,12 @@ function srtToVtt(srtContent: string): string {
   return `WEBVTT\n\n${vttContent}`;
 }
 
+// Helper function to convert WebVTT to SRT
+function vttToSrt(vttContent: string): string {
+  const cleanContent = vttContent.replace(/^\uFEFF/, '').replace(/^WEBVTT/i, '').replace(/\r\n/g, '\n').trim();
+  return cleanContent.replace(/(\d{2}:\d{2}:\d{2})\.(\d{3})/g, '$1,$2');
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
@@ -42,12 +48,13 @@ export async function GET(request: NextRequest) {
       throw new Error(`Failed to fetch subtitle: ${response.status} ${response.statusText}`);
     }
 
-    const srtContent = await response.text();
+    const rawContent = await response.text();
     const isDownload = searchParams.get('download') === 'true' || Boolean(searchParams.get('filename'));
     const requestedFilename = searchParams.get('filename') || `subtitle.${format}`;
     const safeFilename = requestedFilename.replace(/[^a-zA-Z0-9._\- ]/g, '_');
 
     if (format === 'srt') {
+      const srtFormatted = vttToSrt(rawContent);
       const headers: Record<string, string> = {
         'Content-Type': 'text/plain; charset=utf-8',
         'Access-Control-Allow-Origin': '*',
@@ -56,11 +63,11 @@ export async function GET(request: NextRequest) {
       if (isDownload) {
         headers['Content-Disposition'] = `attachment; filename="${safeFilename}"`;
       }
-      return new NextResponse(srtContent, { headers });
+      return new NextResponse(srtFormatted, { headers });
     }
 
     // Convert to WebVTT
-    const vttContent = srtToVtt(srtContent);
+    const vttContent = srtToVtt(rawContent);
     const headers: Record<string, string> = {
       'Content-Type': 'text/vtt; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
