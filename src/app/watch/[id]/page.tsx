@@ -271,18 +271,18 @@ function WatchContent() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-[#141414]">
       {/* Top Navigation Bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 px-4 py-3 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/60">
+      <div className="sticky top-0 z-50 flex items-center gap-3 px-4 py-3 bg-[#141414]/95 backdrop-blur-md border-b border-zinc-800">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 text-sm transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 text-sm transition-all"
         >
           <ArrowLeft className="w-4 h-4" />
           Kembali
         </button>
         <div className="h-4 w-px bg-zinc-700/60" />
-        <span className="text-zinc-300 text-sm font-medium truncate">{displayTitle}</span>
+        <span className="text-zinc-200 text-sm font-medium truncate">{displayTitle}</span>
       </div>
 
       {/* Player Section */}
@@ -342,23 +342,24 @@ function WatchContent() {
       )}
 
       {/* Control Panel: User-Friendly Dropdowns & Subtitle Controls */}
+      {/* Control Panel: Clean Human-Centric Netflix/Apple TV Style */}
       {(playerMetadata || playbackData) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-md space-y-5">
+          <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-5 shadow-lg backdrop-blur-md space-y-5">
             
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
               <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-red-500" />
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pengaturan Media & Player</h2>
+                <Sliders className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Pengaturan Media & Player</h2>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsSubtitleModalOpen(!isSubtitleModalOpen)}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-800 bg-zinc-950 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all flex items-center gap-1.5 shadow-sm"
                 >
-                  <Search className="w-3.5 h-3.5" />
-                  {isSubtitleModalOpen ? 'Tutup Panel Subtitle' : 'Cari / Upload Subtitle...'}
+                  <Search className="w-3.5 h-3.5 text-zinc-400" />
+                  {isSubtitleModalOpen ? 'Tutup Panel Subtitle' : 'Kelola Subtitle'}
                 </button>
               </div>
             </div>
@@ -382,8 +383,8 @@ function WatchContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* 1. Subtitle Dropdown */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-red-500" /> Subtitle
+                <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-zinc-400" /> Subtitle Teks
                 </label>
                 <select
                   value={selectedSubtitleIndex === null ? 'off' : selectedSubtitleIndex}
@@ -391,17 +392,17 @@ function WatchContent() {
                     const val = e.target.value;
                     setSelectedSubtitleIndex(val === 'off' ? null : parseInt(val, 10));
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                 >
-                  <option value="off">🚫 Matikan Subtitle</option>
+                  <option value="off">Matikan Subtitle</option>
                   {filteredCaptions.map((cap, idx) => (
                     <option key={cap.id || idx} value={idx}>
-                      💬 {cap.lanName || cap.lan}
+                      {cap.lanName || cap.lan}
                     </option>
                   ))}
                   {customSubtitles.map((custom, idx) => (
                     <option key={`custom-${idx}`} value={filteredCaptions.length + idx}>
-                      📁 {custom.label} (Custom Upload)
+                      {custom.label} (File Lokal)
                     </option>
                   ))}
                 </select>
@@ -410,8 +411,8 @@ function WatchContent() {
               {/* 2. Audio Dropdown */}
               {filteredAudioOptions.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-red-500" /> Audio / Dubbing
+                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-zinc-400" /> Suara Audio
                   </label>
                   <select
                     value={audioIndex}
@@ -420,11 +421,11 @@ function WatchContent() {
                       const targetAudio = filteredAudioOptions[idx];
                       if (targetAudio) handleAudioChange(targetAudio.code);
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                   >
                     {filteredAudioOptions.map((item, idx) => (
                       <option key={item.code} value={idx}>
-                        🔊 {item.label}
+                        {item.label}
                       </option>
                     ))}
                   </select>
@@ -434,17 +435,17 @@ function WatchContent() {
               {/* 3. Resolution Dropdown */}
               {availableQualities.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-red-500" /> Resolusi Video
+                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-zinc-400" /> Kualitas Resolusi
                   </label>
                   <select
                     value={qualityIndex}
                     onChange={(e) => setQualityIndex(parseInt(e.target.value, 10))}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                   >
                     {availableQualities.map((item, idx) => (
                       <option key={item} value={idx}>
-                        📺 {item}p {item >= 720 ? '(HD WEB-DL)' : ''}
+                        {item}p {item >= 720 ? '(HD)' : ''}
                       </option>
                     ))}
                   </select>
@@ -454,8 +455,8 @@ function WatchContent() {
               {/* 4. Season Dropdown (Series) */}
               {isSeries && availableSeasons.length > 1 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Tv className="w-3.5 h-3.5 text-red-500" /> Season
+                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                    <Tv className="w-3.5 h-3.5 text-zinc-400" /> Musim / Season
                   </label>
                   <select
                     value={effectiveSeason}
@@ -466,7 +467,7 @@ function WatchContent() {
                       params.set('episode', '1');
                       router.replace(`/watch/${subjectId}?${params.toString()}`);
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                   >
                     {availableSeasons.map((item) => (
                       <option key={item} value={item}>
@@ -480,8 +481,8 @@ function WatchContent() {
               {/* 5. Episode Dropdown (Series) */}
               {isSeries && availableEpisodes.length > 1 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-red-500" /> Episode
+                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-zinc-400" /> Episode
                   </label>
                   <select
                     value={effectiveEpisode}
@@ -491,7 +492,7 @@ function WatchContent() {
                       params.set('episode', e.target.value);
                       router.replace(`/watch/${subjectId}?${params.toString()}`);
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                   >
                     {availableEpisodes.map((item) => (
                       <option key={item} value={item}>
@@ -503,15 +504,15 @@ function WatchContent() {
               )}
             </div>
 
-            {/* Collapsible Accordion Toggle Button for Advanced Subtitle Controls */}
+            {/* Collapsible Drawer for Subtitle Delay & Position Sync */}
             <div className="pt-2 border-t border-zinc-800/60">
               <button
                 onClick={() => setIsAdvancedSubtitleOpen(!isAdvancedSubtitleOpen)}
-                className="w-full py-2 px-3 bg-zinc-950/60 hover:bg-zinc-850/80 border border-zinc-800/80 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all flex items-center justify-between"
+                className="w-full py-2 px-3 bg-zinc-950/40 hover:bg-zinc-850/60 border border-zinc-800/60 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors flex items-center justify-between"
               >
                 <div className="flex items-center gap-2">
-                  <Sliders className="w-3.5 h-3.5 text-red-500" />
-                  <span>Pengaturan Lanjutan (Delay Sync & Ketinggian Subtitle)</span>
+                  <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Pengaturan Delay Sync & Ketinggian Subtitle</span>
                 </div>
                 {isAdvancedSubtitleOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -521,42 +522,42 @@ function WatchContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 animate-fade-in">
                   {/* Subtitle Sync Delay */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-red-500" /> Kecepatan / Delay Subtitle (Sync)
+                    <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-zinc-400" /> Sinkronisasi Delay Subtitle
                     </label>
                     <select
                       value={subtitleDelay}
                       onChange={(e) => setSubtitleDelay(parseFloat(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                     >
-                      <option value={-5}>⚡ -5.0s (Lebih Cepat 5 Detik)</option>
-                      <option value={-3}>⚡ -3.0s (Lebih Cepat 3 Detik)</option>
-                      <option value={-2}>⚡ -2.0s (Lebih Cepat 2 Detik)</option>
-                      <option value={-1}>⚡ -1.0s (Lebih Cepat 1 Detik)</option>
-                      <option value={-0.5}>⚡ -0.5s (Lebih Cepat 0.5 Detik)</option>
-                      <option value={0}>⏱️ 0.0s (Normal / Default)</option>
-                      <option value={0.5}>🐢 +0.5s (Lambat 0.5 Detik)</option>
-                      <option value={1}>🐢 +1.0s (Lambat 1 Detik)</option>
-                      <option value={2}>🐢 +2.0s (Lambat 2 Detik)</option>
-                      <option value={3}>🐢 +3.0s (Lambat 3 Detik)</option>
-                      <option value={5}>🐢 +5.0s (Lambat 5 Detik)</option>
+                      <option value={-5}>-5.0s (Lebih Cepat 5 Detik)</option>
+                      <option value={-3}>-3.0s (Lebih Cepat 3 Detik)</option>
+                      <option value={-2}>-2.0s (Lebih Cepat 2 Detik)</option>
+                      <option value={-1}>-1.0s (Lebih Cepat 1 Detik)</option>
+                      <option value={-0.5}>-0.5s (Lebih Cepat 0.5 Detik)</option>
+                      <option value={0}>0.0s (Normal / Presisi)</option>
+                      <option value={0.5}>+0.5s (Lambat 0.5 Detik)</option>
+                      <option value={1}>+1.0s (Lambat 1 Detik)</option>
+                      <option value={2}>+2.0s (Lambat 2 Detik)</option>
+                      <option value={3}>+3.0s (Lambat 3 Detik)</option>
+                      <option value={5}>+5.0s (Lambat 5 Detik)</option>
                     </select>
                   </div>
 
                   {/* Subtitle Vertical Position */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sliders className="w-3.5 h-3.5 text-red-500" /> Posisi Ketinggian Subtitle
+                    <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-zinc-400" /> Posisi Teks Subtitle
                     </label>
                     <select
                       value={subtitlePosition}
                       onChange={(e) => setSubtitlePosition(parseInt(e.target.value, 10))}
-                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
                     >
-                      <option value={90}>⬇️ Sangat Bawah (90%)</option>
-                      <option value={85}>📍 Bawah Normal (85%)</option>
-                      <option value={75}>⬆️ Sedikit Ke Atas (75%)</option>
-                      <option value={20}>🔝 Posisi Atas (20%)</option>
+                      <option value={90}>Bawah Layar (90%)</option>
+                      <option value={85}>Bawah Standar (85%)</option>
+                      <option value={75}>Sedikit Ke Atas (75%)</option>
+                      <option value={20}>Atas Layar (20%)</option>
                     </select>
                   </div>
                 </div>

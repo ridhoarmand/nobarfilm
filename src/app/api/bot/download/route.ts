@@ -40,7 +40,24 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const subtitles = (sources.captions || []).map((cap) => {
+    // Sort subtitles so Indonesian and English are listed first
+    const rawCaptions = sources.captions || [];
+    const sortedCaptions = [...rawCaptions].sort((a, b) => {
+      const aName = (a.lanName || a.lan || '').toLowerCase();
+      const bName = (b.lanName || b.lan || '').toLowerCase();
+      const aIsId = aName.includes('indonesia') || a.lan.includes('id');
+      const bIsId = bName.includes('indonesia') || b.lan.includes('id');
+      const aIsEn = aName.includes('english') || a.lan.includes('en');
+      const bIsEn = bName.includes('english') || b.lan.includes('en');
+
+      if (aIsId) return -1;
+      if (bIsId) return 1;
+      if (aIsEn) return -1;
+      if (bIsEn) return 1;
+      return 0;
+    });
+
+    const subtitles = sortedCaptions.map((cap) => {
       const subtitleFilename = `${subject.title || 'subtitle'}_S${season}E${episode}_${cap.lanName || cap.lan}.srt`;
       const srtDownloadUrl = `https://film.idho.eu.org/api/subtitle?url=${encodeURIComponent(cap.url)}&download=true&format=srt&filename=${encodeURIComponent(subtitleFilename)}`;
       const vttUrl = `https://film.idho.eu.org/api/subtitle?url=${encodeURIComponent(cap.url)}`;

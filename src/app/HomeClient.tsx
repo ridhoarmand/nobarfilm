@@ -91,7 +91,7 @@ export function HomeClient() {
   return (
     <>
       <Navbar />
-      <main className="bg-black min-h-screen">
+      <main className="bg-[#141414] min-h-screen">
         {isInitialLoading ? (
           <LoadingPage />
         ) : (
@@ -102,12 +102,12 @@ export function HomeClient() {
               </div>
             )}
 
-            <div className="relative -mt-12 sm:-mt-20 lg:-mt-20 pb-16 space-y-12">
+            <div className="relative -mt-12 sm:-mt-20 lg:-mt-24 pb-20 space-y-10 sm:space-y-12">
               {/* Favorit Saya (Watchlist - No Login Required) */}
               {watchlist && watchlist.length > 0 && (
                 <div className="relative z-10">
                   <SectionSlider
-                    title="❤️ Daftar Favorit Saya"
+                    title="Daftar Favorit Saya"
                     items={watchlist}
                   />
                 </div>
@@ -115,7 +115,7 @@ export function HomeClient() {
 
               {user && continueWatchingData && continueWatchingData.length > 0 && (
                 <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 pl-1 border-l-4 border-red-600">Continue Watching</h2>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight mb-3 sm:mb-4">Lanjutkan Menonton</h2>
                   <div className="relative">
                     <button
                       onClick={() => continueWatchingRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}

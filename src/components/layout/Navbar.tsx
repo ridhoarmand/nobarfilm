@@ -85,19 +85,19 @@ export function Navbar() {
   };
 
   return (
-    <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out ${
+    <header 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-black/85 backdrop-blur-xl border-b border-white/10 shadow-2xl py-1' 
-          : 'bg-gradient-to-b from-black/90 via-black/50 to-transparent py-4'
+          ? 'bg-[#141414]/95 backdrop-blur-md border-b border-zinc-800/80 shadow-2xl py-1' 
+          : 'bg-gradient-to-b from-[#141414] via-[#141414]/60 to-transparent py-3'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* Logo - Netflix Signature Red Branding */}
           <Link href="/" className="flex-shrink-0 group">
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-red-600 transition-all duration-300 group-hover:text-red-500 drop-shadow-[0_0_15px_rgba(220,38,38,0.3)] group-hover:drop-shadow-[0_0_20px_rgba(220,38,38,0.6)]">
-              NobarFilm
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-[#E50914] uppercase transition-all duration-300 hover:text-[#ff1e27]">
+              NOBARFILM
             </h1>
           </Link>
 
@@ -112,7 +112,7 @@ export function Navbar() {
                       isSearchFocused || showDropdown ? 'w-80' : 'w-64'
                     }`}
                   >
-                    <Search className={`absolute left-3.5 w-4 h-4 transition-colors duration-300 ${isSearchFocused ? 'text-red-500' : 'text-gray-400'}`} />
+                    <Search className={`absolute left-3.5 w-4 h-4 transition-colors duration-300 ${isSearchFocused ? 'text-[#E50914]' : 'text-zinc-400'}`} />
                     <input
                       type="text"
                       value={searchQuery}
@@ -122,7 +122,7 @@ export function Navbar() {
                         if (searchResults.length > 0) setShowDropdown(true);
                       }}
                       placeholder="Cari film & series..."
-                      className="w-full bg-white/5 border border-white/10 hover:border-white/20 rounded-full py-2 pl-10 pr-9 text-sm text-white placeholder-gray-400 focus:outline-none focus:bg-white/10 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all shadow-inner"
+                      className="w-full bg-zinc-900/90 border border-zinc-700/80 hover:border-zinc-500 rounded-full py-1.5 pl-10 pr-9 text-xs sm:text-sm text-white placeholder-zinc-400 focus:outline-none focus:bg-black focus:border-[#E50914] transition-all shadow-inner"
                     />
                     {searchQuery && (
                       <button
@@ -233,6 +233,6 @@ export function Navbar() {
           </div>
         </div>
       </div>
-    </nav>
+    </header>
   );
 }

@@ -149,45 +149,49 @@ export function Hero({ slides }: HeroProps) {
           />
         </div>
 
-        {/* Gradient Overlays */}
-        {/* Stronger gradient on bottom-mobile to ensure text visibility and separation */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent sm:via-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-transparent" />
+        {/* Gradient Overlays (Netflix Vignette) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/60 to-transparent" />
       </div>
 
       {/* Content */}
-      {/* Adjusted pb-24 for mobile to avoid clash with upcoming section */}
-      <div className="absolute inset-0 flex items-end sm:items-center pb-28 sm:pb-0 pointer-events-none">
+      <div className="absolute inset-0 flex items-end sm:items-center pb-20 sm:pb-0 pointer-events-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 w-full z-10 pointer-events-auto">
-          <div className={`max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl transition-all duration-1000 transform ${isTransitioning ? 'translate-y-10 opacity-0' : 'translate-y-0 opacity-100'}`}>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-3 sm:mb-6 drop-shadow-lg leading-tight line-clamp-2">{currentSlide.title}</h1>
+          <div className={`max-w-xl md:max-w-2xl lg:max-w-3xl transition-all duration-1000 transform ${isTransitioning ? 'translate-y-6 opacity-0' : 'translate-y-0 opacity-100'}`}>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white mb-3 sm:mb-4 tracking-tight drop-shadow-md leading-tight line-clamp-2">{currentSlide.title}</h1>
 
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-base text-gray-200 mb-4 sm:mb-6 font-medium">
-              <span className="text-green-400 font-bold">{currentSlide.recommendationReason || 'Trending Now'}</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-300 mb-4 sm:mb-5 font-medium">
+              <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+                {currentSlide.recommendationReason || 'Trending Sekarang'}
+              </span>
 
-              {currentSlide.imdbRating && <span className="px-2 py-0.5 border border-gray-400 rounded text-xs">IMDb {currentSlide.imdbRating}</span>}
+              {currentSlide.imdbRating && (
+                <span className="px-1.5 py-0.5 border border-zinc-700 bg-black/60 rounded text-xs font-semibold text-zinc-200">
+                  IMDb {currentSlide.imdbRating}
+                </span>
+              )}
 
               {currentSlide.releaseDate && <span>{new Date(currentSlide.releaseDate).getFullYear()}</span>}
 
               {currentSlide.duration && currentSlide.duration > 0 && <span>{Math.floor(currentSlide.duration / 60)}m</span>}
             </div>
 
-            <p className="hidden sm:block text-gray-300 text-sm sm:text-lg mb-8 line-clamp-3 max-w-xl drop-shadow-md">{currentSlide.description}</p>
+            <p className="hidden sm:block text-zinc-300 text-sm sm:text-base mb-6 line-clamp-3 max-w-xl leading-relaxed">{currentSlide.description}</p>
 
-            <div className="flex gap-3">
+            <div className="flex items-center gap-3">
               <Link
                 href={watchUrl}
-                className="flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3 bg-white text-black font-bold rounded hover:bg-white/90 transition w-full sm:w-auto justify-center shadow-lg shadow-white/10"
+                className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-white/80 text-black font-bold rounded-md text-sm sm:text-base transition-all shadow-md active:scale-95"
               >
-                <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-black" />
-                Play
+                <Play className="w-5 h-5 fill-black" />
+                <span>Putar</span>
               </Link>
               <Link
                 href={`/${currentSlide.subjectId}`}
-                className="flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3 bg-white/20 text-white font-bold rounded hover:bg-white/30 transition backdrop-blur-md w-full sm:w-auto justify-center"
+                className="flex items-center gap-2 px-6 py-2.5 bg-zinc-500/40 hover:bg-zinc-500/30 text-white font-bold rounded-md text-sm sm:text-base backdrop-blur-md transition-all active:scale-95"
               >
-                <Info className="w-5 h-5 sm:w-6 sm:h-6" />
-                More Info
+                <Info className="w-5 h-5" />
+                <span>Informasi Selengkapnya</span>
               </Link>
             </div>
           </div>

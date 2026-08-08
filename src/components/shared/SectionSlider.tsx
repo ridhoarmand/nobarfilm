@@ -24,7 +24,12 @@ export function SectionSlider({ title, items, isRanked = false }: SectionSliderP
 
   return (
     <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 pl-1 border-l-4 border-red-600">{title}</h2>
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-1.5 cursor-pointer group/title hover:text-zinc-300 transition-colors">
+          <span>{title}</span>
+          <span className="text-xs text-[#E50914] opacity-0 group-hover/title:opacity-100 transition-opacity font-bold">Lainnya ›</span>
+        </h2>
+      </div>
 
       <div className="relative">
         {/* Prev Button */}

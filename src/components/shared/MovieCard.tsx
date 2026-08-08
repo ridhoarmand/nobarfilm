@@ -18,15 +18,15 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
   return (
     <div className="w-full">
       <Link href={`/${movie.subjectId}`} className="group/card block w-full relative">
-        {/* Ambient Neon Glow Backdrop */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-red-600 to-red-900 rounded-xl blur-md opacity-0 group-hover/card:opacity-75 transition duration-500 group-hover/card:duration-200" />
-
-        {/* POSTER IMAGE CONTAINER */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-500 group-hover/card:shadow-[0_0_25px_rgba(220,38,38,0.4)] group-hover/card:-translate-y-1.5" style={{ position: 'relative' }}>
-          {/* Rank Badge - Top Left (Consistent & Readable) */}
+        {/* POSTER IMAGE CONTAINER - Netflix Style Card */}
+        <div 
+          className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-[#181818] shadow-md border border-white/5 transition-all duration-300 ease-out group-hover/card:border-white/20 group-hover/card:shadow-2xl group-hover/card:shadow-black/90 group-hover/card:scale-[1.03]"
+          style={{ position: 'relative' }}
+        >
+          {/* Rank Badge - Netflix Top 10 Badge Style */}
           {rank && (
-            <div className="absolute top-0 left-0 z-30 bg-red-600 shadow-lg flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-br-xl">
-              <span className="text-lg sm:text-xl font-black text-white">{rank}</span>
+            <div className="absolute top-0 left-0 z-30 bg-[#E50914] text-white flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-br-md shadow-md">
+              <span className="text-xs sm:text-sm font-black tracking-tighter">#{rank}</span>
             </div>
           )}
 
@@ -39,25 +39,20 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
               toggleWatchlist(movie);
             }}
             title={isBookmarked ? 'Hapus dari Favorit' : 'Simpan ke Favorit'}
-            className={`absolute ${rank ? 'top-10 left-2' : 'top-2 left-2'} z-30 p-2 rounded-full backdrop-blur-md transition-all duration-200 ${
+            className={`absolute ${rank ? 'top-9 left-2' : 'top-2 left-2'} z-30 p-1.5 rounded-full backdrop-blur-md transition-all duration-200 ${
               isBookmarked
-                ? 'bg-red-600/90 text-white shadow-lg shadow-red-900/50 scale-110'
-                : 'bg-black/60 text-zinc-300 hover:text-red-500 hover:bg-black/80 hover:scale-110'
+                ? 'bg-[#E50914] text-white shadow-lg scale-105'
+                : 'bg-black/60 text-zinc-300 hover:text-white hover:bg-black/90 hover:scale-105'
             }`}
           >
             <Heart className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-white' : ''}`} />
           </button>
 
-          {/* Quality & Type Badges (Top Right) */}
+          {/* Quality & Type Badges */}
           <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
-            <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-red-600/90 text-white rounded shadow-sm backdrop-blur-md border border-red-500/30">
-              {movie.subjectType === 1 ? 'WEB-DL 1080p' : 'HD'}
+            <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-wide bg-black/80 text-zinc-200 rounded backdrop-blur-md border border-white/10">
+              {movie.subjectType === 1 ? '1080p' : 'HD'}
             </span>
-            {!rank && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black/70 text-zinc-300 rounded backdrop-blur-md border border-white/10">
-                {movie.subjectType === 1 ? 'Movie' : 'TV'}
-              </span>
-            )}
           </div>
 
           {/* Main Image */}
@@ -66,21 +61,22 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
             alt={movie.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition-transform duration-500 group-hover/card:scale-110"
+            className="object-cover transition-transform duration-500 ease-out group-hover/card:scale-105"
             priority={priority}
             loading={priority ? 'eager' : 'lazy'}
           />
 
-          {/* Desktop Hover Overlay (Play Icon) */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <PlayCircle className="w-12 h-12 text-white fill-white/20 drop-shadow-lg transform scale-90 group-hover/card:scale-100 transition-transform duration-300" />
+          {/* Desktop Hover Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <div className="p-2.5 bg-[#E50914] rounded-full text-white shadow-xl transform scale-90 group-hover/card:scale-100 transition-transform duration-300">
+              <PlayCircle className="w-7 h-7 fill-white/20" />
+            </div>
           </div>
         </div>
 
-        {/* INFO DETAILS (Always Visible Below Poster) */}
-        {/* Solves Mobile Visibility Issue */}
-        <div className="mt-3 px-1">
-          <h3 className="text-sm font-semibold text-gray-100 line-clamp-1 group-hover/card:text-red-500 transition-colors" title={movie.title}>
+        {/* INFO DETAILS */}
+        <div className="mt-2.5 px-0.5">
+          <h3 className="text-xs sm:text-sm font-bold text-zinc-200 line-clamp-1 group-hover/card:text-white transition-colors" title={movie.title}>
             {movie.title}
           </h3>
 

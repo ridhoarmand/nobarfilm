@@ -918,6 +918,33 @@ export const movieBoxService = {
             }
           }
 
+          if (captions.length === 0) {
+            try {
+              console.log(`[MovieBox SDK] captions is empty from H5. Fetching fallback captions from Mobile BFF API...`);
+              const extCapRes = await callMobileApi('GET', '/wefeed-mobile-bff/subject-api/get-ext-captions', {
+                subjectId,
+                season: resolvedSeason.toString(),
+                episode: resolvedEpisode.toString(),
+              }, null, true, clientToken);
+
+              if (extCapRes && Array.isArray(extCapRes.data)) {
+                captions = extCapRes.data
+                  .map((item: any, index: number) => ({
+                    id: String(item.id || `ext-cap-${index}`),
+                    lan: String(item.lan || ''),
+                    lanName: String(item.lanName || item.lan || ''),
+                    url: String(item.url || ''),
+                    size: String(item.size || '0'),
+                    delay: 0,
+                  }))
+                  .filter((item: any) => Boolean(item.url));
+                console.log(`[MovieBox SDK] Mobile BFF fallback captions retrieved: ${captions.length} captions`);
+              }
+            } catch (extErr: any) {
+              console.warn(`[MovieBox SDK] Mobile BFF fallback captions failed:`, extErr.message);
+            }
+          }
+
           const data: SourcesResponse = {
             downloads,
             captions,
@@ -982,7 +1009,6 @@ export const movieBoxService = {
       }));
 
       let captions: Caption[] = [];
-      
       if (downloads.length > 0) {
         const streamId = downloads[0].id;
         try {
@@ -1006,6 +1032,32 @@ export const movieBoxService = {
           }
         } catch (capErr: any) {
           console.error(`[MovieBox SDK] Failed to fetch captions for streamId ${streamId}:`, capErr.message);
+        }
+      }
+
+      if (captions.length === 0) {
+        try {
+          console.log(`[MovieBox SDK] Mobile API captions empty. Fetching ext captions fallback...`);
+          const extCapRes = await callMobileApi('GET', '/wefeed-mobile-bff/subject-api/get-ext-captions', {
+            subjectId,
+            season: resolvedSeason.toString(),
+            episode: resolvedEpisode.toString(),
+          }, null, true, clientToken);
+
+          if (extCapRes && Array.isArray(extCapRes.data)) {
+            captions = extCapRes.data
+              .map((item: any, index: number) => ({
+                id: String(item.id || `ext-cap-${index}`),
+                lan: String(item.lan || ''),
+                lanName: String(item.lanName || item.lan || ''),
+                url: String(item.url || ''),
+                size: String(item.size || '0'),
+                delay: 0,
+              }))
+              .filter((item: any) => Boolean(item.url));
+          }
+        } catch (extErr: any) {
+          console.warn(`[MovieBox SDK] Mobile BFF ext captions fallback failed:`, extErr.message);
         }
       }
 
