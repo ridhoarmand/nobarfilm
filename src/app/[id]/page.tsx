@@ -8,7 +8,7 @@ import { SeasonSelector } from '@/components/detail/SeasonSelector';
 import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Calendar, Clock, Download } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Download, Globe } from 'lucide-react';
 
 export default function DetailPage() {
   const params = useParams();
@@ -17,6 +17,8 @@ export default function DetailPage() {
 
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [downloadParams, setDownloadParams] = useState({ season: 0, episode: 0 });
+  const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const openDownloadModal = (season = 0, episode = 0) => {
     setDownloadParams({ season, episode });
@@ -109,7 +111,10 @@ export default function DetailPage() {
                   </div>
                 )}
 
-                <span className="px-3 py-1 bg-zinc-800/80 rounded text-gray-200">{isSeries ? 'Series' : 'Movie'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-red-600/90 text-white font-extrabold rounded text-xs uppercase tracking-wider">{isSeries ? 'HD' : 'WEB-DL 1080p'}</span>
+                  <span className="px-3 py-1 bg-zinc-800/80 rounded text-gray-200 text-xs font-semibold">{isSeries ? 'Series' : 'Movie'}</span>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -170,8 +175,39 @@ export default function DetailPage() {
               {/* Description */}
               {subject.description && (
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-4">Synopsis</h2>
-                  <p className="text-gray-300 leading-relaxed">{subject.description}</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-white">Synopsis</h2>
+                    <button
+                      onClick={async () => {
+                        if (translatedSynopsis) {
+                          setTranslatedSynopsis(null);
+                          return;
+                        }
+                        try {
+                          setIsTranslating(true);
+                          const res = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: subject.description }),
+                          });
+                          const data = await res.json();
+                          if (data.translatedText) {
+                            setTranslatedSynopsis(data.translatedText);
+                          }
+                        } catch (e) {
+                          console.error('Translation error:', e);
+                        } finally {
+                          setIsTranslating(false);
+                        }
+                      }}
+                      disabled={isTranslating}
+                      className="text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      {isTranslating ? 'Menerjemahkan...' : translatedSynopsis ? 'Lihat Teks Asli' : 'Terjemahkan ke Indonesia'}
+                    </button>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed">{translatedSynopsis || subject.description}</p>
                 </div>
               )}
 

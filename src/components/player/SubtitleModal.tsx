@@ -41,9 +41,14 @@ export function SubtitleModal({
   const [activeTab, setActiveTab] = useState<'list' | 'search' | 'upload'>('list');
   const [isUploading, setIsUploading] = useState(false);
 
-  if (!isOpen) return null;
-
   const encodedTitle = encodeURIComponent(title);
+
+  // Filter captions to English & Indonesian only
+  const filteredCaptions = captions.filter((cap) => {
+    const name = (cap.lanName || '').toLowerCase();
+    const code = (cap.lan || '').toLowerCase();
+    return name.includes('indonesia') || code.includes('id') || name.includes('english') || code.includes('en');
+  });
 
   const externalSearchLinks = [
     {
@@ -136,7 +141,7 @@ export function SubtitleModal({
                 : 'border-transparent text-zinc-400 hover:text-zinc-200',
             )}
           >
-            <FileText className="w-4 h-4" /> Bawaan ({captions.length})
+            <FileText className="w-4 h-4" /> Bawaan ({filteredCaptions.length})
           </button>
           <button
             onClick={() => setActiveTab('search')}
@@ -185,7 +190,7 @@ export function SubtitleModal({
               </button>
 
               {customSubtitles.map((custom, idx) => {
-                const customIndex = captions.length + idx;
+                const customIndex = filteredCaptions.length + idx;
                 const active = selectedIndex === customIndex;
                 return (
                   <div
@@ -206,8 +211,8 @@ export function SubtitleModal({
                 );
               })}
 
-              {captions.length > 0 ? (
-                captions.map((cap, idx) => {
+              {filteredCaptions.length > 0 ? (
+                filteredCaptions.map((cap, idx) => {
                   const active = selectedIndex === idx;
                   const subtitleFilename = `${title}_${cap.lanName || cap.lan}.srt`;
                   return (

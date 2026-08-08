@@ -22,15 +22,17 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
             </div>
           )}
 
-          {/* Type Badge (Top Right) */}
-          {/* Only show if NOT ranked to avoid clutter, or keep small */}
-          {!rank && (
-            <div className="absolute top-2 right-2 z-20 opacity-90">
-              <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-black/60 text-white rounded backdrop-blur-md border border-white/10">
+          {/* Quality & Type Badges (Top Right) */}
+          <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+            <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-red-600/90 text-white rounded shadow-sm backdrop-blur-md border border-red-500/30">
+              {movie.subjectType === 1 ? 'WEB-DL 1080p' : 'HD'}
+            </span>
+            {!rank && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black/70 text-zinc-300 rounded backdrop-blur-md border border-white/10">
                 {movie.subjectType === 1 ? 'Movie' : 'TV'}
               </span>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Main Image */}
           <Image 

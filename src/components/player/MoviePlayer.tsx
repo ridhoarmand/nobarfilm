@@ -14,6 +14,8 @@ interface MoviePlayerProps {
     default?: boolean;
   }>;
   activeSubtitleIndex?: number | null;
+  subtitleDelay?: number;
+  subtitlePosition?: number;
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
@@ -25,6 +27,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   src,
   subtitles = [],
   activeSubtitleIndex,
+  subtitleDelay = 0,
+  subtitlePosition = 85,
   poster,
   onEnded,
   onProgress,
@@ -125,10 +129,27 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     };
   }, [currentSrc, autoPlay]);
 
-  // Handle active subtitle track selection from parent
+  // Handle active subtitle track selection & position styling
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !video.textTracks) return;
+
+    let styleEl = document.getElementById('nobar-subtitle-style') as HTMLStyleElement;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'nobar-subtitle-style';
+      document.head.appendChild(styleEl);
+    }
+
+    styleEl.innerHTML = `
+      video::cue {
+        line: ${subtitlePosition}%;
+        font-size: 1.1rem;
+        background: rgba(0, 0, 0, 0.75);
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+      }
+    `;
 
     const timer = setTimeout(() => {
       for (let i = 0; i < video.textTracks.length; i++) {
@@ -141,7 +162,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [activeSubtitleIndex, subtitles]);
+  }, [activeSubtitleIndex, subtitles, subtitlePosition]);
 
   // Expose video DOM element to the ref
   useEffect(() => {

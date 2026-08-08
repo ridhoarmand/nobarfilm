@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Check, Download, Search } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Check, Download, Search, Clock } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { SubtitleModal } from '@/components/player/SubtitleModal';
@@ -41,10 +41,23 @@ function WatchContent() {
     enabled: !!subjectId && !isLoadingDetail,
   });
 
+  const [subtitleDelay, setSubtitleDelay] = useState(0);
+  const [subtitlePosition, setSubtitlePosition] = useState(85);
+  const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
   const availableSeasons = useMemo(() => playerMetadata?.seasons || [], [playerMetadata]);
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
   const availableQualities = useMemo(() => playerMetadata?.qualities || [], [playerMetadata]);
   const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
+
+  // Audio Filter: Original & Indonesian only
+  const filteredAudioOptions = useMemo(() => {
+    return audioOptions.filter((opt) => {
+      const label = (opt.label || '').toLowerCase();
+      return label.includes('original') || label.includes('indonesia');
+    });
+  }, [audioOptions]);
 
   const [activeEpisodeRange, setActiveEpisodeRange] = useState(0);
 
@@ -115,6 +128,16 @@ function WatchContent() {
     enabled: !!subjectId && !isLoadingDetail,
   });
 
+  // Subtitle Filter: English & Indonesian only
+  const filteredCaptions = useMemo(() => {
+    const raw = playbackData?.captions || [];
+    return raw.filter((cap) => {
+      const name = (cap.lanName || '').toLowerCase();
+      const code = (cap.lan || '').toLowerCase();
+      return name.includes('indonesia') || code.includes('id') || name.includes('english') || code.includes('en');
+    });
+  }, [playbackData?.captions]);
+
   // Auto-select Indonesian subtitle (in_id, id, indonesia) as default subtitle
   useEffect(() => {
     if (playbackData?.captions && playbackData.captions.length > 0) {
@@ -132,7 +155,7 @@ function WatchContent() {
   }, [playbackData?.captions]);
 
   const formattedSubtitles = useMemo(() => {
-    const builtInSubs = (playbackData?.captions || []).map((cap) => ({
+    const builtInSubs = filteredCaptions.map((cap) => ({
       kind: 'subtitles',
       label: cap.lanName || cap.lan,
       srcLang: cap.lan,
@@ -149,7 +172,7 @@ function WatchContent() {
     }));
 
     return [...builtInSubs, ...uploadedSubs];
-  }, [playbackData, customSubtitles]);
+  }, [filteredCaptions, customSubtitles]);
 
   const subject = detail?.subject;
 
@@ -236,6 +259,8 @@ function WatchContent() {
             initialTime={resumeTime}
             subtitles={formattedSubtitles}
             activeSubtitleIndex={selectedSubtitleIndex}
+            subtitleDelay={subtitleDelay}
+            subtitlePosition={subtitlePosition}
             onProgress={handleProgress}
             onEnded={() => {}}
           />
@@ -247,10 +272,10 @@ function WatchContent() {
         )}
       </div>
 
-      {/* Control Panel: Season, Episode, Quality, Audio, Subtitle */}
+      {/* Control Panel: User-Friendly Dropdowns & Subtitle Controls */}
       {(playerMetadata || playbackData) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-md space-y-6">
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-md space-y-5">
             
             {/* Header */}
             <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5">
@@ -258,89 +283,10 @@ function WatchContent() {
                 <Sliders className="w-4 h-4 text-red-500" />
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider">Pengaturan Media & Player</h2>
               </div>
-              {playbackData?.streamUrl && (
-                <span className="text-xs text-green-400 bg-green-950/60 border border-green-800/50 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live Streaming
-                </span>
-              )}
-            </div>
-
-            {/* 1. Subtitle / Caption Selector & Download Menu */}
-            <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px] pt-1.5">
-                <MessageSquare className="w-4 h-4 text-red-500" /> Subtitle
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setSelectedSubtitleIndex(null)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5',
-                    selectedSubtitleIndex === null
-                      ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                  )}
-                >
-                  Matikan Subtitle
-                </button>
-                {playbackData?.captions && playbackData.captions.length > 0 ? (
-                  playbackData.captions.map((cap, idx) => {
-                    const active = selectedSubtitleIndex === idx;
-                    const subtitleName = (subject?.title || 'subtitle') + '_' + (cap.lanName || cap.lan);
-                    return (
-                      <div key={cap.id || idx} className="inline-flex items-center rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden shadow-sm">
-                        <button
-                          onClick={() => setSelectedSubtitleIndex(idx)}
-                          className={cn(
-                            'px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1.5 border-r border-zinc-800/80',
-                            active
-                              ? 'bg-red-600 text-white font-semibold'
-                              : 'text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                          )}
-                        >
-                          {active && <Check className="w-3.5 h-3.5 text-white" />}
-                          {cap.lanName || cap.lan}
-                        </button>
-                        <a
-                          href={`/api/subtitle?url=${encodeURIComponent(cap.url)}&download=true&format=srt&filename=${encodeURIComponent(subtitleName + '.srt')}`}
-                          download={`${subtitleName}.srt`}
-                          title={`Download Subtitle ${cap.lanName || cap.lan} (.srt)`}
-                          className="px-2.5 py-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Download className="w-3.5 h-3.5 text-zinc-400 hover:text-red-400" />
-                          <span className="text-[10px] text-zinc-400 uppercase font-semibold">SRT</span>
-                        </a>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <span className="text-xs text-zinc-500 italic">Tidak ada subtitle bawaan</span>
-                )}
-
-                {/* Custom Subtitles buttons if uploaded */}
-                {customSubtitles.map((custom, idx) => {
-                  const customIndex = (playbackData?.captions?.length || 0) + idx;
-                  const active = selectedSubtitleIndex === customIndex;
-                  return (
-                    <button
-                      key={`custom-${idx}`}
-                      onClick={() => setSelectedSubtitleIndex(customIndex)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5',
-                        active
-                          ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-900/30 font-semibold'
-                          : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                      )}
-                    >
-                      {active && <Check className="w-3.5 h-3.5 text-white" />}
-                      {custom.label}
-                    </button>
-                  );
-                })}
-
-                {/* Button to open Subtitle Search & Upload Modal */}
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsSubtitleModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm ml-auto sm:ml-2"
+                  className="px-3 py-1 rounded-lg text-xs font-semibold border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <Search className="w-3.5 h-3.5" />
                   Cari / Upload Subtitle...
@@ -348,157 +294,174 @@ function WatchContent() {
               </div>
             </div>
 
-            {/* 2. Resolusi / Quality */}
-            {availableQualities.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-zinc-800/40 pt-4">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
-                  <Film className="w-4 h-4 text-red-500" /> Resolusi
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {availableQualities.map((item, idx) => {
-                    const active = qualityIndex === idx;
-                    return (
-                      <button
-                        key={item}
-                        onClick={() => setQualityIndex(idx)}
-                        className={cn(
-                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1',
-                          active
-                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                        )}
-                      >
-                        {item >= 720 && <span className="text-[10px] bg-white/20 px-1 rounded mr-0.5">HD</span>}
-                        {item}p
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* Grid 1: Media Selectors (Subtitle, Audio, Quality, Season, Episode) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. Subtitle Dropdown */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-red-500" /> Subtitle
+                </label>
+                <select
+                  value={selectedSubtitleIndex === null ? 'off' : selectedSubtitleIndex}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedSubtitleIndex(val === 'off' ? null : parseInt(val, 10));
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                >
+                  <option value="off">🚫 Matikan Subtitle</option>
+                  {filteredCaptions.map((cap, idx) => (
+                    <option key={cap.id || idx} value={idx}>
+                      💬 {cap.lanName || cap.lan}
+                    </option>
+                  ))}
+                  {customSubtitles.map((custom, idx) => (
+                    <option key={`custom-${idx}`} value={filteredCaptions.length + idx}>
+                      📁 {custom.label} (Custom Upload)
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {/* 3. Audio / Dubbing */}
-            {audioOptions.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-zinc-800/40 pt-4">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
-                  <Volume2 className="w-4 h-4 text-red-500" /> Audio
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {audioOptions.map((item, idx) => {
-                    const active = audioIndex === idx;
-                    return (
-                      <button
-                        key={item.code}
-                        onClick={() => handleAudioChange(item.code)}
-                        className={cn(
-                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all',
-                          active
-                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                        )}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
+              {/* 2. Audio Dropdown */}
+              {filteredAudioOptions.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-red-500" /> Audio / Dubbing
+                  </label>
+                  <select
+                    value={audioIndex}
+                    onChange={(e) => {
+                      const idx = parseInt(e.target.value, 10);
+                      const targetAudio = filteredAudioOptions[idx];
+                      if (targetAudio) handleAudioChange(targetAudio.code);
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                  >
+                    {filteredAudioOptions.map((item, idx) => (
+                      <option key={item.code} value={idx}>
+                        🔊 {item.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* 4. Season Selector (Series Only) */}
-            {isSeries && availableSeasons.length > 1 && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-zinc-800/40 pt-4">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
-                  <Tv className="w-4 h-4 text-red-500" /> Season
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {availableSeasons.map((item) => {
-                    const active = item === (effectiveSeason ?? item);
-                    return (
-                      <button
-                        key={item}
-                        onClick={() => {
-                          setQualityIndex(0);
-                          const params = new URLSearchParams(searchParams.toString());
-                          params.set('season', String(item));
-                          params.set('episode', '1');
-                          router.replace(`/watch/${subjectId}?${params.toString()}`);
-                        }}
-                        className={cn(
-                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all',
-                          active
-                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                        )}
-                      >
+              {/* 3. Resolution Dropdown */}
+              {availableQualities.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-red-500" /> Resolusi Video
+                  </label>
+                  <select
+                    value={qualityIndex}
+                    onChange={(e) => setQualityIndex(parseInt(e.target.value, 10))}
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                  >
+                    {availableQualities.map((item, idx) => (
+                      <option key={item} value={idx}>
+                        📺 {item}p {item >= 720 ? '(HD WEB-DL)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* 4. Season Dropdown (Series) */}
+              {isSeries && availableSeasons.length > 1 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Tv className="w-3.5 h-3.5 text-red-500" /> Season
+                  </label>
+                  <select
+                    value={effectiveSeason}
+                    onChange={(e) => {
+                      setQualityIndex(0);
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.set('season', e.target.value);
+                      params.set('episode', '1');
+                      router.replace(`/watch/${subjectId}?${params.toString()}`);
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                  >
+                    {availableSeasons.map((item) => (
+                      <option key={item} value={item}>
                         Season {item}
-                      </button>
-                    );
-                  })}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* 5. Episode Selector (Series / Multi-Episode Only) */}
-            {isSeries && availableEpisodes.length > 1 && (
-              <div className="flex flex-col gap-2 border-t border-zinc-800/40 pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 min-w-[100px]">
-                    <Film className="w-4 h-4 text-red-500" /> Episode
-                  </span>
-                  
-                  {episodeChunks.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mr-1">Range:</span>
-                      {episodeChunks.map((chunk, idx) => {
-                        const start = chunk[0];
-                        const end = chunk[chunk.length - 1];
-                        const active = idx === activeEpisodeRange;
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => setActiveEpisodeRange(idx)}
-                            className={cn(
-                              'px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
-                              active
-                                ? 'bg-zinc-700 border-zinc-500 text-white font-bold'
-                                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200',
-                            )}
-                          >
-                            {start} - {end}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+              {/* 5. Episode Dropdown (Series) */}
+              {isSeries && availableEpisodes.length > 1 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-red-500" /> Episode
+                  </label>
+                  <select
+                    value={effectiveEpisode}
+                    onChange={(e) => {
+                      setQualityIndex(0);
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.set('episode', e.target.value);
+                      router.replace(`/watch/${subjectId}?${params.toString()}`);
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                  >
+                    {availableEpisodes.map((item) => (
+                      <option key={item} value={item}>
+                        Episode {item}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              )}
+            </div>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1 sm:pl-[116px]">
-                  {(episodeChunks[activeEpisodeRange] || availableEpisodes).map((item) => {
-                    const active = item === (effectiveEpisode ?? item);
-                    return (
-                      <button
-                        key={item}
-                        onClick={() => {
-                          setQualityIndex(0);
-                          const params = new URLSearchParams(searchParams.toString());
-                          params.set('episode', String(item));
-                          router.replace(`/watch/${subjectId}?${params.toString()}`);
-                        }}
-                        className={cn(
-                          'px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all min-w-[42px]',
-                          active
-                            ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30 font-semibold'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white',
-                        )}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* Grid 2: Subtitle Controls (Delay & Position) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-zinc-800/60">
+              {/* Subtitle Sync Delay */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-red-500" /> Kecepatan / Delay Subtitle (Sync)
+                </label>
+                <select
+                  value={subtitleDelay}
+                  onChange={(e) => setSubtitleDelay(parseFloat(e.target.value))}
+                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                >
+                  <option value={-5}>⚡ -5.0s (Lebih Cepat 5 Detik)</option>
+                  <option value={-3}>⚡ -3.0s (Lebih Cepat 3 Detik)</option>
+                  <option value={-2}>⚡ -2.0s (Lebih Cepat 2 Detik)</option>
+                  <option value={-1}>⚡ -1.0s (Lebih Cepat 1 Detik)</option>
+                  <option value={-0.5}>⚡ -0.5s (Lebih Cepat 0.5 Detik)</option>
+                  <option value={0}>⏱️ 0.0s (Normal / Default)</option>
+                  <option value={0.5}>🐢 +0.5s (Lambat 0.5 Detik)</option>
+                  <option value={1}>🐢 +1.0s (Lambat 1 Detik)</option>
+                  <option value={2}>🐢 +2.0s (Lambat 2 Detik)</option>
+                  <option value={3}>🐢 +3.0s (Lambat 3 Detik)</option>
+                  <option value={5}>🐢 +5.0s (Lambat 5 Detik)</option>
+                </select>
               </div>
-            )}
+
+              {/* Subtitle Vertical Position */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-red-500" /> Posisi Ketinggian Subtitle
+                </label>
+                <select
+                  value={subtitlePosition}
+                  onChange={(e) => setSubtitlePosition(parseInt(e.target.value, 10))}
+                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                >
+                  <option value={90}>⬇️ Sangat Bawah (90%)</option>
+                  <option value={85}>📍 Bawah Normal (85%)</option>
+                  <option value={75}>⬆️ Sedikit Ke Atas (75%)</option>
+                  <option value={20}>🔝 Posisi Atas (20%)</option>
+                </select>
+              </div>
+            </div>
 
           </div>
         </div>
@@ -521,6 +484,7 @@ function WatchContent() {
 
             {/* Meta Row */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2">
+              <span className="text-xs px-2 py-0.5 bg-red-600/90 text-white font-extrabold rounded">WEB-DL 1080p</span>
               {releaseYear && (
                 <span className="text-sm text-zinc-400">{releaseYear}</span>
               )}
@@ -555,11 +519,45 @@ function WatchContent() {
               </div>
             )}
 
-            {/* Description */}
+            {/* Description & Translation */}
             {subject?.description && (
-              <p className="mt-3 text-sm text-zinc-400 leading-relaxed line-clamp-4 sm:line-clamp-none">
-                {subject.description}
-              </p>
+              <div className="mt-3">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Sinopsis</span>
+                  <button
+                    onClick={async () => {
+                      if (translatedSynopsis) {
+                        setTranslatedSynopsis(null);
+                        return;
+                      }
+                      try {
+                        setIsTranslating(true);
+                        const res = await fetch('/api/translate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ text: subject.description }),
+                        });
+                        const data = await res.json();
+                        if (data.translatedText) {
+                          setTranslatedSynopsis(data.translatedText);
+                        }
+                      } catch (e) {
+                        console.error('Translation error:', e);
+                      } finally {
+                        setIsTranslating(false);
+                      }
+                    }}
+                    disabled={isTranslating}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1 shadow-sm"
+                  >
+                    <Globe className="w-3 h-3" />
+                    {isTranslating ? 'Menerjemahkan...' : translatedSynopsis ? 'Lihat Teks Asli' : 'Terjemahkan ke Indonesia'}
+                  </button>
+                </div>
+                <p className="text-sm text-zinc-300 leading-relaxed">
+                  {translatedSynopsis || subject.description}
+                </p>
+              </div>
             )}
 
             {/* Directors */}
