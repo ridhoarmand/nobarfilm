@@ -1,7 +1,9 @@
+'use client';
 import { Subject } from '@/types/api';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, PlayCircle } from 'lucide-react';
+import { Star, PlayCircle, Heart } from 'lucide-react';
+import { useWatchlist } from '@/hooks/useWatchlist';
 
 interface MovieCardProps {
   movie: Subject;
@@ -10,17 +12,41 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const isBookmarked = isInWatchlist(movie.subjectId);
+
   return (
     <div className="w-full">
       <Link href={`/${movie.subjectId}`} className="group/card block w-full relative">
+        {/* Ambient Neon Glow Backdrop */}
+        <div className="absolute -inset-1 bg-gradient-to-r from-red-600 to-red-900 rounded-xl blur-md opacity-0 group-hover/card:opacity-75 transition duration-500 group-hover/card:duration-200" />
+
         {/* POSTER IMAGE CONTAINER */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-600/50 group-hover/card:shadow-red-900/20 group-hover/card:-translate-y-1" style={{ position: 'relative' }}>
+        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900/50 shadow-lg ring-1 ring-white/10 transition-all duration-300 group-hover/card:ring-red-500 group-hover/card:shadow-[0_0_25px_rgba(220,38,38,0.4)] group-hover/card:-translate-y-1.5" style={{ position: 'relative' }}>
           {/* Rank Badge - Top Left (Consistent & Readable) */}
           {rank && (
             <div className="absolute top-0 left-0 z-30 bg-red-600 shadow-lg flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-br-xl">
               <span className="text-lg sm:text-xl font-black text-white">{rank}</span>
             </div>
           )}
+
+          {/* Bookmark Heart Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleWatchlist(movie);
+            }}
+            title={isBookmarked ? 'Hapus dari Favorit' : 'Simpan ke Favorit'}
+            className={`absolute ${rank ? 'top-10 left-2' : 'top-2 left-2'} z-30 p-2 rounded-full backdrop-blur-md transition-all duration-200 ${
+              isBookmarked
+                ? 'bg-red-600/90 text-white shadow-lg shadow-red-900/50 scale-110'
+                : 'bg-black/60 text-zinc-300 hover:text-red-500 hover:bg-black/80 hover:scale-110'
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-white' : ''}`} />
+          </button>
 
           {/* Quality & Type Badges (Top Right) */}
           <div className="absolute top-2 right-2 z-20 flex items-center gap-1">

@@ -3,9 +3,8 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Check, Download, Search, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Search, Clock, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
 import { SubtitleModal } from '@/components/player/SubtitleModal';
 
 function WatchContent() {
@@ -45,6 +44,8 @@ function WatchContent() {
   const [subtitlePosition, setSubtitlePosition] = useState(85);
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [showResumeToast, setShowResumeToast] = useState(true);
+  const [isAdvancedSubtitleOpen, setIsAdvancedSubtitleOpen] = useState(false);
 
   const availableSeasons = useMemo(() => playerMetadata?.seasons || [], [playerMetadata]);
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
@@ -234,6 +235,16 @@ function WatchContent() {
   const directors = subject?.staffList?.filter((s) => s.staffType === 1) ?? [];
   const cast = subject?.staffList?.filter((s) => s.staffType === 2).slice(0, 6) ?? [];
 
+  const hasNextEpisode = isSeries && availableEpisodes.length > 0 && effectiveEpisode < availableEpisodes.length;
+
+  const handleNextEpisode = () => {
+    if (!hasNextEpisode) return;
+    setQualityIndex(0);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('episode', String(effectiveEpisode + 1));
+    router.replace(`/watch/${subjectId}?${params.toString()}`);
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950">
       {/* Top Navigation Bar */}
@@ -262,7 +273,11 @@ function WatchContent() {
             subtitleDelay={subtitleDelay}
             subtitlePosition={subtitlePosition}
             onProgress={handleProgress}
-            onEnded={() => {}}
+            hasNextEpisode={hasNextEpisode}
+            onNextEpisode={handleNextEpisode}
+            onEnded={() => {
+              if (hasNextEpisode) handleNextEpisode();
+            }}
           />
         ) : (
           <div className="w-full max-w-7xl mx-auto aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
@@ -271,6 +286,35 @@ function WatchContent() {
           </div>
         )}
       </div>
+
+      {/* Floating Resume Toast Notification */}
+      {showResumeToast && resumeTime > 5 && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-zinc-900/95 border border-red-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-xl animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-xs font-semibold">
+              Melanjutkan dari {Math.floor(resumeTime / 60)}:{String(Math.floor(resumeTime % 60)).padStart(2, '0')}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const video = document.querySelector('video');
+              if (video) video.currentTime = 0;
+              setShowResumeToast(false);
+            }}
+            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md"
+          >
+            Putar Awal
+          </button>
+          <button
+            onClick={() => setShowResumeToast(false)}
+            className="text-zinc-400 hover:text-white p-0.5"
+            title="Tutup Notifikasi"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Control Panel: User-Friendly Dropdowns & Subtitle Controls */}
       {(playerMetadata || playbackData) && (
@@ -419,48 +463,64 @@ function WatchContent() {
               )}
             </div>
 
-            {/* Grid 2: Subtitle Controls (Delay & Position) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-zinc-800/60">
-              {/* Subtitle Sync Delay */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-red-500" /> Kecepatan / Delay Subtitle (Sync)
-                </label>
-                <select
-                  value={subtitleDelay}
-                  onChange={(e) => setSubtitleDelay(parseFloat(e.target.value))}
-                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
-                >
-                  <option value={-5}>⚡ -5.0s (Lebih Cepat 5 Detik)</option>
-                  <option value={-3}>⚡ -3.0s (Lebih Cepat 3 Detik)</option>
-                  <option value={-2}>⚡ -2.0s (Lebih Cepat 2 Detik)</option>
-                  <option value={-1}>⚡ -1.0s (Lebih Cepat 1 Detik)</option>
-                  <option value={-0.5}>⚡ -0.5s (Lebih Cepat 0.5 Detik)</option>
-                  <option value={0}>⏱️ 0.0s (Normal / Default)</option>
-                  <option value={0.5}>🐢 +0.5s (Lambat 0.5 Detik)</option>
-                  <option value={1}>🐢 +1.0s (Lambat 1 Detik)</option>
-                  <option value={2}>🐢 +2.0s (Lambat 2 Detik)</option>
-                  <option value={3}>🐢 +3.0s (Lambat 3 Detik)</option>
-                  <option value={5}>🐢 +5.0s (Lambat 5 Detik)</option>
-                </select>
-              </div>
+            {/* Collapsible Accordion Toggle Button for Advanced Subtitle Controls */}
+            <div className="pt-2 border-t border-zinc-800/60">
+              <button
+                onClick={() => setIsAdvancedSubtitleOpen(!isAdvancedSubtitleOpen)}
+                className="w-full py-2 px-3 bg-zinc-950/60 hover:bg-zinc-850/80 border border-zinc-800/80 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-3.5 h-3.5 text-red-500" />
+                  <span>Pengaturan Lanjutan (Delay Sync & Ketinggian Subtitle)</span>
+                </div>
+                {isAdvancedSubtitleOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
 
-              {/* Subtitle Vertical Position */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-red-500" /> Posisi Ketinggian Subtitle
-                </label>
-                <select
-                  value={subtitlePosition}
-                  onChange={(e) => setSubtitlePosition(parseInt(e.target.value, 10))}
-                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
-                >
-                  <option value={90}>⬇️ Sangat Bawah (90%)</option>
-                  <option value={85}>📍 Bawah Normal (85%)</option>
-                  <option value={75}>⬆️ Sedikit Ke Atas (75%)</option>
-                  <option value={20}>🔝 Posisi Atas (20%)</option>
-                </select>
-              </div>
+              {/* Collapsible Content */}
+              {isAdvancedSubtitleOpen && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 animate-fade-in">
+                  {/* Subtitle Sync Delay */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-red-500" /> Kecepatan / Delay Subtitle (Sync)
+                    </label>
+                    <select
+                      value={subtitleDelay}
+                      onChange={(e) => setSubtitleDelay(parseFloat(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                    >
+                      <option value={-5}>⚡ -5.0s (Lebih Cepat 5 Detik)</option>
+                      <option value={-3}>⚡ -3.0s (Lebih Cepat 3 Detik)</option>
+                      <option value={-2}>⚡ -2.0s (Lebih Cepat 2 Detik)</option>
+                      <option value={-1}>⚡ -1.0s (Lebih Cepat 1 Detik)</option>
+                      <option value={-0.5}>⚡ -0.5s (Lebih Cepat 0.5 Detik)</option>
+                      <option value={0}>⏱️ 0.0s (Normal / Default)</option>
+                      <option value={0.5}>🐢 +0.5s (Lambat 0.5 Detik)</option>
+                      <option value={1}>🐢 +1.0s (Lambat 1 Detik)</option>
+                      <option value={2}>🐢 +2.0s (Lambat 2 Detik)</option>
+                      <option value={3}>🐢 +3.0s (Lambat 3 Detik)</option>
+                      <option value={5}>🐢 +5.0s (Lambat 5 Detik)</option>
+                    </select>
+                  </div>
+
+                  {/* Subtitle Vertical Position */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-red-500" /> Posisi Ketinggian Subtitle
+                    </label>
+                    <select
+                      value={subtitlePosition}
+                      onChange={(e) => setSubtitlePosition(parseInt(e.target.value, 10))}
+                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-white rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-red-500 transition-all cursor-pointer shadow-inner"
+                    >
+                      <option value={90}>⬇️ Sangat Bawah (90%)</option>
+                      <option value={85}>📍 Bawah Normal (85%)</option>
+                      <option value={75}>⬆️ Sedikit Ke Atas (75%)</option>
+                      <option value={20}>🔝 Posisi Atas (20%)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

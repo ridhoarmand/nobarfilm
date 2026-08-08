@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, forwardRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, forwardRef, useSyncExternalStore, useState } from 'react';
 import Hls from 'hls.js';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
+import { RotateCcw, RotateCw, SkipForward } from 'lucide-react';
 
 interface MoviePlayerProps {
   src: string;
@@ -19,6 +20,8 @@ interface MoviePlayerProps {
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
+  onNextEpisode?: () => void;
+  hasNextEpisode?: boolean;
   initialTime?: number;
   autoPlay?: boolean;
 }
@@ -32,9 +35,12 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   poster,
   onEnded,
   onProgress,
+  onNextEpisode,
+  hasNextEpisode = false,
   initialTime = 0,
   autoPlay = false
 }, ref) => {
+  const [seekAnimation, setSeekAnimation] = useState<'rewind' | 'forward' | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Client-side detection without SSR mismatch
@@ -164,6 +170,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     return () => clearTimeout(timer);
   }, [activeSubtitleIndex, subtitles, subtitlePosition]);
 
+  const handleSeek = (seconds: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+    setSeekAnimation(seconds < 0 ? 'rewind' : 'forward');
+    setTimeout(() => setSeekAnimation(null), 800);
+  };
+
   // Expose video DOM element to the ref
   useEffect(() => {
     if (ref) {
@@ -178,7 +192,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   if (!isClient) return <div className="relative w-full aspect-video bg-black rounded-xl" />;
 
   return (
-    <div className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850">
+    <div className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850 group/player">
       <video
         ref={videoRef}
         poster={poster || ''}
@@ -206,6 +220,54 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           />
         ))}
       </video>
+
+      {/* Floating Quick Seek Controls (-10s / +10s) */}
+      <div className="absolute top-1/2 left-4 -translate-y-1/2 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => handleSeek(-10)}
+          className="p-3 bg-black/60 hover:bg-red-600/90 text-white rounded-full backdrop-blur-md border border-white/10 shadow-xl transition-all hover:scale-110 active:scale-95 flex items-center justify-center gap-1 group/btn"
+          title="Mundur 10 Detik"
+        >
+          <RotateCcw className="w-4 h-4 group-hover/btn:-rotate-45 transition-transform" />
+          <span className="text-[11px] font-bold">-10s</span>
+        </button>
+      </div>
+
+      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => handleSeek(10)}
+          className="p-3 bg-black/60 hover:bg-red-600/90 text-white rounded-full backdrop-blur-md border border-white/10 shadow-xl transition-all hover:scale-110 active:scale-95 flex items-center justify-center gap-1 group/btn"
+          title="Maju 10 Detik"
+        >
+          <span className="text-[11px] font-bold">+10s</span>
+          <RotateCw className="w-4 h-4 group-hover/btn:rotate-45 transition-transform" />
+        </button>
+      </div>
+
+      {/* Floating Next Episode Button (Series Only) */}
+      {hasNextEpisode && onNextEpisode && (
+        <div className="absolute top-4 right-4 z-20 opacity-90 hover:opacity-100 transition-opacity pointer-events-auto">
+          <button
+            type="button"
+            onClick={onNextEpisode}
+            className="px-3.5 py-2 bg-red-600/90 hover:bg-red-600 text-white font-bold rounded-xl text-xs shadow-xl backdrop-blur-md border border-red-400/40 transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+          >
+            <span>Episode Selanjutnya</span>
+            <SkipForward className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Animated Ripple Indicator */}
+      {seekAnimation && (
+        <div className={`absolute top-1/2 -translate-y-1/2 z-30 pointer-events-none ${seekAnimation === 'rewind' ? 'left-12' : 'right-12'}`}>
+          <div className="p-3 bg-red-600/80 text-white rounded-full backdrop-blur-md animate-ping flex items-center justify-center font-bold text-xs">
+            {seekAnimation === 'rewind' ? '-10s' : '+10s'}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

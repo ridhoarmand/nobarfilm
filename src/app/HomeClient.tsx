@@ -17,11 +17,14 @@ const SectionSlider = dynamic(() => import('@/components/shared/SectionSlider').
 const MovieCard = dynamic(() => import('@/components/shared/MovieCard').then((mod) => mod.MovieCard));
 const Footer = dynamic(() => import('@/components/layout/Footer').then((mod) => mod.Footer));
 
+import { useWatchlist } from '@/hooks/useWatchlist';
+
 export function HomeClient() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: continueWatchingData } = useContinueWatching();
   const continueWatchingRef = useRef<HTMLDivElement>(null);
+  const { watchlist } = useWatchlist();
   
   // These will now use the prefetched data from HydrationBoundary
   const { data: homeData, isLoading: isHomeLoading, error: homeError } = useMovieBoxHomepage();
@@ -100,6 +103,16 @@ export function HomeClient() {
             )}
 
             <div className="relative -mt-12 sm:-mt-20 lg:-mt-20 pb-16 space-y-12">
+              {/* Favorit Saya (Watchlist - No Login Required) */}
+              {watchlist && watchlist.length > 0 && (
+                <div className="relative z-10">
+                  <SectionSlider
+                    title="❤️ Daftar Favorit Saya"
+                    items={watchlist}
+                  />
+                </div>
+              )}
+
               {user && continueWatchingData && continueWatchingData.length > 0 && (
                 <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
                   <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 pl-1 border-l-4 border-red-600">Continue Watching</h2>
