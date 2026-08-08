@@ -6,6 +6,7 @@ import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Search, Clock, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubtitleModal } from '@/components/player/SubtitleModal';
+import { getCachedSubtitleBlobUrl, cleanSubtitleCache } from '@/lib/subtitleCache';
 
 function WatchContent() {
   const params = useParams();
@@ -155,12 +156,36 @@ function WatchContent() {
     }
   }, [playbackData?.captions]);
 
+  const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    cleanSubtitleCache();
+
+    filteredCaptions.forEach(async (cap) => {
+      if (cap.url) {
+        try {
+          const blobUrl = await getCachedSubtitleBlobUrl(cap.url);
+          if (isMounted) {
+            setCachedSubtitleUrls((prev) => ({ ...prev, [cap.url]: blobUrl }));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [filteredCaptions]);
+
   const formattedSubtitles = useMemo(() => {
     const builtInSubs = filteredCaptions.map((cap) => ({
       kind: 'subtitles',
       label: cap.lanName || cap.lan,
       srcLang: cap.lan,
-      src: `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
+      src: cachedSubtitleUrls[cap.url] || `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
       default: false,
     }));
 
@@ -173,7 +198,7 @@ function WatchContent() {
     }));
 
     return [...builtInSubs, ...uploadedSubs];
-  }, [filteredCaptions, customSubtitles]);
+  }, [filteredCaptions, customSubtitles, cachedSubtitleUrls]);
 
   const subject = detail?.subject;
 
@@ -329,14 +354,29 @@ function WatchContent() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsSubtitleModalOpen(true)}
+                  onClick={() => setIsSubtitleModalOpen(!isSubtitleModalOpen)}
                   className="px-3 py-1 rounded-lg text-xs font-semibold border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  Cari / Upload Subtitle...
+                  {isSubtitleModalOpen ? 'Tutup Panel Subtitle' : 'Cari / Upload Subtitle...'}
                 </button>
               </div>
             </div>
+
+            {/* Inline Subtitle Panel (Non-Blocking) */}
+            <SubtitleModal
+              isOpen={isSubtitleModalOpen}
+              onClose={() => setIsSubtitleModalOpen(false)}
+              title={subject?.title || ''}
+              captions={playbackData?.captions || []}
+              selectedIndex={selectedSubtitleIndex}
+              onSelectSubtitle={(idx) => setSelectedSubtitleIndex(idx)}
+              onCustomSubtitleUpload={(customSub) => {
+                setCustomSubtitles((prev) => [...prev, customSub]);
+                setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
+              }}
+              customSubtitles={customSubtitles}
+            />
 
             {/* Grid 1: Media Selectors (Subtitle, Audio, Quality, Season, Episode) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -638,22 +678,6 @@ function WatchContent() {
           </div>
         </div>
       </div>
-
-      {/* Subtitle Search & Upload Modal */}
-      <SubtitleModal
-        isOpen={isSubtitleModalOpen}
-        onClose={() => setIsSubtitleModalOpen(false)}
-        title={subject?.title || 'Film'}
-        captions={playbackData?.captions || []}
-        selectedIndex={selectedSubtitleIndex}
-        onSelectSubtitle={(idx) => setSelectedSubtitleIndex(idx)}
-        onCustomSubtitleUpload={(newSub) => {
-          const newIdx = (playbackData?.captions?.length || 0) + customSubtitles.length;
-          setCustomSubtitles((prev) => [...prev, newSub]);
-          setSelectedSubtitleIndex(newIdx);
-        }}
-        customSubtitles={customSubtitles}
-      />
     </div>
   );
 }
