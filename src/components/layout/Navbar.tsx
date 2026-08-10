@@ -95,8 +95,13 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo - Netflix Signature Red Branding */}
-          <Link href="/" className="flex-shrink-0 group">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-[#E50914] uppercase transition-all duration-300 hover:text-[#ff1e27]">
+          <Link href="/" className="flex-shrink-0 group flex items-center gap-2.5">
+            <img
+              src="/nobarfilm.jpg"
+              alt="NOBARFILM"
+              className="h-8 sm:h-9 w-8 sm:w-9 rounded-lg object-cover border border-zinc-800/80 shadow-md group-hover:scale-105 transition-transform"
+            />
+            <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-[#E50914] uppercase transition-all duration-300 group-hover:text-[#ff1e27]">
               NOBARFILM
             </h1>
           </Link>

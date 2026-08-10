@@ -10,14 +10,47 @@ import { ClientToaster } from '@/components/layout/ClientToaster';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'NobarFilm - Watch Together',
-  description: 'Stream movies and series together with friends in synchronized watch parties',
-  keywords: 'streaming, watch party, movies, series, synchronized viewing',
+  title: 'NobarFilm 🎬 Nonton Film & Series Subtitle Indonesia Gratis HD',
+  description: 'Platform streaming film dan serial TV subtitle indonesia gratis tanpa iklan dengan kualitas HD!',
+  keywords: 'nobarfilm, streaming film, series subtitle indonesia, nonton anime, nonton film gratis, bioskop online',
   manifest: '/manifest.json',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://nobarfilm.cc'),
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/apple-icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'id_ID',
+    siteName: 'NobarFilm',
+    title: 'NobarFilm 🎬 Nonton Film & Series Subtitle Indonesia Gratis HD',
+    description: 'Platform streaming film dan serial TV subtitle indonesia gratis tanpa iklan dengan kualitas HD!',
+    images: [
+      {
+        url: '/nobarfilm.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'NobarFilm Cinema Streaming',
+      },
+      {
+        url: '/icon-512.png',
+        width: 512,
+        height: 512,
+        alt: 'NobarFilm App Icon',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'NobarFilm 🎬 Nonton Film & Series Subtitle Indonesia Gratis HD',
+    description: 'Platform streaming film dan serial TV subtitle indonesia gratis tanpa iklan dengan kualitas HD!',
+    images: ['/nobarfilm.jpg'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Nobar Film',
+    title: 'NobarFilm',
   },
 };
 

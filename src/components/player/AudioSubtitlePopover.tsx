@@ -46,6 +46,7 @@ export function AudioSubtitlePopover({
   onCustomSubtitleUpload,
 }: AudioSubtitlePopoverProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [subView, setSubView] = useState<'main' | 'other'>('main');
 
   if (!isOpen) return null;
 
@@ -60,13 +61,40 @@ export function AudioSubtitlePopover({
     });
   };
 
+  // Separate Indonesian subtitles from other languages
+  const isIndo = (s: { srcLang: string; label: string; kind?: string }) =>
+    s.kind === 'custom' ||
+    (s.srcLang || '').toLowerCase().includes('id') ||
+    (s.label || '').toLowerCase().includes('indonesia') ||
+    (s.label || '').toLowerCase().includes('indo');
+
+  const indoSubtitles = subtitles
+    .map((sub, originalIdx) => ({ sub, originalIdx }))
+    .filter(({ sub }) => isIndo(sub));
+
+  const otherSubtitles = subtitles
+    .map((sub, originalIdx) => ({ sub, originalIdx }))
+    .filter(({ sub }) => !isIndo(sub));
+
   return (
     <div className="absolute bottom-16 right-4 sm:right-16 z-50 w-[calc(100vw-2rem)] sm:w-[580px] max-h-[80vh] overflow-y-auto bg-zinc-950/95 border border-zinc-800/90 text-white rounded-2xl shadow-2xl backdrop-blur-xl p-4 sm:p-5 animate-fade-in scrollbar-thin">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-4">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-red-500" />
-          <h3 className="font-bold text-sm sm:text-base text-zinc-100">Audio & Subtitle</h3>
+          {subView === 'other' ? (
+            <button
+              type="button"
+              onClick={() => setSubView('main')}
+              className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-lg transition"
+            >
+              ← Kembali
+            </button>
+          ) : (
+            <MessageSquare className="w-5 h-5 text-red-500" />
+          )}
+          <h3 className="font-bold text-sm sm:text-base text-zinc-100">
+            {subView === 'other' ? 'Subtitle Bahasa Lainnya' : 'Audio & Subtitle'}
+          </h3>
         </div>
         <button
           type="button"
@@ -77,110 +105,169 @@ export function AudioSubtitlePopover({
         </button>
       </div>
 
-      {/* Grid Container: 2 Boxes (Stacked on Mobile, Side-by-Side on Desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* ==================================== */}
-        {/* BOX 1: AUDIO TRACKS */}
-        {/* ==================================== */}
-        <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-3 text-red-400 font-bold text-xs uppercase tracking-wider">
-              <Volume2 className="w-4 h-4" />
-              <span>Trek Suara (Audio)</span>
+      {subView === 'other' ? (
+        /* ==================================== */
+        /* SECONDARY VIEW: SUBTITLE LAINNYA */
+        /* ==================================== */
+        <div className="space-y-4 animate-fade-in">
+          <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850">
+            <div className="flex items-center justify-between mb-3 text-red-400 font-bold text-xs uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                <span>Bahasa Lain (English, JP, KR, dll.)</span>
+              </div>
             </div>
 
-            <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-              {audioOptions.length > 0 ? (
-                audioOptions.map((opt) => {
-                  const isActive = opt.code === activeAudioCode;
+            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+              {otherSubtitles.length > 0 ? (
+                otherSubtitles.map(({ sub, originalIdx }) => {
+                  const isActive = activeSubtitleIndex === originalIdx;
                   return (
                     <button
-                      key={opt.code}
+                      key={originalIdx}
                       type="button"
-                      onClick={() => onSelectAudio?.(opt.code)}
+                      onClick={() => {
+                        onSelectSubtitle?.(originalIdx);
+                        try {
+                          localStorage.setItem('nobarfilm_pref_sub_lang', sub.srcLang || sub.label);
+                        } catch (e) {}
+                      }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                         isActive
                           ? 'bg-red-600/90 text-white shadow-md'
                           : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
                       }`}
                     >
-                      <span className="truncate">{opt.label}</span>
+                      <span className="truncate">{sub.label}</span>
                       {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
                     </button>
                   );
                 })
               ) : (
-                <div className="text-xs text-zinc-500 p-2 text-center italic">Audio standar aktif</div>
+                <div className="text-xs text-zinc-500 p-4 text-center italic">
+                  Tidak ada subtitle bahasa lain yang tersedia untuk judul ini
+                </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* ==================================== */}
-        {/* BOX 2: SUBTITLE TRACKS */}
-        {/* ==================================== */}
-        <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3 text-red-400 font-bold text-xs uppercase tracking-wider">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                <span>Teks Terjemahan</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 font-normal lowercase tracking-normal"
-              >
-                <Sliders className="w-3 h-3 text-red-500" />
-                {showAdvanced ? 'Tutup Atur' : 'Atur Teks'}
-              </button>
-            </div>
-
-            <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-              {/* Option Off / Mati */}
-              <button
-                type="button"
-                onClick={() => onSelectSubtitle?.(null)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                  activeSubtitleIndex === null
-                    ? 'bg-red-600/90 text-white shadow-md'
-                    : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                }`}
-              >
-                <span>Nonaktifkan (Mati)</span>
-                {activeSubtitleIndex === null && <Check className="w-4 h-4 text-white flex-shrink-0" />}
-              </button>
-
-              {/* Subtitle List */}
-              {subtitles.map((sub, idx) => {
-                const isActive = activeSubtitleIndex === idx;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => onSelectSubtitle?.(idx)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                      isActive
-                        ? 'bg-red-600/90 text-white shadow-md'
-                        : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <span className="truncate">{sub.label}</span>
-                    {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom Subtitle File Upload */}
-            <label className="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 rounded-lg text-xs text-zinc-300 hover:text-white cursor-pointer transition">
-              <Upload className="w-3.5 h-3.5 text-red-500" />
-              <span>Unggah Subtitle (.srt / .vtt)</span>
+            {/* Custom File Upload Button */}
+            <label className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/80 rounded-lg text-xs font-semibold text-zinc-200 hover:text-white cursor-pointer transition shadow-sm">
+              <Upload className="w-4 h-4 text-red-500" />
+              <span>Unggah Subtitle Manual (.srt / .vtt)</span>
               <input type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" />
             </label>
           </div>
         </div>
-      </div>
+      ) : (
+        /* ==================================== */
+        /* MAIN VIEW: AUDIO & SUBTITLE INDONESIA */
+        /* ==================================== */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* BOX 1: AUDIO TRACKS */}
+          <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-3 text-red-400 font-bold text-xs uppercase tracking-wider">
+                <Volume2 className="w-4 h-4" />
+                <span>Trek Suara (Audio)</span>
+              </div>
+
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {audioOptions.length > 0 ? (
+                  audioOptions.map((opt) => {
+                    const isActive = opt.code === activeAudioCode;
+                    return (
+                      <button
+                        key={opt.code}
+                        type="button"
+                        onClick={() => onSelectAudio?.(opt.code)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                          isActive
+                            ? 'bg-red-600/90 text-white shadow-md'
+                            : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                        }`}
+                      >
+                        <span className="truncate">{opt.label}</span>
+                        {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-zinc-500 p-2 text-center italic">Audio standar aktif</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* BOX 2: SUBTITLE TRACKS (INDONESIA ONLY) */}
+          <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3 text-red-400 font-bold text-xs uppercase tracking-wider">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Subtitle Bahasa Indonesia</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 font-normal lowercase tracking-normal"
+                >
+                  <Sliders className="w-3 h-3 text-red-500" />
+                  {showAdvanced ? 'Tutup Atur' : 'Atur Teks'}
+                </button>
+              </div>
+
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {/* Option Off / Mati */}
+                <button
+                  type="button"
+                  onClick={() => onSelectSubtitle?.(null)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeSubtitleIndex === null
+                      ? 'bg-red-600/90 text-white shadow-md'
+                      : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  <span>Nonaktifkan (Mati)</span>
+                  {activeSubtitleIndex === null && <Check className="w-4 h-4 text-white flex-shrink-0" />}
+                </button>
+
+                {/* Indonesian Subtitle List */}
+                {indoSubtitles.map(({ sub, originalIdx }) => {
+                  const isActive = activeSubtitleIndex === originalIdx;
+                  return (
+                    <button
+                      key={originalIdx}
+                      type="button"
+                      onClick={() => onSelectSubtitle?.(originalIdx)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                        isActive
+                          ? 'bg-red-600/90 text-white shadow-md'
+                          : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                      }`}
+                    >
+                      <span className="truncate">{sub.label}</span>
+                      {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Subtitle Lainnya Navigation Button */}
+              <button
+                type="button"
+                onClick={() => setSubView('other')}
+                className="mt-3 flex items-center justify-between w-full py-2.5 px-3 bg-red-950/40 hover:bg-red-900/50 border border-red-800/40 rounded-lg text-xs text-red-200 hover:text-white font-semibold transition shadow-sm group"
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-red-400" />
+                  <span>Subtitle Lainnya (English, JP, dll.)</span>
+                </div>
+                <span className="text-red-400 group-hover:translate-x-1 transition-transform">→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ADVANCED SUBTITLE CONTROLS (Font Size, Delay, Position) */}
       {showAdvanced && (
