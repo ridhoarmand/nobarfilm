@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { ArrowLeft, Loader2, AlertCircle, Star, Globe, Film, Volume2, MessageSquare, Sliders, Tv, Search, Clock, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Loader2, AlertCircle, Film, X } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubtitleModal } from '@/components/player/SubtitleModal';
 import { getCachedSubtitleBlobUrl, cleanSubtitleCache } from '@/lib/subtitleCache';
@@ -271,22 +271,9 @@ function WatchContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#141414]">
-      {/* Top Navigation Bar */}
-      <div className="sticky top-0 z-50 flex items-center gap-3 px-4 py-3 bg-[#141414]/95 backdrop-blur-md border-b border-zinc-800">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 text-sm transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Kembali
-        </button>
-        <div className="h-4 w-px bg-zinc-700/60" />
-        <span className="text-zinc-200 text-sm font-medium truncate">{displayTitle}</span>
-      </div>
-
-      {/* Player Section */}
-      <div className="bg-black">
+    <div className="h-screen w-screen bg-black overflow-hidden relative flex flex-col justify-center">
+      {/* Pure Full-Bleed Player Container */}
+      <div className="w-full h-full bg-black flex items-center justify-center">
         {playbackData?.streamUrl ? (
           <MoviePlayer
             src={playbackData.streamUrl}
@@ -338,7 +325,7 @@ function WatchContent() {
             onBack={() => router.push(`/${subjectId}`)}
           />
         ) : (
-          <div className="w-full max-w-7xl mx-auto aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
+          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-zinc-500 bg-black">
             <Film className="w-12 h-12" />
             <p className="text-sm">Sumber video tidak tersedia</p>
           </div>
@@ -373,118 +360,6 @@ function WatchContent() {
           </button>
         </div>
       )}
-
-      {/* Movie Info Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-5">
-          {/* Cover Thumbnail - hidden on mobile */}
-          {subject?.cover?.url && (
-            <div className="hidden sm:block flex-none w-28 md:w-36 rounded-xl overflow-hidden bg-zinc-900 shadow-lg self-start">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={subject.cover.url} alt={subject.title} className="w-full h-auto object-cover" />
-            </div>
-          )}
-
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">{subject?.title}</h1>
-
-            {/* Meta Row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2">
-              <span className="text-xs px-2 py-0.5 bg-red-600/90 text-white font-extrabold rounded">WEB-DL 1080p</span>
-              {releaseYear && (
-                <span className="text-sm text-zinc-400">{releaseYear}</span>
-              )}
-              {subject?.imdbRatingValue && parseFloat(subject.imdbRatingValue) > 0 && (
-                <div className="flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                  <span className="text-sm text-zinc-300 font-medium">{subject.imdbRatingValue}</span>
-                  <span className="text-xs text-zinc-500">IMDb</span>
-                </div>
-              )}
-              {subject?.countryName && (
-                <div className="flex items-center gap-1 text-zinc-400 text-sm">
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>{subject.countryName}</span>
-                </div>
-              )}
-              {isSeries && (
-                <span className="text-xs px-2 py-0.5 bg-red-600/20 text-red-400 rounded-full border border-red-600/30">
-                  Series · S{effectiveSeason} E{effectiveEpisode}
-                </span>
-              )}
-            </div>
-
-            {/* Genres */}
-            {genres.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {genres.map((g) => (
-                  <span key={g} className="text-xs px-2.5 py-1 bg-zinc-800 text-zinc-300 rounded-full">
-                    {g}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Description & Translation */}
-            {subject?.description && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Sinopsis</span>
-                  <button
-                    onClick={async () => {
-                      if (translatedSynopsis) {
-                        setTranslatedSynopsis(null);
-                        return;
-                      }
-                      try {
-                        setIsTranslating(true);
-                        const res = await fetch('/api/translate', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ text: subject.description }),
-                        });
-                        const data = await res.json();
-                        if (data.translatedText) {
-                          setTranslatedSynopsis(data.translatedText);
-                        }
-                      } catch (e) {
-                        console.error('Translation error:', e);
-                      } finally {
-                        setIsTranslating(false);
-                      }
-                    }}
-                    disabled={isTranslating}
-                    className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1 shadow-sm"
-                  >
-                    <Globe className="w-3 h-3" />
-                    {isTranslating ? 'Menerjemahkan...' : translatedSynopsis ? 'Lihat Teks Asli' : 'Terjemahkan ke Indonesia'}
-                  </button>
-                </div>
-                <p className="text-sm text-zinc-300 leading-relaxed">
-                  {translatedSynopsis || subject.description}
-                </p>
-              </div>
-            )}
-
-            {/* Directors */}
-            {directors.length > 0 && (
-              <div className="mt-4">
-                <span className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Sutradara</span>
-                <p className="mt-1 text-sm text-zinc-300">{directors.map((d) => d.name).join(', ')}</p>
-              </div>
-            )}
-
-            {/* Cast */}
-            {cast.length > 0 && (
-              <div className="mt-4">
-                <span className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Pemeran</span>
-                <p className="mt-1 text-sm text-zinc-300">{cast.map((c) => c.name).join(', ')}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

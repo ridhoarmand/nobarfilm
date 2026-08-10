@@ -326,6 +326,40 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   };
 
   const [hasVideoError, setHasVideoError] = useState(false);
+  const hasAutoEnteredFullscreen = useRef(false);
+
+  // Lock orientation to landscape during fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = !!document.fullscreenElement || !!(videoRef.current as any)?.webkitDisplayingFullscreen;
+      setIsFullscreen(isFs);
+
+      if (isFs) {
+        try {
+          if ('orientation' in screen && (screen.orientation as any)?.lock) {
+            (screen.orientation as any).lock('landscape').catch(() => {});
+          }
+        } catch {
+          // Ignore orientation lock failures on unsupported devices
+        }
+      } else {
+        try {
+          if ('orientation' in screen && (screen.orientation as any)?.unlock) {
+            (screen.orientation as any).unlock();
+          }
+        } catch {
+          // Ignore unlock errors
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const toggleFullscreen = () => {
     const container = containerRef.current;
@@ -334,11 +368,19 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
     if (!document.fullscreenElement && !(video as any).webkitDisplayingFullscreen) {
       if (container.requestFullscreen) {
-        container.requestFullscreen().catch(() => {
-          if ((video as any).webkitEnterFullscreen) {
-            (video as any).webkitEnterFullscreen();
-          }
-        });
+        container.requestFullscreen()
+          .then(() => {
+            try {
+              if ('orientation' in screen && (screen.orientation as any)?.lock) {
+                (screen.orientation as any).lock('landscape').catch(() => {});
+              }
+            } catch {}
+          })
+          .catch(() => {
+            if ((video as any).webkitEnterFullscreen) {
+              (video as any).webkitEnterFullscreen();
+            }
+          });
       } else if ((video as any).webkitEnterFullscreen) {
         (video as any).webkitEnterFullscreen();
       }
@@ -360,12 +402,12 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   };
 
-  if (!isClient) return <div className="relative w-full aspect-video bg-black rounded-xl" />;
+  if (!isClient) return <div className="relative w-full h-screen bg-black" />;
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850 group/player"
+      className="relative w-full h-full min-h-screen bg-black overflow-hidden group/player flex items-center justify-center"
     >
       <video
         ref={videoRef}
@@ -376,6 +418,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onPlay={() => {
           setIsPlaying(true);
           setHasVideoError(false);
+          // Auto-trigger fullscreen on initial playback start if supported
+          if (!hasAutoEnteredFullscreen.current && !document.fullscreenElement) {
+            hasAutoEnteredFullscreen.current = true;
+            toggleFullscreen();
+          }
         }}
         onPause={() => setIsPlaying(false)}
         onError={() => setHasVideoError(true)}
