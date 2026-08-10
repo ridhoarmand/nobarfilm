@@ -204,13 +204,14 @@ export function useMovieBoxPlaybackUrl(
   const cacheKey = getStreamCacheKey(subjectId, season, episode);
 
   const queryResult = useQuery<PlaybackData, ApiError>({
-    queryKey: ['moviebox', 'playback', subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null] as const,
+    queryKey: ['moviebox', 'playback', subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null, quality] as const,
     queryFn: async () => {
       // Check localStorage cache first
       const cached = getCachedStreamData(cacheKey);
       if (cached) {
+        const targetIndex = quality === -1 ? 0 : quality;
         return {
-          streamUrl: cached.allDownloads?.[quality]?.streamUrl || cached.streamUrl,
+          streamUrl: cached.allDownloads?.[targetIndex]?.streamUrl || cached.streamUrl,
           allDownloads: cached.allDownloads || [],
           captions: cached.captions || [],
           embedUrl: cached.embedUrl,

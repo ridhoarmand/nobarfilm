@@ -42,7 +42,7 @@ function WatchContent() {
   });
 
   const [subtitleDelay, setSubtitleDelay] = useState(0);
-  const [subtitlePosition, setSubtitlePosition] = useState(85);
+  const [subtitlePosition, setSubtitlePosition] = useState(75);
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showResumeToast, setShowResumeToast] = useState(true);
@@ -303,13 +303,19 @@ function WatchContent() {
     router.replace(`/watch/${subjectId}?${params.toString()}`);
   };
 
+  const activeStreamUrl = useMemo(() => {
+    if (!playbackData) return '';
+    if (qualityIndex === -1) return playbackData.streamUrl;
+    return playbackData.allDownloads?.[qualityIndex]?.streamUrl || playbackData.streamUrl;
+  }, [playbackData, qualityIndex]);
+
   return (
     <div className="h-screen w-screen bg-black overflow-hidden relative flex flex-col justify-center">
       {/* Pure Full-Bleed Player Container */}
       <div className="w-full h-full bg-black flex items-center justify-center">
         {playbackData?.streamUrl ? (
           <MoviePlayer
-            src={playbackData.streamUrl}
+            src={activeStreamUrl || playbackData.streamUrl}
             title={displayTitle}
             poster={subject?.coverHorizontalUrl || subject?.cover?.url}
             autoPlay

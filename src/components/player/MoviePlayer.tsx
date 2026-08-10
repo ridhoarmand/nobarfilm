@@ -213,15 +213,56 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         }
       });
     } else {
-      video.src = currentSrc;
-      const onLoaded = () => {
-        restoreTimeAndPlay();
-        video.removeEventListener('loadedmetadata', onLoaded);
+      const savedTime = video.currentTime > 0 ? video.currentTime : savedTimeRef.current;
+      const wasPlaying = !video.paused;
+
+      // Pause video to resolve any pending play() promises
+      video.pause();
+
+      let handled = false;
+      const handleCanPlay = () => {
+        if (handled) return;
+        handled = true;
+
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('loadedmetadata', handleCanPlay);
+
+        if (savedTime > 0) {
+          try {
+            const targetTime = Math.min(savedTime, video.duration || savedTime);
+            if (Number.isFinite(targetTime) && targetTime > 0) {
+              video.currentTime = targetTime;
+            }
+          } catch (err) {
+            console.warn('[Player] Restoring currentTime deferred safely:', err);
+          }
+        }
+
+        if (wasPlaying || autoPlay) {
+          video.play().catch((playErr) => {
+            console.warn('[Player] Auto-resume after quality change handled safely:', playErr);
+          });
+        }
       };
-      video.addEventListener('loadedmetadata', onLoaded);
-      if (video.readyState >= 1) {
-        restoreTimeAndPlay();
+
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('loadedmetadata', handleCanPlay);
+
+      video.src = currentSrc;
+      video.load();
+
+      if (video.readyState >= 2) {
+        handleCanPlay();
       }
+
+      return () => {
+        if (hls) {
+          hls.destroy();
+          hlsRef.current = null;
+        }
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('loadedmetadata', handleCanPlay);
+      };
     }
 
     return () => {
@@ -270,7 +311,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
     styleEl.innerHTML = `
       video::cue {
-        line: ${subtitlePosition}%;
         font-size: ${getFontSizeRem(subtitleFontSize)};
         background: rgba(0, 0, 0, 0.85);
         color: #ffffff;
@@ -279,12 +319,22 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       }
     `;
 
-    // In-memory track mode switching without DOM re-render
+    // In-memory track mode switching & dynamic VTTCue line mutation
     for (let i = 0; i < video.textTracks.length; i++) {
+      const track = video.textTracks[i];
       if (activeSubtitleIndex === i) {
-        video.textTracks[i].mode = 'showing';
+        track.mode = 'showing';
+        if (track.cues) {
+          for (let c = 0; c < track.cues.length; c++) {
+            const cue = track.cues[c] as VTTCue;
+            if (cue) {
+              cue.line = subtitlePosition;
+              cue.snapToLines = false;
+            }
+          }
+        }
       } else {
-        video.textTracks[i].mode = 'disabled';
+        track.mode = 'disabled';
       }
     }
   }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize]);

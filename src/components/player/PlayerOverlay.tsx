@@ -102,7 +102,7 @@ export function PlayerOverlay({
   onSelectSubtitle,
   subtitleDelay = 0,
   onDelayChange,
-  subtitlePosition = 85,
+  subtitlePosition = 75,
   onPositionChange,
   subtitleFontSize = 'md',
   onFontSizeChange,
@@ -201,7 +201,7 @@ export function PlayerOverlay({
 
       {/* CENTER PLAY/PAUSE OVERLAY BUTTON (Visible on tap or pause) */}
       <div
-        className={`relative z-30 flex items-center justify-center gap-6 sm:gap-10 transition-opacity duration-300 ${
+        className={`relative z-30 flex items-center justify-center gap-5 sm:gap-8 transition-opacity duration-300 ${
           isVisible || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -211,10 +211,10 @@ export function PlayerOverlay({
             e.stopPropagation();
             onSeek(Math.max(0, currentTime - 10));
           }}
-          className="p-3 sm:p-4 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+          className="p-2.5 sm:p-4 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-95"
           title="Mundur 10 Detik"
         >
-          <RotateCcw className="w-6 h-6 sm:w-8 sm:h-8" />
+          <RotateCcw className="w-5 h-5 sm:w-7 sm:h-7" />
         </button>
 
         <button
@@ -223,13 +223,13 @@ export function PlayerOverlay({
             e.stopPropagation();
             onTogglePlay();
           }}
-          className="p-4 sm:p-6 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl transition-all hover:scale-110 active:scale-95 border border-white/20"
+          className="p-3.5 sm:p-5 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl transition-all hover:scale-110 active:scale-95 border border-white/20"
           title={isPlaying ? 'Jeda' : 'Putar'}
         >
           {isPlaying ? (
-            <Pause className="w-8 h-8 sm:w-10 sm:h-10 fill-white" />
+            <Pause className="w-6 h-6 sm:w-9 sm:h-9 fill-white" />
           ) : (
-            <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-white ml-1" />
+            <Play className="w-6 h-6 sm:w-9 sm:h-9 fill-white ml-0.5" />
           )}
         </button>
 
@@ -239,10 +239,10 @@ export function PlayerOverlay({
             e.stopPropagation();
             onSeek(Math.min(duration, currentTime + 10));
           }}
-          className="p-3 sm:p-4 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+          className="p-2.5 sm:p-4 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-95"
           title="Maju 10 Detik"
         >
-          <RotateCw className="w-6 h-6 sm:w-8 sm:h-8" />
+          <RotateCw className="w-5 h-5 sm:w-7 sm:h-7" />
         </button>
       </div>
 
