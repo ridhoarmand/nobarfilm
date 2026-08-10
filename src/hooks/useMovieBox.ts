@@ -257,20 +257,5 @@ export function useMovieBoxPlaybackUrl(
     ...options,
   });
 
-  // Dynamically select the active streamUrl based on quality prop without triggering refetch
-  if (queryResult.data?.allDownloads?.length) {
-    const targetIndex = quality === -1 ? 0 : quality;
-    const selected = queryResult.data.allDownloads[targetIndex] || queryResult.data.allDownloads[0];
-    if (selected && selected.streamUrl) {
-      return {
-        ...queryResult,
-        data: {
-          ...queryResult.data,
-          streamUrl: selected.streamUrl,
-        },
-      };
-    }
-  }
-
   return queryResult;
 }

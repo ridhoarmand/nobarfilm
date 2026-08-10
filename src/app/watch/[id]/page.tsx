@@ -141,6 +141,10 @@ function WatchContent() {
     return playbackData?.captions || [];
   }, [playbackData?.captions]);
 
+  const captionUrlsKey = useMemo(() => {
+    return (playbackData?.captions || []).map((c) => c.url).join('|');
+  }, [playbackData?.captions]);
+
   // Auto-select subtitle based on user preference (stored in localStorage), fallback to Indonesian -> English -> First available
   useEffect(() => {
     if (playbackData?.captions && playbackData.captions.length > 0) {
@@ -173,11 +177,9 @@ function WatchContent() {
 
       // Fallback 3: First available caption
       const finalIdx = matchedIdx !== -1 ? matchedIdx : 0;
-      queueMicrotask(() => {
-        setSelectedSubtitleIndex(finalIdx);
-      });
+      setSelectedSubtitleIndex(finalIdx);
     }
-  }, [playbackData?.captions]);
+  }, [captionUrlsKey]);
 
   // Handler for subtitle selection that persists user's language choice
   const handleSubtitleSelect = (idx: number | null) => {
@@ -198,10 +200,12 @@ function WatchContent() {
   const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!captionUrlsKey) return;
     let isMounted = true;
     cleanSubtitleCache();
 
-    filteredCaptions.forEach(async (cap) => {
+    const captions = playbackData?.captions || [];
+    captions.forEach(async (cap) => {
       if (cap.url) {
         try {
           const blobUrl = await getCachedSubtitleBlobUrl(cap.url);
@@ -217,7 +221,7 @@ function WatchContent() {
     return () => {
       isMounted = false;
     };
-  }, [filteredCaptions]);
+  }, [captionUrlsKey]);
 
   const formattedSubtitles = useMemo(() => {
     const builtInSubs = filteredCaptions.map((cap) => ({
