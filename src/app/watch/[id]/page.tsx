@@ -130,14 +130,9 @@ function WatchContent() {
     enabled: !!subjectId && !isLoadingDetail,
   });
 
-  // Subtitle Filter: English & Indonesian only
+  // Allow ALL available captions without restricting languages
   const filteredCaptions = useMemo(() => {
-    const raw = playbackData?.captions || [];
-    return raw.filter((cap) => {
-      const name = (cap.lanName || '').toLowerCase();
-      const code = (cap.lan || '').toLowerCase();
-      return name.includes('indonesia') || code.includes('id') || name.includes('english') || code.includes('en');
-    });
+    return playbackData?.captions || [];
   }, [playbackData?.captions]);
 
   // Auto-select subtitle based on user preference (stored in localStorage), fallback to Indonesian -> English -> First available
