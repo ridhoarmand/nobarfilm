@@ -50,7 +50,6 @@ function WatchContent() {
 
   const availableSeasons = useMemo(() => playerMetadata?.seasons || [], [playerMetadata]);
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
-  const availableQualities = useMemo(() => playerMetadata?.qualities || [], [playerMetadata]);
   const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
 
   // Audio Filter: Original & Indonesian only
@@ -129,6 +128,13 @@ function WatchContent() {
   } = useMovieBoxPlaybackUrl(subjectId, effectiveSeason, effectiveEpisode, qualityIndex, {
     enabled: !!subjectId && !isLoadingDetail,
   });
+
+  const availableQualities = useMemo(() => {
+    if (playbackData?.allDownloads && playbackData.allDownloads.length > 0) {
+      return playbackData.allDownloads.map((item) => item.resolution);
+    }
+    return playerMetadata?.qualities || [];
+  }, [playbackData?.allDownloads, playerMetadata?.qualities]);
 
   // Allow ALL available captions without restricting languages
   const filteredCaptions = useMemo(() => {

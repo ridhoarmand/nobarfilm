@@ -64,7 +64,7 @@ export function normalizeSubject(sub: any): Subject {
     imdbRatingCount: sub.imdbRatingCount || 0,
     hasResource: typeof sub.hasResource === 'boolean' ? sub.hasResource : true,
     detailPath: `/detail/${subjectId}`,
-    h5DetailPath: sub.detailPath || '',
+    h5DetailPath: sub.detailPath || sub.h5DetailPath || sub.path || '',
     staffList: Array.isArray(sub.staffList)
       ? sub.staffList.map((st: any) => ({
           staffId: String(st.staffId || ''),

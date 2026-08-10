@@ -29,8 +29,10 @@ export async function GET(request: NextRequest) {
     // 2. Fetch Sources (Video Downloads & Captions)
     const sources = await movieBoxService.getSources(id, season, episode);
 
+    const origin = request.nextUrl.origin;
+
     const videoDownloads = (sources.downloads || []).map((item) => {
-      const proxyUrl = `https://film.idho.eu.org/api/proxy/video?url=${encodeURIComponent(item.url)}`;
+      const proxyUrl = `${origin}/api/proxy/video?url=${encodeURIComponent(item.url)}`;
       return {
         resolution: `${item.resolution}p`,
         quality: item.resolution,
@@ -59,8 +61,8 @@ export async function GET(request: NextRequest) {
 
     const subtitles = sortedCaptions.map((cap) => {
       const subtitleFilename = `${subject.title || 'subtitle'}_S${season}E${episode}_${cap.lanName || cap.lan}.srt`;
-      const srtDownloadUrl = `https://film.idho.eu.org/api/subtitle?url=${encodeURIComponent(cap.url)}&download=true&format=srt&filename=${encodeURIComponent(subtitleFilename)}`;
-      const vttUrl = `https://film.idho.eu.org/api/subtitle?url=${encodeURIComponent(cap.url)}`;
+      const srtDownloadUrl = `${origin}/api/subtitle?url=${encodeURIComponent(cap.url)}&download=true&format=srt&filename=${encodeURIComponent(subtitleFilename)}`;
+      const vttUrl = `${origin}/api/subtitle?url=${encodeURIComponent(cap.url)}`;
 
       return {
         language: cap.lanName || cap.lan,
