@@ -637,6 +637,8 @@ export const movieBoxService = {
       query.set('subjectId', subjectId);
       query.set('se', resolvedSeason.toString());
       query.set('ep', resolvedEpisode.toString());
+      query.set('lang', 'id');
+      query.set('locale', 'id_ID');
       if (detailPath) {
         query.set('detailPath', detailPath);
       }
@@ -677,7 +679,7 @@ export const movieBoxService = {
           if (downloads.length > 0) {
             const streamId = downloads[0].id;
             try {
-              const captionUrl = `${H5_UPSTREAM}/subject/caption?format=MP4&id=${streamId}&subjectId=${subjectId}${
+              const captionUrl = `${H5_UPSTREAM}/subject/caption?format=MP4&id=${streamId}&subjectId=${subjectId}&lang=id&locale=id_ID${
                 detailPath ? `&detailPath=${detailPath}` : ''
               }`;
               const capRes = await fetch(captionUrl, {
