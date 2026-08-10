@@ -228,12 +228,15 @@ export function useMovieBoxPlaybackUrl(
       const sortedDownloads = [...sources.downloads].sort((a, b) => (b.resolution || 0) - (a.resolution || 0));
 
       // Construct stream URLs using direct CDN URLs (prevents 429 rate limiting & proxy bottlenecks)
-      const referer = `https://lok-lok.cc/spa/videoPlayPage/movies/${subjectId}`;
-      const allDownloads: StreamDownloadItem[] = sortedDownloads.map((item) => ({
-        resolution: item.resolution || 0,
-        url: item.url,
-        streamUrl: item.url,
-      }));
+      const allDownloads: StreamDownloadItem[] = sortedDownloads.map((item) => {
+        const isMobileCdn = item.url.includes('/bt/') || item.url.includes('hcdn');
+        const proxiedUrl = `/api/proxy/video?url=${encodeURIComponent(item.url)}&referer=${encodeURIComponent('https://lok-lok.cc/')}`;
+        return {
+          resolution: item.resolution || 0,
+          url: item.url,
+          streamUrl: isMobileCdn ? proxiedUrl : item.url,
+        };
+      });
 
       const targetIndex = quality === -1 ? 0 : quality;
       const selectedStream = allDownloads[targetIndex]?.streamUrl || allDownloads[0]?.streamUrl || sortedDownloads[0].url;
@@ -252,7 +255,7 @@ export function useMovieBoxPlaybackUrl(
     enabled: !!subjectId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 15, // Keep in memory for 15 minutes
-    retry: 2,
+    retry: false, // Never retry automatically on error
     refetchOnWindowFocus: false,
     ...options,
   });

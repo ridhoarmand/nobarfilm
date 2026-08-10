@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Helper function to convert SRT to VTT
 function srtToVtt(srtContent: string): string {
@@ -26,6 +27,11 @@ function vttToSrt(vttContent: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const rateLimit = checkRateLimit(request, 15, 10000);
+  if (!rateLimit.success && rateLimit.response) {
+    return rateLimit.response;
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
   const format = searchParams.get('format') || 'vtt';
@@ -42,6 +48,7 @@ export async function GET(request: NextRequest) {
         'Referer': 'https://lok-lok.cc/',
         'Origin': 'https://lok-lok.cc',
       },
+      redirect: 'follow',
     });
 
     if (!response.ok) {

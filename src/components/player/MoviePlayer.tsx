@@ -505,7 +505,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   };
 
-  if (!isClient) return <div className="relative w-full h-screen bg-black" />;
+  const hasAttemptedProxy = useRef(false);
+
+  useEffect(() => {
+    hasAttemptedProxy.current = false;
+  }, [currentSrc]);
 
   return (
     <div
@@ -540,8 +544,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           setHasVideoError(false);
         }}
         onError={() => {
-          // If direct CDN stream failed, attempt proxy fallback once
-          if (videoRef.current && currentSrc && !currentSrc.includes('/api/proxy/video')) {
+          // Attempt proxy fallback ONLY ONCE per stream URL to prevent infinite fallback loop
+          if (videoRef.current && currentSrc && !hasAttemptedProxy.current && !currentSrc.includes('/api/proxy/video')) {
+            hasAttemptedProxy.current = true;
             console.warn('[Player] Direct CDN load failed, falling back to proxy stream...');
             const proxyFallbackUrl = `/api/proxy/video?url=${encodeURIComponent(currentSrc)}&referer=${encodeURIComponent('https://lok-lok.cc/')}`;
             videoRef.current.src = proxyFallbackUrl;

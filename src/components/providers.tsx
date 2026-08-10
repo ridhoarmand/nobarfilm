@@ -20,11 +20,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }),
         defaultOptions: {
           queries: {
-            // staleTime: 60 * 1000, // sebelumnya cuma ini sendiri
-            staleTime: 5 * 60 * 1000, // Increased to 5 mins
+            staleTime: 5 * 60 * 1000, // 5 minutes
             refetchOnWindowFocus: false, // Disable auto refresh on focus
             refetchOnMount: false, // Disable auto refresh on mount
             refetchOnReconnect: false, // Disable auto refresh on network reconnect
+            retry: false, // Never retry automatically on error to prevent request spam
           },
         },
       }),

@@ -199,29 +199,26 @@ function WatchContent() {
 
   const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
 
+  // Fetch and cache ONLY the single subtitle track for the currently active language
   useEffect(() => {
-    if (!captionUrlsKey) return;
-    let isMounted = true;
-    cleanSubtitleCache();
+    if (selectedSubtitleIndex === null || !filteredCaptions[selectedSubtitleIndex]) return;
 
-    const captions = playbackData?.captions || [];
-    captions.forEach(async (cap) => {
-      if (cap.url) {
-        try {
-          const blobUrl = await getCachedSubtitleBlobUrl(cap.url);
-          if (isMounted) {
-            setCachedSubtitleUrls((prev) => ({ ...prev, [cap.url]: blobUrl }));
-          }
-        } catch (e) {
-          console.error(e);
+    const activeCap = filteredCaptions[selectedSubtitleIndex];
+    if (!activeCap?.url || cachedSubtitleUrls[activeCap.url]) return;
+
+    let isMounted = true;
+    getCachedSubtitleBlobUrl(activeCap.url)
+      .then((blobUrl) => {
+        if (isMounted && blobUrl) {
+          setCachedSubtitleUrls((prev) => ({ ...prev, [activeCap.url]: blobUrl }));
         }
-      }
-    });
+      })
+      .catch((e) => console.error('[Subtitle] Single active load error:', e));
 
     return () => {
       isMounted = false;
     };
-  }, [captionUrlsKey]);
+  }, [selectedSubtitleIndex, filteredCaptions]);
 
   const formattedSubtitles = useMemo(() => {
     const builtInSubs = filteredCaptions.map((cap) => ({

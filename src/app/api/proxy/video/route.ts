@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limit';
+
 export const dynamic = 'force-dynamic'; // Prevent static optimization
 
 function isValidProxyTargetUrl(urlString: string): boolean {
@@ -28,6 +30,11 @@ function isValidProxyTargetUrl(urlString: string): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  const rateLimit = checkRateLimit(req, 20, 10000);
+  if (!rateLimit.success && rateLimit.response) {
+    return rateLimit.response;
+  }
+
   const urlParams = req.nextUrl.searchParams;
   const url = urlParams.get('url');
   const refererParam = urlParams.get('referer');
@@ -60,11 +67,11 @@ export async function GET(req: NextRequest) {
       headers['Range'] = range;
     }
 
-    // 1. Fetch from Upstream using native fetch with 15s timeout
+    // 1. Fetch from Upstream using native fetch (connected to client request signal)
     const upstreamRes = await fetch(url, {
       headers,
       redirect: 'follow',
-      signal: AbortSignal.timeout(15000),
+      signal: req.signal,
     });
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {

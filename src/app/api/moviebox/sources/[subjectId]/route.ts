@@ -1,11 +1,17 @@
 import { encryptedResponse, getClientToken } from "@/lib/api-utils";
 import { movieBoxService } from "@/lib/moviebox";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ subjectId: string }> }
 ) {
+  const rateLimit = checkRateLimit(request, 10, 10000);
+  if (!rateLimit.success && rateLimit.response) {
+    return rateLimit.response;
+  }
+
   const { subjectId } = await params;
   const searchParams = request.nextUrl.searchParams;
   
