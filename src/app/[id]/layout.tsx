@@ -8,6 +8,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
 
+  if (!id || id.includes('.') || id === 'favicon.ico') {
+    return {
+      title: 'NobarFilm Detail',
+      description: 'Stream film dan serial TV terbaru gratis tanpa iklan di NobarFilm.',
+    };
+  }
+
   try {
     const detail = await movieBoxService.getDetail(id);
     if (detail && detail.subject) {

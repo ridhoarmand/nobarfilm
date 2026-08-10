@@ -9,7 +9,16 @@ export async function generateMetadata({
   searchParams: Promise<{ se?: string; ep?: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const { se, ep } = await searchParams;
+  const sParams = (await searchParams) || {};
+  const se = sParams.se;
+  const ep = sParams.ep;
+
+  if (!id || id.includes('.') || id === 'favicon.ico') {
+    return {
+      title: '▶️ NobarFilm Player',
+      description: 'Stream film dan serial TV terbaru gratis tanpa iklan di NobarFilm.',
+    };
+  }
 
   const seasonNum = parseInt(se || '0', 10);
   const episodeNum = parseInt(ep || '0', 10);
