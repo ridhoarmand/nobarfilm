@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface KeyboardCallbacks {
   onTogglePlay?: () => void;
@@ -21,6 +21,26 @@ export function useKeyboardShortcuts({
   onEscape,
   isActive = true,
 }: KeyboardCallbacks) {
+  const callbacksRef = useRef({
+    onTogglePlay,
+    onSeek,
+    onVolumeChange,
+    onToggleMute,
+    onToggleFullscreen,
+    onEscape,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onTogglePlay,
+      onSeek,
+      onVolumeChange,
+      onToggleMute,
+      onToggleFullscreen,
+      onEscape,
+    };
+  });
+
   useEffect(() => {
     if (!isActive) return;
 
@@ -31,48 +51,50 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      const callbacks = callbacksRef.current;
+
       switch (e.code) {
         case 'Space':
         case 'KeyK':
           e.preventDefault();
-          onTogglePlay?.();
+          callbacks.onTogglePlay?.();
           break;
 
         case 'ArrowLeft':
         case 'KeyJ':
           e.preventDefault();
-          onSeek?.(-10);
+          callbacks.onSeek?.(-10);
           break;
 
         case 'ArrowRight':
         case 'KeyL':
           e.preventDefault();
-          onSeek?.(10);
+          callbacks.onSeek?.(10);
           break;
 
         case 'ArrowUp':
           e.preventDefault();
-          onVolumeChange?.(0.1);
+          callbacks.onVolumeChange?.(0.1);
           break;
 
         case 'ArrowDown':
           e.preventDefault();
-          onVolumeChange?.(-0.1);
+          callbacks.onVolumeChange?.(-0.1);
           break;
 
         case 'KeyM':
           e.preventDefault();
-          onToggleMute?.();
+          callbacks.onToggleMute?.();
           break;
 
         case 'KeyF':
           e.preventDefault();
-          onToggleFullscreen?.();
+          callbacks.onToggleFullscreen?.();
           break;
 
         case 'Escape':
           e.preventDefault();
-          onEscape?.();
+          callbacks.onEscape?.();
           break;
 
         default:
@@ -82,5 +104,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, onTogglePlay, onSeek, onVolumeChange, onToggleMute, onToggleFullscreen, onEscape]);
+  }, [isActive]);
 }

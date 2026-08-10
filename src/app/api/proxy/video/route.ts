@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'; // Prevent static optimization
 
+function isValidProxyTargetUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Prevent access to loopback / private IP ranges / cloud metadata IPs
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '169.254.169.254' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const urlParams = req.nextUrl.searchParams;
   const url = urlParams.get('url');
@@ -9,6 +35,10 @@ export async function GET(req: NextRequest) {
 
   if (!url) {
     return new NextResponse('Missing URL parameter', { status: 400 });
+  }
+
+  if (!isValidProxyTargetUrl(url)) {
+    return new NextResponse('Forbidden target URL', { status: 403 });
   }
 
   try {

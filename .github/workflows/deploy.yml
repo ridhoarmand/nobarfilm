@@ -74,3 +74,19 @@ jobs:
           accessToken: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
           stackId: 17
           endpointId: 3
+
+      - name: Clean up unused Docker images via Portainer API
+        shell: bash
+        env:
+          PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
+          PORTAINER_ACCESS_TOKEN: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
+        run: |
+          echo "Waiting 10 seconds for Portainer stack deployment to complete..."
+          sleep 10
+          echo "Triggering Docker image prune via Portainer API (endpoint 3)..."
+          # Clean trailing slash from PORTAINER_URL if present
+          CLEAN_URL="${PORTAINER_URL%/}"
+          curl -s -f -X POST \
+            -H "X-API-Key: ${PORTAINER_ACCESS_TOKEN}" \
+            "${CLEAN_URL}/api/endpoints/3/docker/images/prune?dangling=false" || true
+          echo "Portainer Docker image cleanup finished!"

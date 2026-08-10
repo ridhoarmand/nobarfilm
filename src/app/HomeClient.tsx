@@ -113,7 +113,7 @@ export function HomeClient() {
                 </div>
               )}
 
-              {user && continueWatchingData && continueWatchingData.length > 0 && (
+              {continueWatchingData && continueWatchingData.length > 0 && (
                 <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
                   <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight mb-3 sm:mb-4">Lanjutkan Menonton</h2>
                   <div className="relative">

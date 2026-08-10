@@ -322,7 +322,13 @@ function WatchContent() {
               params.set('episode', String(e));
               router.replace(`/watch/${subjectId}?${params.toString()}`);
             }}
-            onBack={() => router.push(`/${subjectId}`)}
+            onBack={() => {
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.replace(`/${subjectId}`);
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-zinc-500 bg-black">

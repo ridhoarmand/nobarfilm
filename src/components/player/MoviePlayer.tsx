@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, forwardRef, useSyncExternalStore, useState } from 'react';
 import Hls from 'hls.js';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { PlayerOverlay } from './PlayerOverlay';
 
 interface MoviePlayerProps {
@@ -325,7 +326,24 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   };
 
+  useKeyboardShortcuts({
+    onTogglePlay: togglePlay,
+    onSeek: (seconds) => handleSeek(currentTime + seconds),
+    onVolumeChange: (delta) => handleVolumeChange(volume + delta),
+    onToggleMute: toggleMute,
+    onToggleFullscreen: () => toggleFullscreen(),
+    onEscape: () => {
+      if (document.fullscreenElement) {
+        toggleFullscreen();
+      } else {
+        onBack?.();
+      }
+    },
+    isActive: true,
+  });
+
   const [hasVideoError, setHasVideoError] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const hasAutoEnteredFullscreen = useRef(false);
 
   // Lock orientation to landscape during fullscreen
@@ -361,6 +379,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     };
   }, []);
 
+
+
   const toggleFullscreen = () => {
     const container = containerRef.current;
     const video = videoRef.current;
@@ -395,6 +415,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   const handleRetryVideo = () => {
     setHasVideoError(false);
+    setIsBuffering(true);
     const video = videoRef.current;
     if (video) {
       video.load();
@@ -417,6 +438,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         className="w-full h-full object-contain bg-black block"
         onPlay={() => {
           setIsPlaying(true);
+          setIsBuffering(false);
           setHasVideoError(false);
           // Auto-trigger fullscreen on initial playback start if supported
           if (!hasAutoEnteredFullscreen.current && !document.fullscreenElement) {
@@ -425,7 +447,19 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           }
         }}
         onPause={() => setIsPlaying(false)}
-        onError={() => setHasVideoError(true)}
+        onWaiting={() => setIsBuffering(true)}
+        onSeeking={() => setIsBuffering(true)}
+        onSeeked={() => setIsBuffering(false)}
+        onCanPlay={() => setIsBuffering(false)}
+        onPlaying={() => {
+          setIsPlaying(true);
+          setIsBuffering(false);
+          setHasVideoError(false);
+        }}
+        onError={() => {
+          setHasVideoError(true);
+          setIsBuffering(false);
+        }}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
           setCurrentTime(video.currentTime);
@@ -456,6 +490,23 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           />
         ))}
       </video>
+
+      {/* Netflix-Style Buffering / Loading Indicator */}
+      {isBuffering && !hasVideoError && (
+        <div className="absolute inset-0 z-35 pointer-events-none flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all duration-300">
+          <div className="flex flex-col items-center gap-3 bg-zinc-950/85 px-6 py-4 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-md animate-fade-in">
+            <div className="relative flex items-center justify-center">
+              {/* Outer Pulsing Glow */}
+              <div className="absolute w-12 h-12 rounded-full bg-red-600/30 animate-ping" />
+              {/* Inner Red Spinner */}
+              <div className="w-10 h-10 border-4 border-red-600/20 border-t-red-600 rounded-full animate-spin shadow-lg" />
+            </div>
+            <span className="text-xs font-semibold text-zinc-200 tracking-wide animate-pulse">
+              Memuat Stream...
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Error Recovery UI Overlay */}
       {hasVideoError && (

@@ -103,7 +103,7 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
       <button
         onClick={handleRemove}
         disabled={isRemoving}
-        className="absolute top-2 right-2 z-10 p-1.5 bg-black/70 hover:bg-red-600 rounded-full text-white opacity-0 group-hover/card:opacity-100 transition-all duration-200 disabled:opacity-50"
+        className="absolute top-2 right-2 z-10 p-1.5 bg-black/70 hover:bg-red-600 rounded-full text-white opacity-80 sm:opacity-0 sm:group-hover/card:opacity-100 transition-all duration-200 disabled:opacity-50"
         title="Remove from Continue Watching"
       >
         <X className="w-4 h-4" />
