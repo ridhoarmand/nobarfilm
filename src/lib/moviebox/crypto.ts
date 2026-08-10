@@ -53,5 +53,6 @@ export function getH5Headers(referer?: string): Record<string, string> {
     'lang': 'id',
     'locale': 'id_ID',
     'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id' }),
+    'x-vip-restrict': '1',
   };
 }

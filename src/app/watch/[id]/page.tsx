@@ -258,6 +258,12 @@ function WatchContent() {
     [saveProgress],
   );
 
+  const activeStreamUrl = useMemo(() => {
+    if (!playbackData) return '';
+    if (qualityIndex === -1) return playbackData.streamUrl;
+    return playbackData.allDownloads?.[qualityIndex]?.streamUrl || playbackData.streamUrl;
+  }, [playbackData, qualityIndex]);
+
   const isLoading = isLoadingDetail || isLoadingPlayback;
   const error = detailError || playbackError;
 
@@ -302,12 +308,6 @@ function WatchContent() {
     params.set('episode', String(effectiveEpisode + 1));
     router.replace(`/watch/${subjectId}?${params.toString()}`);
   };
-
-  const activeStreamUrl = useMemo(() => {
-    if (!playbackData) return '';
-    if (qualityIndex === -1) return playbackData.streamUrl;
-    return playbackData.allDownloads?.[qualityIndex]?.streamUrl || playbackData.streamUrl;
-  }, [playbackData, qualityIndex]);
 
   return (
     <div className="h-screen w-screen bg-black overflow-hidden relative flex flex-col justify-center">

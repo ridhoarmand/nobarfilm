@@ -52,8 +52,8 @@ export async function GET(req: NextRequest) {
     };
 
     if (!isMobileCdn) {
-      headers['Referer'] = refererParam || 'https://themoviebox.org/';
-      headers['Origin'] = 'https://themoviebox.org';
+      headers['Referer'] = refererParam || 'https://lok-lok.cc/';
+      headers['Origin'] = 'https://lok-lok.cc';
     }
 
     if (range) {

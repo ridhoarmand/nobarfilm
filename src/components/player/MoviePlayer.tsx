@@ -297,7 +297,10 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   };
 
-  // Handle active subtitle track selection & position styling
+  // Ref to preserve original VTTCue timing before delay offset
+  const originalCueTimesRef = useRef<WeakMap<VTTCue, { start: number; end: number }>>(new WeakMap());
+
+  // Handle active subtitle track selection, position styling & delay timing
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !video.textTracks) return;
@@ -319,7 +322,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       }
     `;
 
-    // In-memory track mode switching & dynamic VTTCue line mutation
+    // In-memory track mode switching, position & subtitleDelay offset mutation
     for (let i = 0; i < video.textTracks.length; i++) {
       const track = video.textTracks[i];
       if (activeSubtitleIndex === i) {
@@ -330,6 +333,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             if (cue) {
               cue.line = subtitlePosition;
               cue.snapToLines = false;
+
+              if (!originalCueTimesRef.current.has(cue)) {
+                originalCueTimesRef.current.set(cue, { start: cue.startTime, end: cue.endTime });
+              }
+              const orig = originalCueTimesRef.current.get(cue)!;
+              cue.startTime = Math.max(0, orig.start + subtitleDelay);
+              cue.endTime = Math.max(0, orig.end + subtitleDelay);
             }
           }
         }
@@ -337,7 +347,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         track.mode = 'disabled';
       }
     }
-  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize]);
+  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize, subtitleDelay]);
 
   // Expose video DOM element to the ref
   useEffect(() => {

@@ -172,7 +172,7 @@ function getCachedStreamData(cacheKey: string): (PlaybackData & { expiry: number
 }
 
 // Helper to cache stream data
-function cacheStreamData(cacheKey: string, data: PlaybackData, expiryMinutes = 180) {
+function cacheStreamData(cacheKey: string, data: PlaybackData, expiryMinutes = 15) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(
@@ -247,13 +247,13 @@ export function useMovieBoxPlaybackUrl(
       };
 
       // Cache the result
-      cacheStreamData(cacheKey, result, 30); // 30 minutes cache
+      cacheStreamData(cacheKey, result, 15); // 15 minutes cache
 
       return result;
     },
     enabled: !!subjectId,
-    staleTime: 1000 * 60 * 30, // 30 minutes
-    gcTime: 1000 * 60 * 60, // Keep in memory for 1 hour
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // Keep in memory for 15 minutes
     retry: 2,
     refetchOnWindowFocus: false,
     ...options,

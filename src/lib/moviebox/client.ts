@@ -189,7 +189,12 @@ export async function callMobileApi(
     try {
       token = await getAccessToken();
     } catch (err) {
-      console.error(`[MovieBox SDK] Failed to get access token, executing request without auth headers:`, path);
+      console.warn(`[MovieBox SDK] Master token failed for ${path}, trying guest session token fallback...`);
+      try {
+        token = await getGuestSessionToken();
+      } catch (guestErr: any) {
+        console.error(`[MovieBox SDK] Guest session token also failed, executing request without auth headers:`, path);
+      }
     }
   }
 
@@ -201,6 +206,7 @@ export async function callMobileApi(
     'lang': 'id',
     'locale': 'id_ID',
     'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id' }),
+    'x-vip-restrict': '1',
     'X-Client-Type': 'android',
     'X-App-Version': '3.0.15',
     'X-Client-Token': trClientToken,
