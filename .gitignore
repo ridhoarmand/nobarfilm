@@ -43,7 +43,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# sensitive docs & specs
+API.md
+API-FOR-BOT.md
+scratch/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 dist/
+
