@@ -140,21 +140,59 @@ function WatchContent() {
     });
   }, [playbackData?.captions]);
 
-  // Auto-select Indonesian subtitle (in_id, id, indonesia) as default subtitle
+  // Auto-select subtitle based on user preference (stored in localStorage), fallback to Indonesian -> English -> First available
   useEffect(() => {
     if (playbackData?.captions && playbackData.captions.length > 0) {
-      const idIdx = playbackData.captions.findIndex(
-        (c) => (c.lanName || '').toLowerCase().includes('indonesia') || (c.lan || '').toLowerCase().includes('id')
-      );
+      let preferredLang = 'indonesia';
+      if (typeof window !== 'undefined') {
+        const savedPref = localStorage.getItem('nobarfilm_pref_sub_lang');
+        if (savedPref) preferredLang = savedPref.toLowerCase();
+      }
+
+      // Try preferred language match
+      let matchedIdx = playbackData.captions.findIndex((c) => {
+        const name = (c.lanName || '').toLowerCase();
+        const code = (c.lan || '').toLowerCase();
+        return name.includes(preferredLang) || code.includes(preferredLang);
+      });
+
+      // Fallback 1: Indonesian
+      if (matchedIdx === -1) {
+        matchedIdx = playbackData.captions.findIndex(
+          (c) => (c.lanName || '').toLowerCase().includes('indonesia') || (c.lan || '').toLowerCase().includes('id')
+        );
+      }
+
+      // Fallback 2: English
+      if (matchedIdx === -1) {
+        matchedIdx = playbackData.captions.findIndex(
+          (c) => (c.lanName || '').toLowerCase().includes('english') || (c.lan || '').toLowerCase().includes('en')
+        );
+      }
+
+      // Fallback 3: First available caption
+      const finalIdx = matchedIdx !== -1 ? matchedIdx : 0;
       queueMicrotask(() => {
-        if (idIdx !== -1) {
-          setSelectedSubtitleIndex(idIdx);
-        } else {
-          setSelectedSubtitleIndex(0);
-        }
+        setSelectedSubtitleIndex(finalIdx);
       });
     }
   }, [playbackData?.captions]);
+
+  // Handler for subtitle selection that persists user's language choice
+  const handleSubtitleSelect = (idx: number | null) => {
+    setSelectedSubtitleIndex(idx);
+    if (idx === null) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nobarfilm_pref_sub_lang', 'off');
+      }
+    } else if (playbackData?.captions && playbackData.captions[idx]) {
+      const cap = playbackData.captions[idx];
+      const langKey = (cap.lanName || cap.lan || 'indonesia').toLowerCase();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nobarfilm_pref_sub_lang', langKey.includes('indonesia') || langKey.includes('id') ? 'indonesia' : langKey.includes('english') || langKey.includes('en') ? 'english' : langKey);
+      }
+    }
+  };
 
   const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
 
@@ -283,7 +321,7 @@ function WatchContent() {
             initialTime={resumeTime}
             subtitles={formattedSubtitles}
             activeSubtitleIndex={selectedSubtitleIndex}
-            onSubtitleSelect={(idx: number | null) => setSelectedSubtitleIndex(idx)}
+            onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
             subtitleDelay={subtitleDelay}
             onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
             subtitlePosition={subtitlePosition}

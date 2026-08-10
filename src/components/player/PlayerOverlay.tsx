@@ -18,9 +18,8 @@ import {
   SkipForward,
 } from 'lucide-react';
 import { PlayerProgressBar } from './PlayerProgressBar';
-import { SubtitlePopover } from './SubtitlePopover';
+import { AudioSubtitlePopover } from './AudioSubtitlePopover';
 import { QualityPopover } from './QualityPopover';
-import { AudioPopover } from './AudioPopover';
 import { EpisodePopover } from './EpisodePopover';
 import { usePlayerControls } from './hooks/usePlayerControls';
 import { useDoubleTapSeek } from './hooks/useDoubleTapSeek';
@@ -59,6 +58,8 @@ export interface PlayerOverlayProps {
   onDelayChange?: (delay: number) => void;
   subtitlePosition?: number;
   onPositionChange?: (pos: number) => void;
+  subtitleFontSize?: 'sm' | 'md' | 'lg' | 'xl';
+  onFontSizeChange?: (size: 'sm' | 'md' | 'lg' | 'xl') => void;
   onCustomSubtitleUpload?: (customSub: CustomSubtitle) => void;
   // Qualities
   qualities?: number[];
@@ -103,6 +104,8 @@ export function PlayerOverlay({
   onDelayChange,
   subtitlePosition = 85,
   onPositionChange,
+  subtitleFontSize = 'md',
+  onFontSizeChange,
   onCustomSubtitleUpload,
   qualities = [],
   activeQualityIndex = 0,
@@ -121,13 +124,13 @@ export function PlayerOverlay({
   hasNextEpisode = false,
   onNextEpisode,
 }: PlayerOverlayProps) {
-  const { isVisible, showControls, keepControlsVisible } = usePlayerControls(3500);
+  const { isVisible, showControls, keepControlsVisible, scheduleQuickHide } = usePlayerControls(2000);
   const { handleTap, seekAnimation } = useDoubleTapSeek({
     onSeek: (seconds) => onSeek(Math.max(0, Math.min(duration, currentTime + seconds))),
   });
 
-  // Active popover modal state ('subtitle' | 'quality' | 'audio' | 'episode' | null)
-  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'audio' | 'episode' | null>(null);
+  // Active popover modal state ('subtitle' | 'quality' | 'episode' | null)
+  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | null>(null);
 
   // If any popover is open, keep controls visible
   useEffect(() => {
@@ -136,8 +139,13 @@ export function PlayerOverlay({
     }
   }, [activePopover, keepControlsVisible]);
 
-  const togglePopover = (popover: 'subtitle' | 'quality' | 'audio' | 'episode') => {
+  const togglePopover = (popover: 'subtitle' | 'quality' | 'episode') => {
     setActivePopover((prev) => (prev === popover ? null : popover));
+  };
+
+  const closePopover = () => {
+    setActivePopover(null);
+    scheduleQuickHide(800);
   };
 
   return (
@@ -178,46 +186,73 @@ export function PlayerOverlay({
             type="button"
             onClick={onBack}
             className="p-2 rounded-full bg-black/50 hover:bg-red-600 text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95"
-            title="Kembali ke detail"
+            title="Kembali"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
         )}
 
         {title && (
-          <h2 className="text-white text-sm sm:text-base font-bold truncate drop-shadow-md">
+          <h2 className="text-white font-bold text-sm sm:text-lg truncate drop-shadow-md">
             {title}
           </h2>
         )}
       </div>
 
-      {/* CENTER AREA: Large Play/Pause Toggle Button */}
+      {/* CENTER PLAY/PAUSE OVERLAY BUTTON (Visible on tap or pause) */}
       <div
-        className={`relative z-30 flex items-center justify-center transition-opacity duration-300 pointer-events-auto ${
-          isVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`relative z-30 flex items-center justify-center gap-6 sm:gap-10 transition-opacity duration-300 ${
+          isVisible || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
         <button
           type="button"
-          onClick={onTogglePlay}
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-600/90 hover:bg-red-600 text-white flex items-center justify-center shadow-2xl backdrop-blur-md border border-red-400/40 transition-all transform hover:scale-110 active:scale-95"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSeek(Math.max(0, currentTime - 10));
+          }}
+          className="p-3 sm:p-4 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+          title="Mundur 10 Detik"
+        >
+          <RotateCcw className="w-6 h-6 sm:w-8 sm:h-8" />
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePlay();
+          }}
+          className="p-4 sm:p-6 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl transition-all hover:scale-110 active:scale-95 border border-white/20"
           title={isPlaying ? 'Jeda' : 'Putar'}
         >
           {isPlaying ? (
-            <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-white" />
+            <Pause className="w-8 h-8 sm:w-10 sm:h-10 fill-white" />
           ) : (
-            <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white ml-1" />
+            <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-white ml-1" />
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSeek(Math.min(duration, currentTime + 10));
+          }}
+          className="p-3 sm:p-4 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+          title="Maju 10 Detik"
+        >
+          <RotateCw className="w-6 h-6 sm:w-8 sm:h-8" />
         </button>
       </div>
 
       {/* BOTTOM CONTROL BAR */}
       <div
-        className={`relative z-30 p-4 sm:p-6 space-y-2 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 p-4 sm:p-6 space-y-3 transition-opacity duration-300 pointer-events-auto ${
           isVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Progress Bar */}
+        {/* Seekable Progress Bar */}
         <PlayerProgressBar
           currentTime={currentTime}
           duration={duration}
@@ -225,47 +260,24 @@ export function PlayerOverlay({
           onSeek={onSeek}
         />
 
-        {/* Controls Row */}
-        <div className="flex items-center justify-between gap-2 pt-1 text-white">
-          {/* Left Controls: Play, -10s, +10s, Volume */}
-          <div className="flex items-center gap-2 sm:gap-3">
+        {/* Bottom Control Row */}
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
+          {/* Left Controls: Play/Pause, Volume, Time */}
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               type="button"
               onClick={onTogglePlay}
-              className="p-2 rounded-lg hover:bg-white/10 transition"
-              title={isPlaying ? 'Jeda (Space)' : 'Putar (Space)'}
+              className="p-2 rounded-lg hover:bg-white/10 text-white transition"
             >
               {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}
             </button>
 
-            <button
-              type="button"
-              onClick={() => onSeek(Math.max(0, currentTime - 10))}
-              className="p-2 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition flex items-center gap-1"
-              title="Mundur 10s"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="text-[10px] font-bold hidden sm:inline">-10s</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onSeek(Math.min(duration, currentTime + 10))}
-              className="p-2 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition flex items-center gap-1"
-              title="Maju 10s"
-            >
-              <span className="text-[10px] font-bold hidden sm:inline">+10s</span>
-              <RotateCw className="w-4 h-4" />
-            </button>
-
             {/* Volume Control */}
-            <div className="flex items-center gap-1.5 group/vol">
+            <div className="flex items-center gap-2 group/vol">
               <button
                 type="button"
                 onClick={onToggleMute}
-                aria-label={isMuted ? 'Bunyikan Suara' : 'Bisukan Suara'}
-                className="p-2 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition"
-                title={isMuted ? 'Bunyikan' : 'Bisukan'}
+                className="p-2 rounded-lg hover:bg-white/10 text-white transition"
               >
                 {isMuted || volume === 0 ? (
                   <VolumeX className="w-5 h-5 text-red-500" />
@@ -275,80 +287,44 @@ export function PlayerOverlay({
                   <Volume2 className="w-5 h-5" />
                 )}
               </button>
-
               <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.05"
-                aria-label="Volume suara"
-                aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
                 value={isMuted ? 0 : volume}
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                className="w-16 sm:w-20 accent-red-600 h-1 bg-zinc-700 rounded-lg cursor-pointer hidden sm:block opacity-70 group-hover/vol:opacity-100 transition-opacity"
+                className="w-16 sm:w-24 accent-red-600 cursor-pointer h-1.5 bg-zinc-700 rounded-lg transition-all opacity-80 group-hover/vol:opacity-100"
               />
+            </div>
+
+            {/* Time Display */}
+            <div className="text-xs text-zinc-300 font-mono font-medium">
+              <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
+              <span className="text-zinc-500 mx-1">/</span>
+              <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</span>
             </div>
           </div>
 
-          {/* Right Controls: Popovers (Subtitle, Audio, Quality, Episode), Next Ep, Fullscreen */}
+          {/* Right Controls: Unified Audio & Subtitle, Quality, Episodes, Fullscreen */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Episode Selector (Series Only) */}
-            {isSeries && (seasons.length > 0 || episodes.length > 0) && (
-              <button
-                type="button"
-                onClick={() => togglePopover('episode')}
-                aria-label="Pilih Episode & Season"
-                aria-expanded={activePopover === 'episode'}
-                aria-haspopup="dialog"
-                className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
-                  activePopover === 'episode'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
-                }`}
-                title="Pilih Episode & Season"
-              >
-                <Tv className="w-4 h-4" />
-                <span className="hidden sm:inline">E{activeEpisode}</span>
-              </button>
-            )}
-
-            {/* Subtitles Popover Toggle */}
-            {onSelectSubtitle && (
+            {/* Unified Audio & Subtitle Button */}
+            {(subtitles.length > 0 || audioOptions.length > 0) && (
               <button
                 type="button"
                 onClick={() => togglePopover('subtitle')}
-                aria-label="Pengaturan Subtitle"
+                aria-label="Pengaturan Audio & Subtitle"
                 aria-expanded={activePopover === 'subtitle'}
                 aria-haspopup="dialog"
                 className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
-                  activePopover === 'subtitle' || activeSubtitleIndex !== null
-                    ? 'bg-red-600/30 border border-red-600 text-white'
-                    : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-400'
-                }`}
-                title="Pengaturan Subtitle"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span className="hidden md:inline">Subtitle</span>
-              </button>
-            )}
-
-            {/* Audio Track Popover Toggle */}
-            {audioOptions.length > 0 && onSelectAudio && (
-              <button
-                type="button"
-                onClick={() => togglePopover('audio')}
-                aria-label="Pengaturan Audio"
-                aria-expanded={activePopover === 'audio'}
-                aria-haspopup="dialog"
-                className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
-                  activePopover === 'audio'
+                  activePopover === 'subtitle'
                     ? 'bg-red-600 text-white'
-                    : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-400'
+                    : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
-                title="Pengaturan Audio"
+                title="Pengaturan Audio & Subtitle"
               >
-                <Volume2 className="w-4 h-4" />
-                <span className="hidden lg:inline">Audio</span>
+                <MessageSquare className="w-4 h-4 text-red-500" />
+                <span className="hidden sm:inline">Audio & Subtitle</span>
               </button>
             )}
 
@@ -375,6 +351,26 @@ export function PlayerOverlay({
                       : 'Auto'
                     : `${qualities[activeQualityIndex] || qualities[0]}p`}
                 </span>
+              </button>
+            )}
+
+            {/* Series Episode Selector */}
+            {isSeries && episodes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => togglePopover('episode')}
+                aria-label="Pilihan Episode & Musim"
+                aria-expanded={activePopover === 'episode'}
+                aria-haspopup="dialog"
+                className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
+                  activePopover === 'episode'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
+                }`}
+                title="Pilihan Episode & Musim"
+              >
+                <Tv className="w-4 h-4" />
+                <span className="text-[11px]">S{activeSeason} E{activeEpisode}</span>
               </button>
             )}
 
@@ -410,21 +406,28 @@ export function PlayerOverlay({
           className="fixed inset-0 z-35 pointer-events-auto bg-transparent"
           onClick={(e) => {
             e.stopPropagation();
-            setActivePopover(null);
+            closePopover();
           }}
         />
       )}
-      {activePopover === 'subtitle' && onSelectSubtitle && (
-        <SubtitlePopover
+
+      {/* Unified Audio & Subtitle Popover */}
+      {activePopover === 'subtitle' && (
+        <AudioSubtitlePopover
           isOpen={true}
-          onClose={() => setActivePopover(null)}
+          onClose={closePopover}
+          audioOptions={audioOptions}
+          activeAudioCode={activeAudioCode}
+          onSelectAudio={onSelectAudio}
           subtitles={subtitles}
-          activeIndex={activeSubtitleIndex}
+          activeSubtitleIndex={activeSubtitleIndex}
           onSelectSubtitle={onSelectSubtitle}
           subtitleDelay={subtitleDelay}
-          onDelayChange={onDelayChange || (() => {})}
+          onDelayChange={onDelayChange}
           subtitlePosition={subtitlePosition}
-          onPositionChange={onPositionChange || (() => {})}
+          onPositionChange={onPositionChange}
+          subtitleFontSize={subtitleFontSize}
+          onFontSizeChange={onFontSizeChange}
           onCustomSubtitleUpload={onCustomSubtitleUpload}
         />
       )}
@@ -432,27 +435,17 @@ export function PlayerOverlay({
       {activePopover === 'quality' && onSelectQuality && (
         <QualityPopover
           isOpen={true}
-          onClose={() => setActivePopover(null)}
+          onClose={closePopover}
           qualities={qualities}
           activeIndex={activeQualityIndex}
           onSelectQuality={onSelectQuality}
         />
       )}
 
-      {activePopover === 'audio' && onSelectAudio && (
-        <AudioPopover
-          isOpen={true}
-          onClose={() => setActivePopover(null)}
-          audioOptions={audioOptions}
-          activeCode={activeAudioCode}
-          onSelectAudio={onSelectAudio}
-        />
-      )}
-
       {activePopover === 'episode' && onSeasonChange && onEpisodeChange && (
         <EpisodePopover
           isOpen={true}
-          onClose={() => setActivePopover(null)}
+          onClose={closePopover}
           seasons={seasons}
           episodes={episodes}
           activeSeason={activeSeason}

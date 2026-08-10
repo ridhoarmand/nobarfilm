@@ -232,6 +232,30 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     };
   }, [currentSrc, autoPlay]);
 
+  const [subtitleFontSize, setSubtitleFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nobarfilm_pref_sub_size') as 'sm' | 'md' | 'lg' | 'xl';
+      if (saved) return saved;
+    }
+    return 'md';
+  });
+
+  const handleFontSizeChange = (size: 'sm' | 'md' | 'lg' | 'xl') => {
+    setSubtitleFontSize(size);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nobarfilm_pref_sub_size', size);
+    }
+  };
+
+  const getFontSizeRem = (size: 'sm' | 'md' | 'lg' | 'xl') => {
+    switch (size) {
+      case 'sm': return '0.95rem';
+      case 'lg': return '1.4rem';
+      case 'xl': return '1.65rem';
+      default: return '1.15rem';
+    }
+  };
+
   // Handle active subtitle track selection & position styling
   useEffect(() => {
     const video = videoRef.current;
@@ -247,25 +271,23 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     styleEl.innerHTML = `
       video::cue {
         line: ${subtitlePosition}%;
-        font-size: 1.1rem;
-        background: rgba(0, 0, 0, 0.75);
+        font-size: ${getFontSizeRem(subtitleFontSize)};
+        background: rgba(0, 0, 0, 0.85);
         color: #ffffff;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+        text-shadow: 0 2px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8), 0 0 2px #000;
+        font-family: inherit;
       }
     `;
 
-    const timer = setTimeout(() => {
-      for (let i = 0; i < video.textTracks.length; i++) {
-        if (activeSubtitleIndex === i) {
-          video.textTracks[i].mode = 'showing';
-        } else {
-          video.textTracks[i].mode = 'disabled';
-        }
+    // In-memory track mode switching without DOM re-render
+    for (let i = 0; i < video.textTracks.length; i++) {
+      if (activeSubtitleIndex === i) {
+        video.textTracks[i].mode = 'showing';
+      } else {
+        video.textTracks[i].mode = 'disabled';
       }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [activeSubtitleIndex, subtitles, subtitlePosition]);
+    }
+  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize]);
 
   // Expose video DOM element to the ref
   useEffect(() => {
@@ -553,6 +575,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onDelayChange={onSubtitleDelayChange}
         subtitlePosition={subtitlePosition}
         onPositionChange={onSubtitlePositionChange}
+        subtitleFontSize={subtitleFontSize}
+        onFontSizeChange={handleFontSizeChange}
         onCustomSubtitleUpload={onCustomSubtitleUpload}
         qualities={qualities}
         activeQualityIndex={activeQualityIndex}

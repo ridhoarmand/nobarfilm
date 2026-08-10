@@ -30,6 +30,15 @@ export function usePlayerControls(autoHideDelayMs: number = 3000) {
     setIsVisible(false);
   }, []);
 
+  const scheduleQuickHide = useCallback((delayMs: number = 800) => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = setTimeout(() => {
+      setIsVisible(false);
+    }, delayMs);
+  }, []);
+
   useEffect(() => {
     showControls();
     return () => {
@@ -44,5 +53,6 @@ export function usePlayerControls(autoHideDelayMs: number = 3000) {
     showControls,
     keepControlsVisible,
     hideControlsNow,
+    scheduleQuickHide,
   };
 }
