@@ -12,10 +12,10 @@ import { Subject, BannerItem } from '@/types/api';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
 import dynamic from 'next/dynamic';
 
-const ContinueWatchingCard = dynamic(() => import('@/components/shared/ContinueWatchingCard').then((mod) => mod.ContinueWatchingCard));
-const SectionSlider = dynamic(() => import('@/components/shared/SectionSlider').then((mod) => mod.SectionSlider));
-const MovieCard = dynamic(() => import('@/components/shared/MovieCard').then((mod) => mod.MovieCard));
-const Footer = dynamic(() => import('@/components/layout/Footer').then((mod) => mod.Footer));
+import { ContinueWatchingCard } from '@/components/shared/ContinueWatchingCard';
+import { SectionSlider } from '@/components/shared/SectionSlider';
+import { MovieCard } from '@/components/shared/MovieCard';
+import { Footer } from '@/components/layout/Footer';
 
 import { useWatchlist } from '@/hooks/useWatchlist';
 

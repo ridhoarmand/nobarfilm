@@ -138,10 +138,23 @@ export function useMovieBoxPlayerMetadata(subjectId: string, season?: number, ep
 }
 
 // Cache key generator for stream URLs
-const getStreamCacheKey = (subjectId: string, season?: number, episode?: number, quality?: number) => `nobar-stream-${subjectId}-${season ?? 'na'}-${episode ?? 'na'}-${quality ?? 0}`;
+const getStreamCacheKey = (subjectId: string, season?: number, episode?: number) => `nobar-stream-${subjectId}-${season ?? 'na'}-${episode ?? 'na'}`;
+
+export interface StreamDownloadItem {
+  resolution: number;
+  url: string;
+  streamUrl: string;
+}
+
+export interface PlaybackData {
+  streamUrl: string;
+  allDownloads: StreamDownloadItem[];
+  captions: Caption[];
+  embedUrl?: string;
+}
 
 // Helper to get cached stream data
-function getCachedStreamData(cacheKey: string): { streamUrl: string; captions: Caption[]; embedUrl?: string; expiry: number } | null {
+function getCachedStreamData(cacheKey: string): (PlaybackData & { expiry: number }) | null {
   if (typeof window === 'undefined') return null;
   try {
     const cached = localStorage.getItem(cacheKey);
@@ -159,7 +172,7 @@ function getCachedStreamData(cacheKey: string): { streamUrl: string; captions: C
 }
 
 // Helper to cache stream data
-function cacheStreamData(cacheKey: string, data: { streamUrl: string; captions: Caption[]; embedUrl?: string }, expiryMinutes = 180) {
+function cacheStreamData(cacheKey: string, data: PlaybackData, expiryMinutes = 180) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(
@@ -181,26 +194,29 @@ export function useMovieBoxPlaybackUrl(
   season?: number,
   episode?: number,
   quality: number = 0,
-  options?: Omit<UseQueryOptions<{ streamUrl: string; captions: Caption[]; embedUrl?: string }, ApiError>, 'queryKey' | 'queryFn'>,
+  options?: Omit<UseQueryOptions<PlaybackData, ApiError>, 'queryKey' | 'queryFn'>,
 ) {
   const query = new URLSearchParams();
   if (typeof season === 'number') query.set('season', season.toString());
   if (typeof episode === 'number') query.set('episode', episode.toString());
   const queryString = query.toString();
   const url = `${API_BASE}/sources/${subjectId}${queryString ? `?${queryString}` : ''}`;
-  const cacheKey = getStreamCacheKey(subjectId, season, episode, quality);
+  const cacheKey = getStreamCacheKey(subjectId, season, episode);
 
-  return useQuery<{ streamUrl: string; captions: Caption[]; embedUrl?: string }, ApiError>({
-    queryKey: ['moviebox', 'playback', subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null, quality] as const,
+  const queryResult = useQuery<PlaybackData, ApiError>({
+    queryKey: ['moviebox', 'playback', subjectId, typeof season === 'number' ? season : null, typeof episode === 'number' ? episode : null] as const,
     queryFn: async () => {
       // Check localStorage cache first
       const cached = getCachedStreamData(cacheKey);
       if (cached) {
-        // console.log('[Stream Cache] Using cached stream URL');
-        return { streamUrl: cached.streamUrl, captions: cached.captions, embedUrl: cached.embedUrl };
+        return {
+          streamUrl: cached.allDownloads?.[quality]?.streamUrl || cached.streamUrl,
+          allDownloads: cached.allDownloads || [],
+          captions: cached.captions || [],
+          embedUrl: cached.embedUrl,
+        };
       }
 
-      // console.log('[Stream Cache] Fetching fresh stream URL');
       const sources = await fetchJson<SourcesResponse>(url);
 
       if (!sources.downloads || sources.downloads.length === 0) {
@@ -210,17 +226,22 @@ export function useMovieBoxPlaybackUrl(
       // Sort downloads descending by resolution (so index 0 is the highest quality)
       const sortedDownloads = [...sources.downloads].sort((a, b) => (b.resolution || 0) - (a.resolution || 0));
 
-      // Select quality (default to first available)
-      const selectedSource = sortedDownloads[quality] || sortedDownloads[0];
-
-      // Generate stream URL via API proxy
+      // Construct stream URLs instantly for all available download resolutions
       const referer = `https://lok-lok.cc/spa/videoPlayPage/movies/${subjectId}`;
-      const streamResponse = await fetchJson<{ streamUrl?: string }>(
-        `${API_BASE}/generate-link-stream-video?url=${encodeURIComponent(selectedSource.url)}&referer=${encodeURIComponent(referer)}`,
-      );
+      const allDownloads: StreamDownloadItem[] = sortedDownloads.map((item) => ({
+        resolution: item.resolution || 0,
+        url: item.url,
+        streamUrl: item.url.toLowerCase().includes('.m3u8')
+          ? item.url
+          : `/api/proxy/video?url=${encodeURIComponent(item.url)}&referer=${encodeURIComponent(referer)}`,
+      }));
 
-      const result = {
-        streamUrl: streamResponse?.streamUrl || selectedSource.url,
+      const targetIndex = quality === -1 ? 0 : quality;
+      const selectedStream = allDownloads[targetIndex]?.streamUrl || allDownloads[0]?.streamUrl || sortedDownloads[0].url;
+
+      const result: PlaybackData = {
+        streamUrl: selectedStream,
+        allDownloads,
         captions: sources.captions || [],
       };
 
@@ -230,10 +251,27 @@ export function useMovieBoxPlaybackUrl(
       return result;
     },
     enabled: !!subjectId,
-    staleTime: 1000 * 60 * 30, // 30 minutes - increased since we have localStorage cache
+    staleTime: 1000 * 60 * 30, // 30 minutes
     gcTime: 1000 * 60 * 60, // Keep in memory for 1 hour
     retry: 2,
     refetchOnWindowFocus: false,
     ...options,
   });
+
+  // Dynamically select the active streamUrl based on quality prop without triggering refetch
+  if (queryResult.data?.allDownloads?.length) {
+    const targetIndex = quality === -1 ? 0 : quality;
+    const selected = queryResult.data.allDownloads[targetIndex] || queryResult.data.allDownloads[0];
+    if (selected && selected.streamUrl) {
+      return {
+        ...queryResult,
+        data: {
+          ...queryResult.data,
+          streamUrl: selected.streamUrl,
+        },
+      };
+    }
+  }
+
+  return queryResult;
 }

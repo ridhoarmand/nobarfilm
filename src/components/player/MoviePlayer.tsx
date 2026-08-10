@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, forwardRef, useSyncExternalStore, useState } from 'react';
+import React, { useEffect, useRef, forwardRef, useSyncExternalStore, useState } from 'react';
 import Hls from 'hls.js';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
-import { RotateCcw, RotateCw, SkipForward } from 'lucide-react';
+import { PlayerOverlay } from './PlayerOverlay';
 
 interface MoviePlayerProps {
   src: string;
+  title?: string;
   subtitles?: Array<{
     kind: string;
     label: string;
@@ -15,8 +16,12 @@ interface MoviePlayerProps {
     default?: boolean;
   }>;
   activeSubtitleIndex?: number | null;
+  onSubtitleSelect?: (index: number | null) => void;
   subtitleDelay?: number;
+  onSubtitleDelayChange?: (delay: number) => void;
   subtitlePosition?: number;
+  onSubtitlePositionChange?: (pos: number) => void;
+  onCustomSubtitleUpload?: (sub: { label: string; src: string }) => void;
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
@@ -24,24 +29,69 @@ interface MoviePlayerProps {
   hasNextEpisode?: boolean;
   initialTime?: number;
   autoPlay?: boolean;
+  // Qualities
+  qualities?: number[];
+  activeQualityIndex?: number;
+  onQualityChange?: (index: number) => void;
+  // Audio
+  audioOptions?: Array<{ code: string; label: string }>;
+  activeAudioCode?: string;
+  onAudioChange?: (code: string) => void;
+  // Series
+  isSeries?: boolean;
+  seasons?: number[];
+  episodes?: number[];
+  activeSeason?: number;
+  activeEpisode?: number;
+  onSeasonChange?: (season: number) => void;
+  onEpisodeChange?: (episode: number) => void;
+  onBack?: () => void;
 }
 
 export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   src,
+  title,
   subtitles = [],
   activeSubtitleIndex,
+  onSubtitleSelect,
   subtitleDelay = 0,
+  onSubtitleDelayChange,
   subtitlePosition = 85,
+  onSubtitlePositionChange,
+  onCustomSubtitleUpload,
   poster,
   onEnded,
   onProgress,
   onNextEpisode,
   hasNextEpisode = false,
   initialTime = 0,
-  autoPlay = false
+  autoPlay = false,
+  qualities = [],
+  activeQualityIndex = 0,
+  onQualityChange,
+  audioOptions = [],
+  activeAudioCode,
+  onAudioChange,
+  isSeries = false,
+  seasons = [],
+  episodes = [],
+  activeSeason = 1,
+  activeEpisode = 1,
+  onSeasonChange,
+  onEpisodeChange,
+  onBack,
 }, ref) => {
-  const [seekAnimation, setSeekAnimation] = useState<'rewind' | 'forward' | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Playback & player state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [buffered, setBuffered] = useState(0);
+  const [volume, setVolumeState] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Client-side detection without SSR mismatch
   const isClient = useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -56,10 +106,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const hasResumed = useRef(false);
   useEffect(() => {
     if (videoRef.current) {
-      // Restore playback speed
       videoRef.current.playbackRate = speed;
-
-      // Restore watch progress once
       if (initialTime > 0 && !hasResumed.current) {
         videoRef.current.currentTime = initialTime;
         hasResumed.current = true;
@@ -67,10 +114,41 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   }, [speed, initialTime]);
 
+  // Preserve position when changing resolutions
+  const savedTimeRef = useRef<number>(0);
+
+  // Ref to hold current HLS instance for quality control
+  const hlsRef = useRef<Hls | null>(null);
+
+  // Handle HLS Quality Level Switching (Auto = -1, Manual = 0,1,2...)
+  useEffect(() => {
+    if (!hlsRef.current) return;
+    if (activeQualityIndex === -1) {
+      hlsRef.current.currentLevel = -1; // Auto ABR Mode
+    } else if (activeQualityIndex >= 0 && activeQualityIndex < hlsRef.current.levels.length) {
+      hlsRef.current.currentLevel = activeQualityIndex;
+    }
+  }, [activeQualityIndex]);
+
+  const [activeHlsHeight, setActiveHlsHeight] = useState<number | null>(null);
+
   // Handle stream loading via hls.js (only for .m3u8) with native fallback
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !currentSrc) return;
+
+    if (video.currentTime > 0) {
+      savedTimeRef.current = video.currentTime;
+    }
+
+    const restoreTimeAndPlay = () => {
+      if (savedTimeRef.current > 0) {
+        video.currentTime = savedTimeRef.current;
+      }
+      if (autoPlay) {
+        video.play().catch(() => {});
+      }
+    };
 
     let hls: Hls | null = null;
     const lowerSrc = currentSrc.toLowerCase();
@@ -81,25 +159,36 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         enableWorker: true,
         lowLatencyMode: false,
         backBufferLength: 90,
+        capLevelToPlayerSize: true, // YouTube-like optimization: don't load 4K on small screens
       });
+
+      hlsRef.current = hls;
 
       hls.loadSource(currentSrc);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (autoPlay) {
-          video.play().catch(() => {});
+        if (activeQualityIndex === -1) {
+          hls!.currentLevel = -1;
+        }
+        restoreTimeAndPlay();
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
+        if (data?.level !== undefined && hls?.levels?.[data.level]) {
+          setActiveHlsHeight(hls.levels[data.level].height || null);
         }
       });
 
-      hls.on(Hls.Events.ERROR, (_event, data) => {
+      hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
         if (data.fatal) {
           if (data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
             console.warn('[HLS] Stream is not HLS manifest, falling back to native src load');
             hls?.destroy();
             hls = null;
+            hlsRef.current = null;
             video.src = currentSrc;
-            if (autoPlay) video.play().catch(() => {});
+            restoreTimeAndPlay();
             return;
           }
           switch (data.type) {
@@ -115,22 +204,29 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
               console.warn('[HLS] Fatal error, falling back to native video src');
               hls?.destroy();
               hls = null;
+              hlsRef.current = null;
               video.src = currentSrc;
-              if (autoPlay) video.play().catch(() => {});
+              restoreTimeAndPlay();
               break;
           }
         }
       });
     } else {
       video.src = currentSrc;
-      if (autoPlay) {
-        video.play().catch(() => {});
+      const onLoaded = () => {
+        restoreTimeAndPlay();
+        video.removeEventListener('loadedmetadata', onLoaded);
+      };
+      video.addEventListener('loadedmetadata', onLoaded);
+      if (video.readyState >= 1) {
+        restoreTimeAndPlay();
       }
     }
 
     return () => {
       if (hls) {
         hls.destroy();
+        hlsRef.current = null;
       }
     };
   }, [currentSrc, autoPlay]);
@@ -170,14 +266,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     return () => clearTimeout(timer);
   }, [activeSubtitleIndex, subtitles, subtitlePosition]);
 
-  const handleSeek = (seconds: number) => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
-    setSeekAnimation(seconds < 0 ? 'rewind' : 'forward');
-    setTimeout(() => setSeekAnimation(null), 800);
-  };
-
   // Expose video DOM element to the ref
   useEffect(() => {
     if (ref) {
@@ -189,20 +277,121 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   }, [ref]);
 
+  // Track Fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  };
+
+  const handleSeek = (targetTime: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = targetTime;
+    setCurrentTime(targetTime);
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const clamped = Math.max(0, Math.min(1, newVol));
+    video.volume = clamped;
+    video.muted = clamped === 0;
+    setVolumeState(clamped);
+    setIsMuted(clamped === 0);
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (isMuted) {
+      video.muted = false;
+      setIsMuted(false);
+    } else {
+      video.muted = true;
+      setIsMuted(true);
+    }
+  };
+
+  const [hasVideoError, setHasVideoError] = useState(false);
+
+  const toggleFullscreen = () => {
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container || !video) return;
+
+    if (!document.fullscreenElement && !(video as any).webkitDisplayingFullscreen) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => {
+          if ((video as any).webkitEnterFullscreen) {
+            (video as any).webkitEnterFullscreen();
+          }
+        });
+      } else if ((video as any).webkitEnterFullscreen) {
+        (video as any).webkitEnterFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((video as any).webkitExitFullscreen) {
+        (video as any).webkitExitFullscreen();
+      }
+    }
+  };
+
+  const handleRetryVideo = () => {
+    setHasVideoError(false);
+    const video = videoRef.current;
+    if (video) {
+      video.load();
+      video.play().catch(() => {});
+    }
+  };
+
   if (!isClient) return <div className="relative w-full aspect-video bg-black rounded-xl" />;
 
   return (
-    <div className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850 group/player">
+    <div
+      ref={containerRef}
+      className="relative w-full max-w-7xl aspect-video rounded-xl overflow-hidden shadow-2xl mx-auto bg-black border border-zinc-850 group/player"
+    >
       <video
         ref={videoRef}
         poster={poster || ''}
-        controls
         playsInline
         crossOrigin="anonymous"
         className="w-full h-full object-contain bg-black block"
+        onPlay={() => {
+          setIsPlaying(true);
+          setHasVideoError(false);
+        }}
+        onPause={() => setIsPlaying(false)}
+        onError={() => setHasVideoError(true)}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
+          setCurrentTime(video.currentTime);
+          setDuration(video.duration || 0);
+          if (video.buffered.length > 0) {
+            setBuffered(video.buffered.end(video.buffered.length - 1));
+          }
           onProgress?.(video.currentTime, video.duration || 0);
+        }}
+        onLoadedMetadata={(e) => {
+          const video = e.currentTarget;
+          setDuration(video.duration || 0);
+          setHasVideoError(false);
         }}
         onEnded={onEnded}
         onRateChange={(e) => {
@@ -221,55 +410,72 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         ))}
       </video>
 
-      {/* Floating Quick Seek Controls (-10s / +10s) */}
-      <div className="absolute top-1/2 left-4 -translate-y-1/2 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-auto">
-        <button
-          type="button"
-          onClick={() => handleSeek(-10)}
-          className="p-3 bg-black/60 hover:bg-red-600/90 text-white rounded-full backdrop-blur-md border border-white/10 shadow-xl transition-all hover:scale-110 active:scale-95 flex items-center justify-center gap-1 group/btn"
-          title="Mundur 10 Detik"
-        >
-          <RotateCcw className="w-4 h-4 group-hover/btn:-rotate-45 transition-transform" />
-          <span className="text-[11px] font-bold">-10s</span>
-        </button>
-      </div>
-
-      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-20 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-auto">
-        <button
-          type="button"
-          onClick={() => handleSeek(10)}
-          className="p-3 bg-black/60 hover:bg-red-600/90 text-white rounded-full backdrop-blur-md border border-white/10 shadow-xl transition-all hover:scale-110 active:scale-95 flex items-center justify-center gap-1 group/btn"
-          title="Maju 10 Detik"
-        >
-          <span className="text-[11px] font-bold">+10s</span>
-          <RotateCw className="w-4 h-4 group-hover/btn:rotate-45 transition-transform" />
-        </button>
-      </div>
-
-      {/* Floating Next Episode Button (Series Only) */}
-      {hasNextEpisode && onNextEpisode && (
-        <div className="absolute top-4 right-4 z-20 opacity-90 hover:opacity-100 transition-opacity pointer-events-auto">
+      {/* Error Recovery UI Overlay */}
+      {hasVideoError && (
+        <div className="absolute inset-0 z-40 bg-zinc-950/90 backdrop-blur-md flex flex-col items-center justify-center gap-3 p-6 text-center text-white">
+          <div className="p-3 bg-red-600/20 text-red-500 rounded-full border border-red-500/30">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-bold text-zinc-100">Gagal Memuat Video</h3>
+          <p className="text-xs text-zinc-400 max-w-md leading-relaxed">
+            Sumber pemutaran video terputus atau koneksi mengalami masalah. Silakan coba muat ulang stream.
+          </p>
           <button
             type="button"
-            onClick={onNextEpisode}
-            className="px-3.5 py-2 bg-red-600/90 hover:bg-red-600 text-white font-bold rounded-xl text-xs shadow-xl backdrop-blur-md border border-red-400/40 transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+            onClick={handleRetryVideo}
+            className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center gap-2"
           >
-            <span>Episode Selanjutnya</span>
-            <SkipForward className="w-4 h-4" />
+            <span>Muat Ulang Video</span>
           </button>
         </div>
       )}
 
-      {/* Animated Ripple Indicator */}
-      {seekAnimation && (
-        <div className={`absolute top-1/2 -translate-y-1/2 z-30 pointer-events-none ${seekAnimation === 'rewind' ? 'left-12' : 'right-12'}`}>
-          <div className="p-3 bg-red-600/80 text-white rounded-full backdrop-blur-md animate-ping flex items-center justify-center font-bold text-xs">
-            {seekAnimation === 'rewind' ? '-10s' : '+10s'}
-          </div>
-        </div>
-      )}
+      {/* Netflix Custom Player Overlay */}
+      <PlayerOverlay
+        title={title}
+        isPlaying={isPlaying}
+        onTogglePlay={togglePlay}
+        currentTime={currentTime}
+        duration={duration}
+        buffered={buffered}
+        onSeek={handleSeek}
+        volume={volume}
+        isMuted={isMuted}
+        onVolumeChange={handleVolumeChange}
+        onToggleMute={toggleMute}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        onBack={onBack}
+        subtitles={subtitles}
+        activeSubtitleIndex={activeSubtitleIndex}
+        onSelectSubtitle={onSubtitleSelect}
+        subtitleDelay={subtitleDelay}
+        onDelayChange={onSubtitleDelayChange}
+        subtitlePosition={subtitlePosition}
+        onPositionChange={onSubtitlePositionChange}
+        onCustomSubtitleUpload={onCustomSubtitleUpload}
+        qualities={qualities}
+        activeQualityIndex={activeQualityIndex}
+        activeHlsHeight={activeHlsHeight}
+        onSelectQuality={onQualityChange}
+        audioOptions={audioOptions}
+        activeAudioCode={activeAudioCode}
+        onSelectAudio={onAudioChange}
+        isSeries={isSeries}
+        seasons={seasons}
+        episodes={episodes}
+        activeSeason={activeSeason}
+        activeEpisode={activeEpisode}
+        onSeasonChange={onSeasonChange}
+        onEpisodeChange={onEpisodeChange}
+        hasNextEpisode={hasNextEpisode}
+        onNextEpisode={onNextEpisode}
+      />
     </div>
   );
 });
 
 MoviePlayer.displayName = 'MoviePlayer';
+

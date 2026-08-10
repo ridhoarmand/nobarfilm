@@ -83,5 +83,11 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  
+  /* Android TV & Keyboard D-Pad Remote Navigation Focus Ring */
+  *:focus-visible {
+    outline: 2px solid #E50914 !important;
+    outline-offset: 2px !important;
+    border-radius: 0.5rem !important;
+  }
 }
-

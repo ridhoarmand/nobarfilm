@@ -23,7 +23,7 @@ function WatchContent() {
   const episode = episodeParam !== null ? parseInt(episodeParam) : undefined;
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
   
-  const [qualityIndex, setQualityIndex] = useState(0);
+  const [qualityIndex, setQualityIndex] = useState(-1);
   const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number | null>(0);
   const [isSubtitleModalOpen, setIsSubtitleModalOpen] = useState(false);
   const [customSubtitles, setCustomSubtitles] = useState<Array<{ label: string; src: string }>>([]);
@@ -290,19 +290,52 @@ function WatchContent() {
         {playbackData?.streamUrl ? (
           <MoviePlayer
             src={playbackData.streamUrl}
+            title={displayTitle}
             poster={subject?.coverHorizontalUrl || subject?.cover?.url}
             autoPlay
             initialTime={resumeTime}
             subtitles={formattedSubtitles}
             activeSubtitleIndex={selectedSubtitleIndex}
+            onSubtitleSelect={(idx: number | null) => setSelectedSubtitleIndex(idx)}
             subtitleDelay={subtitleDelay}
+            onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
             subtitlePosition={subtitlePosition}
+            onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
+            onCustomSubtitleUpload={(customSub: { label: string; src: string }) => {
+              setCustomSubtitles((prev) => [...prev, customSub]);
+              setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
+            }}
             onProgress={handleProgress}
             hasNextEpisode={hasNextEpisode}
             onNextEpisode={handleNextEpisode}
             onEnded={() => {
               if (hasNextEpisode) handleNextEpisode();
             }}
+            qualities={availableQualities}
+            activeQualityIndex={qualityIndex}
+            onQualityChange={(idx: number) => setQualityIndex(idx)}
+            audioOptions={filteredAudioOptions}
+            activeAudioCode={subjectId}
+            onAudioChange={handleAudioChange}
+            isSeries={isSeries}
+            seasons={availableSeasons}
+            episodes={availableEpisodes}
+            activeSeason={effectiveSeason}
+            activeEpisode={effectiveEpisode}
+            onSeasonChange={(s: number) => {
+              setQualityIndex(0);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('season', String(s));
+              params.set('episode', '1');
+              router.replace(`/watch/${subjectId}?${params.toString()}`);
+            }}
+            onEpisodeChange={(e: number) => {
+              setQualityIndex(0);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('episode', String(e));
+              router.replace(`/watch/${subjectId}?${params.toString()}`);
+            }}
+            onBack={() => router.push(`/${subjectId}`)}
           />
         ) : (
           <div className="w-full max-w-7xl mx-auto aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
@@ -338,233 +371,6 @@ function WatchContent() {
           >
             <X className="w-4 h-4" />
           </button>
-        </div>
-      )}
-
-      {/* Control Panel: User-Friendly Dropdowns & Subtitle Controls */}
-      {/* Control Panel: Clean Human-Centric Netflix/Apple TV Style */}
-      {(playerMetadata || playbackData) && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-5 shadow-lg backdrop-blur-md space-y-5">
-            
-            {/* Header Bar */}
-            <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
-              <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-zinc-400" />
-                <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Pengaturan Media & Player</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsSubtitleModalOpen(!isSubtitleModalOpen)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-800 bg-zinc-950 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <Search className="w-3.5 h-3.5 text-zinc-400" />
-                  {isSubtitleModalOpen ? 'Tutup Panel Subtitle' : 'Kelola Subtitle'}
-                </button>
-              </div>
-            </div>
-
-            {/* Inline Subtitle Panel (Non-Blocking) */}
-            <SubtitleModal
-              isOpen={isSubtitleModalOpen}
-              onClose={() => setIsSubtitleModalOpen(false)}
-              title={subject?.title || ''}
-              captions={playbackData?.captions || []}
-              selectedIndex={selectedSubtitleIndex}
-              onSelectSubtitle={(idx) => setSelectedSubtitleIndex(idx)}
-              onCustomSubtitleUpload={(customSub) => {
-                setCustomSubtitles((prev) => [...prev, customSub]);
-                setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
-              }}
-              customSubtitles={customSubtitles}
-            />
-
-            {/* Grid 1: Media Selectors (Subtitle, Audio, Quality, Season, Episode) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* 1. Subtitle Dropdown */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-zinc-400" /> Subtitle Teks
-                </label>
-                <select
-                  value={selectedSubtitleIndex === null ? 'off' : selectedSubtitleIndex}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedSubtitleIndex(val === 'off' ? null : parseInt(val, 10));
-                  }}
-                  className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                >
-                  <option value="off">Matikan Subtitle</option>
-                  {filteredCaptions.map((cap, idx) => (
-                    <option key={cap.id || idx} value={idx}>
-                      {cap.lanName || cap.lan}
-                    </option>
-                  ))}
-                  {customSubtitles.map((custom, idx) => (
-                    <option key={`custom-${idx}`} value={filteredCaptions.length + idx}>
-                      {custom.label} (File Lokal)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 2. Audio Dropdown */}
-              {filteredAudioOptions.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-zinc-400" /> Suara Audio
-                  </label>
-                  <select
-                    value={audioIndex}
-                    onChange={(e) => {
-                      const idx = parseInt(e.target.value, 10);
-                      const targetAudio = filteredAudioOptions[idx];
-                      if (targetAudio) handleAudioChange(targetAudio.code);
-                    }}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                  >
-                    {filteredAudioOptions.map((item, idx) => (
-                      <option key={item.code} value={idx}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* 3. Resolution Dropdown */}
-              {availableQualities.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-zinc-400" /> Kualitas Resolusi
-                  </label>
-                  <select
-                    value={qualityIndex}
-                    onChange={(e) => setQualityIndex(parseInt(e.target.value, 10))}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                  >
-                    {availableQualities.map((item, idx) => (
-                      <option key={item} value={idx}>
-                        {item}p {item >= 720 ? '(HD)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* 4. Season Dropdown (Series) */}
-              {isSeries && availableSeasons.length > 1 && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                    <Tv className="w-3.5 h-3.5 text-zinc-400" /> Musim / Season
-                  </label>
-                  <select
-                    value={effectiveSeason}
-                    onChange={(e) => {
-                      setQualityIndex(0);
-                      const params = new URLSearchParams(searchParams.toString());
-                      params.set('season', e.target.value);
-                      params.set('episode', '1');
-                      router.replace(`/watch/${subjectId}?${params.toString()}`);
-                    }}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                  >
-                    {availableSeasons.map((item) => (
-                      <option key={item} value={item}>
-                        Season {item}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* 5. Episode Dropdown (Series) */}
-              {isSeries && availableEpisodes.length > 1 && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-zinc-400" /> Episode
-                  </label>
-                  <select
-                    value={effectiveEpisode}
-                    onChange={(e) => {
-                      setQualityIndex(0);
-                      const params = new URLSearchParams(searchParams.toString());
-                      params.set('episode', e.target.value);
-                      router.replace(`/watch/${subjectId}?${params.toString()}`);
-                    }}
-                    className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                  >
-                    {availableEpisodes.map((item) => (
-                      <option key={item} value={item}>
-                        Episode {item}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Collapsible Drawer for Subtitle Delay & Position Sync */}
-            <div className="pt-2 border-t border-zinc-800/60">
-              <button
-                onClick={() => setIsAdvancedSubtitleOpen(!isAdvancedSubtitleOpen)}
-                className="w-full py-2 px-3 bg-zinc-950/40 hover:bg-zinc-850/60 border border-zinc-800/60 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>Pengaturan Delay Sync & Ketinggian Subtitle</span>
-                </div>
-                {isAdvancedSubtitleOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-
-              {/* Collapsible Content */}
-              {isAdvancedSubtitleOpen && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 animate-fade-in">
-                  {/* Subtitle Sync Delay */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-zinc-400" /> Sinkronisasi Delay Subtitle
-                    </label>
-                    <select
-                      value={subtitleDelay}
-                      onChange={(e) => setSubtitleDelay(parseFloat(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                    >
-                      <option value={-5}>-5.0s (Lebih Cepat 5 Detik)</option>
-                      <option value={-3}>-3.0s (Lebih Cepat 3 Detik)</option>
-                      <option value={-2}>-2.0s (Lebih Cepat 2 Detik)</option>
-                      <option value={-1}>-1.0s (Lebih Cepat 1 Detik)</option>
-                      <option value={-0.5}>-0.5s (Lebih Cepat 0.5 Detik)</option>
-                      <option value={0}>0.0s (Normal / Presisi)</option>
-                      <option value={0.5}>+0.5s (Lambat 0.5 Detik)</option>
-                      <option value={1}>+1.0s (Lambat 1 Detik)</option>
-                      <option value={2}>+2.0s (Lambat 2 Detik)</option>
-                      <option value={3}>+3.0s (Lambat 3 Detik)</option>
-                      <option value={5}>+5.0s (Lambat 5 Detik)</option>
-                    </select>
-                  </div>
-
-                  {/* Subtitle Vertical Position */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                      <Sliders className="w-3.5 h-3.5 text-zinc-400" /> Posisi Teks Subtitle
-                    </label>
-                    <select
-                      value={subtitlePosition}
-                      onChange={(e) => setSubtitlePosition(parseInt(e.target.value, 10))}
-                      className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
-                    >
-                      <option value={90}>Bawah Layar (90%)</option>
-                      <option value={85}>Bawah Standar (85%)</option>
-                      <option value={75}>Sedikit Ke Atas (75%)</option>
-                      <option value={20}>Atas Layar (20%)</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
         </div>
       )}
 

@@ -2,7 +2,7 @@
 import { Subject } from '@/types/api';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, PlayCircle, Heart } from 'lucide-react';
+import { Star, Play, Heart } from 'lucide-react';
 import { useWatchlist } from '@/hooks/useWatchlist';
 
 interface MovieCardProps {
@@ -68,8 +68,8 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
 
           {/* Desktop Hover Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <div className="p-2.5 bg-[#E50914] rounded-full text-white shadow-xl transform scale-90 group-hover/card:scale-100 transition-transform duration-300">
-              <PlayCircle className="w-7 h-7 fill-white/20" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#E50914] flex items-center justify-center shadow-xl transform scale-90 group-hover/card:scale-100 transition-transform duration-300">
+              <Play className="w-4 h-4 sm:w-5 sm:h-5 text-white ml-0.5" fill="white" />
             </div>
           </div>
         </div>

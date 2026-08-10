@@ -27,7 +27,7 @@ export function Hero({ slides }: HeroProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // Remove unused isMobile effect
 
   // Touch state for Swipe support
   const touchStartX = useRef(0);
@@ -105,15 +105,7 @@ export function Hero({ slides }: HeroProps) {
     return () => clearInterval(interval);
   }, [safeSlides.length, isPaused, nextSlide]);
 
-  useEffect(() => {
-    const updateViewport = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
 
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-    return () => window.removeEventListener('resize', updateViewport);
-  }, []);
 
   const currentSlide = safeSlides[currentIndex];
   if (!currentSlide) return null;
@@ -137,11 +129,23 @@ export function Hero({ slides }: HeroProps) {
       {/* Background Image Container */}
       <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         <div className="relative w-full h-full" style={{ position: 'relative' }}>
+          {/* Mobile Image */}
           <Image
-            src={isMobile ? mobileImage : desktopImage}
+            src={mobileImage}
             alt={currentSlide.title}
             fill
-            className={isMobile ? 'object-cover object-top' : 'object-cover object-center'}
+            className="object-cover object-top sm:hidden"
+            priority
+            loading="eager"
+            fetchPriority="high"
+            sizes="(max-width: 640px) 100vw, 1px"
+          />
+          {/* Desktop Image */}
+          <Image
+            src={desktopImage}
+            alt={currentSlide.title}
+            fill
+            className="object-cover object-center hidden sm:block"
             priority
             loading="eager"
             fetchPriority="high"
