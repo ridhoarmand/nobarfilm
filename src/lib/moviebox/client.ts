@@ -182,9 +182,26 @@ export async function callMobileApi(
     '/wefeed-mobile-bff/user-api/check-phone-account',
   ];
 
+  const guestAuthPaths = [
+    '/wefeed-mobile-bff/subject-api/get-ext-captions',
+    '/wefeed-mobile-bff/subject-api/get-stream-captions',
+    '/wefeed-mobile-bff/subject-api/get',
+    '/wefeed-mobile-bff/subject-api/season-info',
+    '/wefeed-mobile-bff/subject-api/search/v2',
+    '/wefeed-mobile-bff/subject-api/search-suggest',
+    '/wefeed-mobile-bff/subject-api/list',
+    '/wefeed-mobile-bff/tab-operating',
+  ];
+
   let token: string | null = null;
   if (clientToken) {
     token = clientToken;
+  } else if (guestAuthPaths.includes(path)) {
+    try {
+      token = await getGuestSessionToken();
+    } catch (err) {
+      console.warn(`[MovieBox SDK] Guest session token failed for ${path}:`, err);
+    }
   } else if (!noAuthPaths.includes(path)) {
     try {
       token = await getAccessToken();

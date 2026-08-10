@@ -227,14 +227,12 @@ export function useMovieBoxPlaybackUrl(
       // Sort downloads descending by resolution (so index 0 is the highest quality)
       const sortedDownloads = [...sources.downloads].sort((a, b) => (b.resolution || 0) - (a.resolution || 0));
 
-      // Construct stream URLs instantly for all available download resolutions
+      // Construct stream URLs using direct CDN URLs (prevents 429 rate limiting & proxy bottlenecks)
       const referer = `https://lok-lok.cc/spa/videoPlayPage/movies/${subjectId}`;
       const allDownloads: StreamDownloadItem[] = sortedDownloads.map((item) => ({
         resolution: item.resolution || 0,
         url: item.url,
-        streamUrl: item.url.toLowerCase().includes('.m3u8')
-          ? item.url
-          : `/api/proxy/video?url=${encodeURIComponent(item.url)}&referer=${encodeURIComponent(referer)}`,
+        streamUrl: item.url,
       }));
 
       const targetIndex = quality === -1 ? 0 : quality;

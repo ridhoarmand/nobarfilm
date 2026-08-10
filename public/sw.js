@@ -43,6 +43,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // DO NOT intercept video/audio streams, proxy video, or subtitles
+  if (
+    url.pathname.startsWith('/api/proxy/video') ||
+    url.pathname.startsWith('/api/subtitle') ||
+    event.request.destination === 'video' ||
+    event.request.destination === 'audio'
+  ) {
+    return;
+  }
+
   // Always prefer network for page navigations to avoid stale HTML/RSC payloads.
   if (event.request.mode === 'navigate') {
     event.respondWith(
@@ -88,6 +98,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
-    })
+    }).catch(() => fetch(event.request))
   );
 });
