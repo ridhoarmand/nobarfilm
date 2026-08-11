@@ -10,7 +10,7 @@ import { ClientToaster } from '@/components/layout/ClientToaster';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'NobarFilm 🎬 Nonton Film & Series Subtitle Indonesia Gratis HD',
+  title: 'NobarFilm - Nonton Film & Series Subtitle Indonesia Gratis HD',
   description: 'Platform streaming film dan serial TV subtitle indonesia gratis tanpa iklan dengan kualitas HD!',
   keywords: 'nobarfilm, streaming film, series subtitle indonesia, nonton anime, nonton film gratis, bioskop online',
   manifest: '/manifest.json',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'id_ID',
     siteName: 'NobarFilm',
-    title: 'NobarFilm 🎬 Nonton Film & Series Subtitle Indonesia Gratis HD',
+    title: 'NobarFilm - Nonton Film & Series Subtitle Indonesia Gratis HD',
     description: 'Platform streaming film dan serial TV subtitle indonesia gratis tanpa iklan dengan kualitas HD!',
     images: [
       {
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NobarFilm 🎬 Nonton Film & Series Subtitle Indonesia Gratis HD',
+    title: 'NobarFilm - Nonton Film & Series Subtitle Indonesia Gratis HD',
     description: 'Platform streaming film dan serial TV subtitle indonesia gratis tanpa iklan dengan kualitas HD!',
     images: ['/nobarfilm.jpg'],
   },

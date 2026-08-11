@@ -15,7 +15,7 @@ export async function generateMetadata({
 
   if (!id || id.includes('.') || id === 'favicon.ico') {
     return {
-      title: '▶️ NobarFilm Player',
+      title: 'NobarFilm Player',
       description: 'Stream film dan serial TV terbaru gratis tanpa iklan di NobarFilm.',
     };
   }
@@ -30,7 +30,7 @@ export async function generateMetadata({
       const isSeries = sub.subjectType === 2 || seasonNum > 0 || episodeNum > 0;
       const epLabel = isSeries ? ` (S${seasonNum || 1} Ep${episodeNum || 1})` : '';
 
-      const title = `▶️ Putar ${sub.title}${epLabel} Subtitle Indonesia | NobarFilm`;
+      const title = `Putar ${sub.title}${epLabel} Subtitle Indonesia | NobarFilm`;
       const desc = `Putar langsung ${sub.title}${epLabel} subtitle indonesia gratis dengan kualitas HD tanpa iklan di NobarFilm.`;
 
       const rawCover = sub.coverHorizontalUrl || sub.cover?.url || '/nobarfilm.jpg';
@@ -69,7 +69,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: '▶️ Watch Player | NobarFilm',
+    title: 'Watch Player | NobarFilm',
     description: 'Stream film dan serial TV terbaru gratis tanpa iklan di NobarFilm.',
   };
 }

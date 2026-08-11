@@ -24,7 +24,9 @@ function WatchContent() {
   const resumeTime = resumeTimeParam ? parseInt(resumeTimeParam) : 0;
   
   const [qualityIndex, setQualityIndex] = useState(-1);
-  const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number | null>(0);
+  const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number | null>(null);
+  const pendingSubtitleRef = useRef<number | null>(null);
+  const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
   const [isSubtitleModalOpen, setIsSubtitleModalOpen] = useState(false);
   const [customSubtitles, setCustomSubtitles] = useState<Array<{ label: string; src: string }>>([]);
 
@@ -145,6 +147,48 @@ function WatchContent() {
     return (playbackData?.captions || []).map((c) => c.url).join('|');
   }, [playbackData?.captions]);
 
+  // Request a subtitle switch: fetch the target subtitle content FIRST,
+  // then swap the active track once it is ready. This avoids the blink/flicker
+  // when switching languages (old sub stays until the new one has loaded).
+  const requestSubtitle = useCallback(
+    async (idx: number | null) => {
+      pendingSubtitleRef.current = idx;
+
+      if (idx === null) {
+        setSelectedSubtitleIndex(null);
+        return;
+      }
+
+      const cap = filteredCaptions[idx];
+      if (!cap?.url) {
+        setSelectedSubtitleIndex(idx);
+        return;
+      }
+
+      // Already cached -> switch instantly without any transition gap
+      if (cachedSubtitleUrls[cap.url]) {
+        setSelectedSubtitleIndex(idx);
+        return;
+      }
+
+      // Otherwise fetch the subtitle content before switching
+      try {
+        const blobUrl = await getCachedSubtitleBlobUrl(cap.url);
+        // Ignore stale requests if user switched again while this was loading
+        if (pendingSubtitleRef.current !== idx) return;
+        if (blobUrl) {
+          setCachedSubtitleUrls((prev) => ({ ...prev, [cap.url]: blobUrl }));
+        }
+        setSelectedSubtitleIndex(idx);
+      } catch (e) {
+        console.error('[Subtitle] Active load error:', e);
+        if (pendingSubtitleRef.current !== idx) return;
+        setSelectedSubtitleIndex(idx);
+      }
+    },
+    [filteredCaptions, cachedSubtitleUrls]
+  );
+
   // Auto-select subtitle based on user preference (stored in localStorage), fallback to Indonesian -> English -> First available
   useEffect(() => {
     if (playbackData?.captions && playbackData.captions.length > 0) {
@@ -177,13 +221,13 @@ function WatchContent() {
 
       // Fallback 3: First available caption
       const finalIdx = matchedIdx !== -1 ? matchedIdx : 0;
-      setSelectedSubtitleIndex(finalIdx);
+      requestSubtitle(finalIdx);
     }
-  }, [captionUrlsKey]);
+  }, [captionUrlsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handler for subtitle selection that persists user's language choice
   const handleSubtitleSelect = (idx: number | null) => {
-    setSelectedSubtitleIndex(idx);
+    requestSubtitle(idx);
     if (idx === null) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('nobarfilm_pref_sub_lang', 'off');
@@ -196,29 +240,6 @@ function WatchContent() {
       }
     }
   };
-
-  const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
-
-  // Fetch and cache ONLY the single subtitle track for the currently active language
-  useEffect(() => {
-    if (selectedSubtitleIndex === null || !filteredCaptions[selectedSubtitleIndex]) return;
-
-    const activeCap = filteredCaptions[selectedSubtitleIndex];
-    if (!activeCap?.url || cachedSubtitleUrls[activeCap.url]) return;
-
-    let isMounted = true;
-    getCachedSubtitleBlobUrl(activeCap.url)
-      .then((blobUrl) => {
-        if (isMounted && blobUrl) {
-          setCachedSubtitleUrls((prev) => ({ ...prev, [activeCap.url]: blobUrl }));
-        }
-      })
-      .catch((e) => console.error('[Subtitle] Single active load error:', e));
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedSubtitleIndex, filteredCaptions]);
 
   const formattedSubtitles = useMemo(() => {
     const builtInSubs = filteredCaptions.map((cap) => ({

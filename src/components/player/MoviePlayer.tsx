@@ -315,6 +315,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     styleEl.innerHTML = `
       video::cue {
         font-size: ${getFontSizeRem(subtitleFontSize)};
+        line-height: 1.15;
         background: rgba(0, 0, 0, 0.85);
         color: #ffffff;
         text-shadow: 0 2px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8), 0 0 2px #000;

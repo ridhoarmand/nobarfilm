@@ -1,4 +1,4 @@
-# 🎬 NobarFilm — Modern Web Streaming Platform
+# NobarFilm — Modern Web Streaming Platform
 
 **NobarFilm** adalah aplikasi web streaming film dan serial TV dengan antarmuka modern yang cepat, estetis, dan responsif. Dibuat menggunakan Next.js App Router terbaru, TailwindCSS, dan pemutar video HLS kustom untuk memberikan pengalaman menonton berkualitas tinggi tanpa jeda.
 
