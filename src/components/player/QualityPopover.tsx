@@ -9,6 +9,7 @@ interface QualityPopoverProps {
   qualities: number[];
   activeIndex: number;
   onSelectQuality: (index: number) => void;
+  activeHlsHeight?: number | null;
 }
 
 export function QualityPopover({
@@ -17,8 +18,11 @@ export function QualityPopover({
   qualities = [],
   activeIndex,
   onSelectQuality,
+  activeHlsHeight,
 }: QualityPopoverProps) {
   if (!isOpen) return null;
+
+  const runningRes = activeHlsHeight || (qualities.length > 0 ? qualities[0] : 1080);
 
   return (
     <div className="absolute bottom-16 right-4 z-40 w-64 max-w-[calc(100vw-2rem)] bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-4 animate-fade-in text-white text-xs">
@@ -44,7 +48,7 @@ export function QualityPopover({
           }`}
         >
           <span className="flex items-center gap-1.5">
-            <span>Auto</span>
+            <span>Auto ({runningRes}p)</span>
             <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.2 border border-emerald-800/40 rounded">
               Dinamis
             </span>

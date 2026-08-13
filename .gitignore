@@ -46,10 +46,13 @@ yarn-error.log*
 # sensitive docs & specs
 API.md
 API-FOR-BOT.md
+GEMINI.md
 scratch/
+repack-moviebox/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 dist/
+
 

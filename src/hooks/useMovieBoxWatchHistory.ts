@@ -85,6 +85,10 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
       }
 
       localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('nobarfilm_watch_history_updated'));
+        window.dispatchEvent(new Event('storage'));
+      }
     },
     [subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes],
   );

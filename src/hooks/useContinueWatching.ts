@@ -1,8 +1,33 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { ContinueWatchingItem } from '@/types/watch-history';
 
 export function useContinueWatching() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['continue-watching'] });
+    };
+
+    window.addEventListener('nobarfilm_watch_history_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('focus', handleUpdate);
+    window.addEventListener('pageshow', handleUpdate);
+    window.addEventListener('popstate', handleUpdate);
+
+    return () => {
+      window.removeEventListener('nobarfilm_watch_history_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
+      window.removeEventListener('pageshow', handleUpdate);
+      window.removeEventListener('popstate', handleUpdate);
+    };
+  }, [queryClient]);
+
   return useQuery<ContinueWatchingItem[]>({
     queryKey: ['continue-watching'],
     queryFn: async () => {
@@ -17,7 +42,8 @@ export function useContinueWatching() {
         return [];
       }
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }

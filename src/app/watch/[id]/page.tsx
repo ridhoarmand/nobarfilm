@@ -54,13 +54,23 @@ function WatchContent() {
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
   const audioOptions = useMemo(() => playerMetadata?.audioOptions || [], [playerMetadata]);
 
-  // Audio Filter: Original & Indonesian only
+  // Audio Filter: Ensure audio options are always available
   const filteredAudioOptions = useMemo(() => {
-    return audioOptions.filter((opt) => {
-      const label = (opt.label || '').toLowerCase();
-      return label.includes('original') || label.includes('indonesia');
-    });
-  }, [audioOptions]);
+    if (!audioOptions || audioOptions.length === 0) {
+      return [{ code: subjectId, label: 'Suara Utama (Original Audio)' }];
+    }
+    return audioOptions;
+  }, [audioOptions, subjectId]);
+
+  // Auto-hide resume toast after 4 seconds for a clean UX
+  useEffect(() => {
+    if (showResumeToast && resumeTime > 5) {
+      const timer = setTimeout(() => {
+        setShowResumeToast(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showResumeToast, resumeTime]);
 
   const [activeEpisodeRange, setActiveEpisodeRange] = useState(0);
 
@@ -138,14 +148,21 @@ function WatchContent() {
     return playerMetadata?.qualities || [];
   }, [playbackData?.allDownloads, playerMetadata?.qualities]);
 
-  // Allow ALL available captions without restricting languages
+  // Cleanly filter captions to Indonesian and English only to avoid clutter
   const filteredCaptions = useMemo(() => {
-    return playbackData?.captions || [];
+    const raw = playbackData?.captions || [];
+    const mainList = raw.filter((c) => {
+      const name = (c.lanName || c.lan || '').toLowerCase();
+      const isIndo = name.includes('indonesia') || name.includes('id');
+      const isEng = name.includes('english') || name.includes('en');
+      return isIndo || isEng;
+    });
+    return mainList.length > 0 ? mainList : raw;
   }, [playbackData?.captions]);
 
   const captionUrlsKey = useMemo(() => {
-    return (playbackData?.captions || []).map((c) => c.url).join('|');
-  }, [playbackData?.captions]);
+    return filteredCaptions.map((c) => c.url).join('|');
+  }, [filteredCaptions]);
 
   // Request a subtitle switch: fetch the target subtitle content FIRST,
   // then swap the active track once it is ready. This avoids the blink/flicker

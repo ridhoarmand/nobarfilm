@@ -53,6 +53,8 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
             let items = JSON.parse(historyJson) as ContinueWatchingItem[];
             items = items.filter((i) => i.id !== item.id && i.subject_id !== item.subject_id);
             localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
+            window.dispatchEvent(new Event('nobarfilm_watch_history_updated'));
+            window.dispatchEvent(new Event('storage'));
           } catch (err) {
             console.error('Failed to update localStorage history:', err);
           }

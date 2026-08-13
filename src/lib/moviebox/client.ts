@@ -11,49 +11,24 @@ export async function getGuestSessionToken(): Promise<string> {
   const cached = serverCache.get<string>(GUEST_TOKEN_KEY);
   if (cached) return cached;
 
-  const timestamp = Date.now();
-  const trClientToken = generateClientToken(timestamp);
-  const path = '/wefeed-mobile-bff/user-api/device-sessions';
-  const queryParams = { host: HOST, lang: 'id', locale: 'id_ID' };
-  const body = { package_name: 'com.moviebox.android' };
-  const bodyStr = JSON.stringify(body);
-  const signature = generateSignature('POST', path, queryParams, bodyStr, timestamp);
-
-  const url = `https://${HOST}${path}?host=${HOST}&lang=id&locale=id_ID`;
-
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Host': HOST,
-        'User-Agent': 'okhttp/4.12.0',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
-        'lang': 'id',
-        'locale': 'id_ID',
-        'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id' }),
-        'X-Client-Type': 'android',
-        'X-App-Version': '3.0.15',
-        'X-Client-Token': trClientToken,
-        'x-tr-signature': signature,
-        'x-tr-signature-method': 'HmacMD5',
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(bodyStr).toString(),
-      },
-      body: bodyStr,
-    });
+    const res = await callMobileApi(
+      'POST',
+      '/wefeed-mobile-bff/user-api/device-sessions',
+      { host: HOST, lang: 'id', locale: 'id_ID' },
+      { package_name: 'com.moviebox.android' },
+      false,
+      null
+    );
 
-    if (res.ok) {
-      const data: any = await res.json();
-      if (data.code === 0 && data.data?.token) {
-        const token = data.data.token;
-        const expireTime = typeof data.data.expireTime === 'number' ? data.data.expireTime : 0;
-        const nowSec = Math.floor(Date.now() / 1000);
-        const ttl = expireTime > nowSec ? expireTime - nowSec - 300 : 24 * 3600;
-        serverCache.set(GUEST_TOKEN_KEY, token, Math.max(300, ttl));
-        console.log(`[MovieBox SDK] Guest device session token cached (TTL: ${ttl}s).`);
-        return token;
-      }
+    if (res && res.code === 0 && res.data?.token) {
+      const token = res.data.token;
+      const expireTime = typeof res.data.expireTime === 'number' ? res.data.expireTime : 0;
+      const nowSec = Math.floor(Date.now() / 1000);
+      const ttl = expireTime > nowSec ? expireTime - nowSec - 300 : 24 * 3600;
+      serverCache.set(GUEST_TOKEN_KEY, token, Math.max(300, ttl));
+      console.log(`[MovieBox SDK] Guest device session token cached (TTL: ${ttl}s).`);
+      return token;
     }
   } catch (err: any) {
     console.warn(`[MovieBox SDK] Failed to get guest device session token:`, err.message);
@@ -158,6 +133,7 @@ export async function callMobileApi(
   const finalQueryParams: Record<string, string> = {
     lang: 'id',
     locale: 'id_ID',
+    area: 'ID',
     ...queryParams,
   };
 
@@ -174,6 +150,7 @@ export async function callMobileApi(
   const url = `https://${HOST}${fullPathWithQuery}`;
 
   const noAuthPaths = [
+    '/wefeed-mobile-bff/user-api/device-sessions',
     '/wefeed-mobile-bff/user-api/login',
     '/wefeed-mobile-bff/user-api/register',
     '/wefeed-mobile-bff/user-api/get-sms-code',
@@ -196,22 +173,11 @@ export async function callMobileApi(
   let token: string | null = null;
   if (clientToken) {
     token = clientToken;
-  } else if (guestAuthPaths.includes(path)) {
-    try {
-      token = await getGuestSessionToken();
-    } catch (err) {
-      console.warn(`[MovieBox SDK] Guest session token failed for ${path}:`, err);
-    }
   } else if (!noAuthPaths.includes(path)) {
     try {
       token = await getAccessToken();
-    } catch (err) {
-      console.warn(`[MovieBox SDK] Master token failed for ${path}, trying guest session token fallback...`);
-      try {
-        token = await getGuestSessionToken();
-      } catch (guestErr: any) {
-        console.error(`[MovieBox SDK] Guest session token also failed, executing request without auth headers:`, path);
-      }
+    } catch (err: any) {
+      console.warn(`[MovieBox SDK] Master token retrieval failed for ${path}:`, err.message);
     }
   }
 
@@ -222,7 +188,7 @@ export async function callMobileApi(
     'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
     'lang': 'id',
     'locale': 'id_ID',
-    'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id' }),
+    'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id', area: 'ID', mcc: '510' }),
     'x-vip-restrict': '1',
     'X-Client-Type': 'android',
     'X-App-Version': '3.0.15',
@@ -250,18 +216,18 @@ export async function callMobileApi(
       method: method.toUpperCase(),
       headers,
       body: bodyStr ? bodyStr : undefined,
-      next: { revalidate: 120 },
+      cache: 'no-store',
     });
 
-    if (res.status === 401 && retryOn401) {
+    if ((res.status === 401 || res.status === 441) && retryOn401) {
       if (clientToken) {
-        throw new Error('Unauthorized (Invalid client token)');
+        throw new Error(`Unauthorized (HTTP ${res.status})`);
       }
-      console.log(`[MovieBox SDK] Request returned 401, clearing token cache and retrying: ${path}`);
+      console.log(`[MovieBox SDK] Request returned ${res.status}, retrying with Master Account token: ${path}`);
       cachedJwtToken = null;
-      serverCache.delete(MASTER_TOKEN_KEY);
       serverCache.delete(GUEST_TOKEN_KEY);
-      return callMobileApi(method, path, queryParams, body, false);
+      const masterToken = await getAccessToken();
+      return callMobileApi(method, path, queryParams, body, false, masterToken, clientIp);
     }
 
     if (!res.ok) {
@@ -270,7 +236,7 @@ export async function callMobileApi(
 
     return await res.json();
   } catch (err: any) {
-    console.error(`[MovieBox SDK] callMobileApi Error for ${path}:`, err.message);
+    console.warn(`[MovieBox SDK] callMobileApi Error for ${path}:`, err.message);
     throw err;
   }
 }

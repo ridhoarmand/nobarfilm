@@ -103,6 +103,26 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   // Normalize source URL
   const currentSrc = typeof src === 'string' ? src : (src as { src: string }).src;
 
+  // Preserve position when changing resolutions
+  const savedTimeRef = useRef<number>(0);
+
+  // Reset playback position when changing episodes or seasons
+  const prevEpisodeRef = useRef({ season: activeSeason, episode: activeEpisode });
+  useEffect(() => {
+    if (
+      prevEpisodeRef.current.season !== activeSeason ||
+      prevEpisodeRef.current.episode !== activeEpisode
+    ) {
+      prevEpisodeRef.current = { season: activeSeason, episode: activeEpisode };
+      savedTimeRef.current = initialTime || 0;
+      hasResumed.current = false;
+      setCurrentTime(initialTime || 0);
+      if (videoRef.current) {
+        videoRef.current.currentTime = initialTime || 0;
+      }
+    }
+  }, [activeSeason, activeEpisode, initialTime]);
+
   // Handle native player setup & sync
   const hasResumed = useRef(false);
   useEffect(() => {
@@ -114,9 +134,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       }
     }
   }, [speed, initialTime]);
-
-  // Preserve position when changing resolutions
-  const savedTimeRef = useRef<number>(0);
 
   // Ref to hold current HLS instance for quality control
   const hlsRef = useRef<Hls | null>(null);
@@ -138,7 +155,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     const video = videoRef.current;
     if (!video || !currentSrc) return;
 
-    if (video.currentTime > 0) {
+    const isEpisodeChanged = prevEpisodeRef.current.season !== activeSeason || prevEpisodeRef.current.episode !== activeEpisode;
+    if (!isEpisodeChanged && video.currentTime > 0) {
       savedTimeRef.current = video.currentTime;
     }
 
@@ -427,31 +445,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   const [hasVideoError, setHasVideoError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const hasAutoEnteredFullscreen = useRef(false);
 
-  // Lock orientation to landscape during fullscreen
+  // Track fullscreen state only (no auto-lock orientation), prevent finishing
+  // buttons from disappearing when exiting fullscreen on mobile.
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isFs = !!document.fullscreenElement || !!(videoRef.current as any)?.webkitDisplayingFullscreen;
-      setIsFullscreen(isFs);
-
-      if (isFs) {
-        try {
-          if ('orientation' in screen && (screen.orientation as any)?.lock) {
-            (screen.orientation as any).lock('landscape').catch(() => {});
-          }
-        } catch {
-          // Ignore orientation lock failures on unsupported devices
-        }
-      } else {
-        try {
-          if ('orientation' in screen && (screen.orientation as any)?.unlock) {
-            (screen.orientation as any).unlock();
-          }
-        } catch {
-          // Ignore unlock errors
-        }
-      }
+      setIsFullscreen(!!document.fullscreenElement);
+      const webkitFs = (videoRef.current as any)?.webkitDisplayingFullscreen === true;
+      setIsFullscreen((prev) => prev || webkitFs);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -528,11 +529,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           setIsPlaying(true);
           setIsBuffering(false);
           setHasVideoError(false);
-          // Auto-trigger fullscreen on initial playback start if supported
-          if (!hasAutoEnteredFullscreen.current && !document.fullscreenElement) {
-            hasAutoEnteredFullscreen.current = true;
-            toggleFullscreen();
-          }
         }}
         onPause={() => setIsPlaying(false)}
         onWaiting={() => setIsBuffering(true)}

@@ -3,6 +3,8 @@ import { movieBoxService } from "@/lib/moviebox";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ subjectId: string }> }
@@ -25,6 +27,7 @@ export async function GET(
   try {
     const clientToken = getClientToken(request);
     const data = await movieBoxService.getSources(subjectId, season, episode, clientToken);
+    console.log('[sources route] Called for subjectId:', subjectId, 'downloads count:', data?.downloads?.length, 'hasResource:', data?.hasResource);
     return encryptedResponse(data);
   } catch (error: any) {
     console.error('[sources] API Error:', error);

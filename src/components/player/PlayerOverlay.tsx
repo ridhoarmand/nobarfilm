@@ -124,13 +124,20 @@ export function PlayerOverlay({
   hasNextEpisode = false,
   onNextEpisode,
 }: PlayerOverlayProps) {
-  const { isVisible, showControls, keepControlsVisible, scheduleQuickHide } = usePlayerControls(2000);
+  const { isVisible, showControls, keepControlsVisible, scheduleQuickHide, hideControlsNow } = usePlayerControls(isPlaying, 2000);
   const { handleTap, seekAnimation } = useDoubleTapSeek({
     onSeek: (seconds) => onSeek(Math.max(0, Math.min(duration, currentTime + seconds))),
   });
 
   // Active popover modal state ('subtitle' | 'quality' | 'episode' | null)
   const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | null>(null);
+
+  useEffect(() => {
+    // Setelah video dipause atau setelah play lagi, tapang controls otomatis
+    if (!isPlaying) {
+      showControls();
+    }
+  }, [isPlaying, showControls]);
 
   // If any popover is open, keep controls visible
   useEffect(() => {
@@ -148,17 +155,49 @@ export function PlayerOverlay({
     scheduleQuickHide(800);
   };
 
+  // Handle tap: first click/tap shows controls; subsequent clicks allow toggle/double-tap seek
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Mobile: first tap shows controls, nothing else, to prevent instant seek from accidental touch
+    if (e.type === 'click' && window.matchMedia('(pointer: coarse)').matches) {
+      showControls();
+      return;
+    }
+    // Desktop: click on the video -> toggle controls on (like YouTube)
+    showControls();
+    handleTap(e);
+  };
+
+  const handleMouseLeave = () => {
+    if (activePopover === null) {
+      hideControlsNow();
+    }
+  };
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsMobile(window.matchMedia('(pointer: coarse)').matches);
+    }
+  }, []);
+
+  // YouTube-like behavior: On desktop, hover shows top & bottom controls but keeps center clean while playing.
+  // Center controls show when video is PAUSED, or on mobile touch tap.
+  const showCenterControls = isVisible && (!isPlaying || isMobile);
+  const showBottomBar = isVisible;
+
   return (
     <div
       onMouseMove={showControls}
-      onTouchStart={showControls}
-      onClick={handleTap}
+      onMouseEnter={showControls}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleContainerClick}
       className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300"
     >
-      {/* Dynamic Overlay Gradient Background */}
+      {/* Dynamic Overlay Gradient Background - only when paused or after click/tap */}
       <div
-        className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/70 pointer-events-none transition-opacity duration-300 ${
-          isVisible || !isPlaying ? 'opacity-100' : 'opacity-0'
+        className={`absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 pointer-events-none transition-opacity duration-300 ${
+          showCenterControls ? 'opacity-100' : 'opacity-0'
         }`}
       />
 
@@ -175,10 +214,9 @@ export function PlayerOverlay({
         </div>
       )}
 
-      {/* TOP BAR: Back Button & Movie Title */}
       <div
         className={`relative z-30 flex items-center gap-3 p-4 sm:p-6 transition-opacity duration-300 pointer-events-auto ${
-          isVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
         {onBack && (
@@ -199,10 +237,10 @@ export function PlayerOverlay({
         )}
       </div>
 
-      {/* CENTER PLAY/PAUSE OVERLAY BUTTON (Sleek, Compact & Non-Obstructive) */}
+      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - only on pause or after click/tap (no hover) */}
       <div
         className={`relative z-30 flex items-center justify-center gap-3 sm:gap-5 transition-opacity duration-300 ${
-          isVisible || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          showCenterControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
         <button
@@ -246,10 +284,10 @@ export function PlayerOverlay({
         </button>
       </div>
 
-      {/* BOTTOM CONTROL BAR */}
+      {/* BOTTOM CONTROL BAR - same visibility as center (pause/click), not on hover */}
       <div
         className={`relative z-30 p-4 sm:p-6 space-y-3 transition-opacity duration-300 pointer-events-auto ${
-          isVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          showBottomBar ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
         {/* Seekable Progress Bar */}
@@ -346,9 +384,7 @@ export function PlayerOverlay({
                 <Film className="w-4 h-4" />
                 <span className="text-[11px]">
                   {activeQualityIndex === -1
-                    ? activeHlsHeight
-                      ? `Auto (${activeHlsHeight}p)`
-                      : 'Auto'
+                    ? `Auto (${activeHlsHeight || (qualities.length > 0 ? qualities[0] : 1080)}p)`
                     : `${qualities[activeQualityIndex] || qualities[0]}p`}
                 </span>
               </button>
@@ -439,6 +475,7 @@ export function PlayerOverlay({
           qualities={qualities}
           activeIndex={activeQualityIndex}
           onSelectQuality={onSelectQuality}
+          activeHlsHeight={activeHlsHeight}
         />
       )}
 

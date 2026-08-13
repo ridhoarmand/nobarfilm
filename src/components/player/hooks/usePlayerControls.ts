@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export function usePlayerControls(autoHideDelayMs: number = 3000) {
+export function usePlayerControls(isPlaying: boolean, autoHideDelayMs: number = 3000) {
   const [isVisible, setIsVisible] = useState(true);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -11,10 +11,12 @@ export function usePlayerControls(autoHideDelayMs: number = 3000) {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
     }
-    hideTimerRef.current = setTimeout(() => {
-      setIsVisible(false);
-    }, autoHideDelayMs);
-  }, [autoHideDelayMs]);
+    if (isPlaying) {
+      hideTimerRef.current = setTimeout(() => {
+        setIsVisible(false);
+      }, autoHideDelayMs);
+    }
+  }, [isPlaying, autoHideDelayMs]);
 
   const keepControlsVisible = useCallback(() => {
     setIsVisible(true);
@@ -34,10 +36,12 @@ export function usePlayerControls(autoHideDelayMs: number = 3000) {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
     }
-    hideTimerRef.current = setTimeout(() => {
-      setIsVisible(false);
-    }, delayMs);
-  }, []);
+    if (isPlaying) {
+      hideTimerRef.current = setTimeout(() => {
+        setIsVisible(false);
+      }, delayMs);
+    }
+  }, [isPlaying]);
 
   useEffect(() => {
     showControls();

@@ -160,11 +160,13 @@ function getCachedStreamData(cacheKey: string): (PlaybackData & { expiry: number
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const data = JSON.parse(cached);
-      // Check if not expired (30 min default expiry)
+      // Check if not expired and contains valid streams
       if (data.expiry && data.expiry > Date.now()) {
-        return data;
+        if (Array.isArray(data.allDownloads) && data.allDownloads.length > 0 && Boolean(data.streamUrl)) {
+          return data;
+        }
       }
-      // Expired, remove from cache
+      // Invalid or expired, remove from cache
       localStorage.removeItem(cacheKey);
     }
   } catch {}
@@ -174,6 +176,7 @@ function getCachedStreamData(cacheKey: string): (PlaybackData & { expiry: number
 // Helper to cache stream data
 function cacheStreamData(cacheKey: string, data: PlaybackData, expiryMinutes = 15) {
   if (typeof window === 'undefined') return;
+  if (!data || !data.streamUrl || !Array.isArray(data.allDownloads) || data.allDownloads.length === 0) return;
   try {
     localStorage.setItem(
       cacheKey,
@@ -208,7 +211,7 @@ export function useMovieBoxPlaybackUrl(
     queryFn: async () => {
       // Check localStorage cache first
       const cached = getCachedStreamData(cacheKey);
-      if (cached) {
+      if (cached && Array.isArray(cached.allDownloads) && cached.allDownloads.length > 0) {
         const targetIndex = quality === -1 ? 0 : quality;
         return {
           streamUrl: cached.allDownloads?.[targetIndex]?.streamUrl || cached.streamUrl,
