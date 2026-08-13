@@ -118,19 +118,18 @@ export default function DetailPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 {(() => {
                   // Check if this is an upcoming release (releaseDate is in the future)
                   const releaseDate = subject.releaseDate ? new Date(subject.releaseDate) : null;
                   const isUpcoming = releaseDate && releaseDate > new Date();
 
                   if (isUpcoming) {
-                    // Show release date for upcoming content
                     return (
-                      <div className="px-8 py-3 bg-zinc-800 border border-zinc-700 text-gray-300 font-semibold rounded-lg">
+                      <div className="w-full sm:w-auto px-6 py-3 bg-zinc-800 border border-zinc-700 text-gray-300 font-semibold rounded-lg text-center">
                         <div className="flex flex-col">
-                          <span className="text-sm text-gray-400">Coming Soon</span>
-                          <span className="text-white">
+                          <span className="text-xs text-gray-400">Coming Soon</span>
+                          <span className="text-sm sm:text-base text-white font-bold">
                             {releaseDate.toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'long',
@@ -144,22 +143,25 @@ export default function DetailPage() {
 
                   // Show play button for released content
                   return (
-                    <>
-                      <Link href={watchUrl} className="flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105">
-                        <Play className="w-6 h-6 fill-current" />
+                    <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                      <Link
+                        href={watchUrl}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
+                      >
+                        <Play className="w-5 h-5 fill-current" />
                         <span>Play Now</span>
                       </Link>
                       {/* Download button - Only for Movies */}
                       {!isSeries && (
                         <button
                           onClick={() => openDownloadModal(0, 0)}
-                          className="flex items-center gap-2 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base"
                         >
-                          <Download className="w-6 h-6" />
+                          <Download className="w-5 h-5" />
                           <span>Download</span>
                         </button>
                       )}
-                    </>
+                    </div>
                   );
                 })()}
               </div>

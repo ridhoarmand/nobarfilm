@@ -61,6 +61,7 @@ export function Hero({ slides }: HeroProps) {
   // Swipe Handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX;
     setIsPaused(true);
   };
 
@@ -69,10 +70,10 @@ export function Hero({ slides }: HeroProps) {
   };
 
   const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
+    if (!touchStartX.current) return;
 
     const distance = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 50;
+    const minSwipeDistance = 40;
 
     if (distance > minSwipeDistance) {
       // Swiped Left -> Next
@@ -159,12 +160,12 @@ export function Hero({ slides }: HeroProps) {
       </div>
 
       {/* Content */}
-      <div className="absolute inset-0 flex items-end sm:items-center pb-20 sm:pb-0 pointer-events-none">
+      <div className="absolute inset-0 flex items-end sm:items-center pb-16 sm:pb-0 pointer-events-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 w-full z-10 pointer-events-auto">
           <div className={`max-w-xl md:max-w-2xl lg:max-w-3xl transition-all duration-1000 transform ${isTransitioning ? 'translate-y-6 opacity-0' : 'translate-y-0 opacity-100'}`}>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white mb-3 sm:mb-4 tracking-tight drop-shadow-md leading-tight line-clamp-2">{currentSlide.title}</h1>
+            <h1 className="text-2xl sm:text-5xl md:text-6xl font-extrabold text-white mb-2 sm:mb-4 tracking-tight drop-shadow-md leading-tight line-clamp-2">{currentSlide.title}</h1>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-300 mb-4 sm:mb-5 font-medium">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-zinc-300 mb-3 sm:mb-5 font-medium">
               <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
                 {currentSlide.recommendationReason || 'Trending Sekarang'}
               </span>
@@ -182,20 +183,21 @@ export function Hero({ slides }: HeroProps) {
 
             <p className="hidden sm:block text-zinc-300 text-sm sm:text-base mb-6 line-clamp-3 max-w-xl leading-relaxed">{currentSlide.description}</p>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <Link
                 href={watchUrl}
-                className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-white/80 text-black font-bold rounded-md text-sm sm:text-base transition-all shadow-md active:scale-95"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-white hover:bg-white/80 text-black font-bold rounded-md text-sm sm:text-base transition-all shadow-md active:scale-95"
               >
-                <Play className="w-5 h-5 fill-black" />
+                <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-black" />
                 <span>Putar</span>
               </Link>
               <Link
                 href={`/${currentSlide.subjectId}`}
-                className="flex items-center gap-2 px-6 py-2.5 bg-zinc-500/40 hover:bg-zinc-500/30 text-white font-bold rounded-md text-sm sm:text-base backdrop-blur-md transition-all active:scale-95"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-zinc-500/40 hover:bg-zinc-500/30 text-white font-bold rounded-md text-sm sm:text-base backdrop-blur-md transition-all active:scale-95"
               >
-                <Info className="w-5 h-5" />
-                <span>Informasi Selengkapnya</span>
+                <Info className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="inline sm:hidden">Detail</span>
+                <span className="hidden sm:inline">Informasi Selengkapnya</span>
               </Link>
             </div>
           </div>
@@ -222,14 +224,14 @@ export function Hero({ slides }: HeroProps) {
         </>
       )}
 
-      {/* Indicators (Visible on all, raised on mobile) */}
+      {/* Indicators (Visible on all, clean bottom spacing) */}
       {safeSlides.length > 1 && (
-        <div className="absolute bottom-8 sm:bottom-24 right-4 sm:right-12 flex gap-2 z-20">
+        <div className="absolute bottom-3 sm:bottom-8 right-4 sm:right-12 flex gap-1.5 sm:gap-2 z-20 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm border border-white/10">
           {safeSlides.map((_, index) => (
             <button
               key={index}
               onClick={() => handleDotClick(index)}
-              className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 shadow ${index === currentIndex ? 'bg-white scale-125' : 'bg-gray-500/50 hover:bg-gray-400'}`}
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${index === currentIndex ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/70'}`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}

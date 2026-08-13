@@ -333,11 +333,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     styleEl.innerHTML = `
       video::cue {
         font-size: ${getFontSizeRem(subtitleFontSize)};
-        line-height: 1.15;
-        background: rgba(0, 0, 0, 0.85);
-        color: #ffffff;
-        text-shadow: 0 2px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8), 0 0 2px #000;
-        font-family: inherit;
+        line-height: 1.35;
+        background: rgba(0, 0, 0, 0.55);
+        color: #f8fafc;
+        text-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.9);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 0.15em 0.5em;
+        border-radius: 0.25em;
       }
     `;
 
@@ -516,7 +518,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full min-h-screen bg-black overflow-hidden group/player flex items-center justify-center"
+      className="relative w-full h-full bg-black overflow-hidden group/player flex items-center justify-center"
     >
       <video
         ref={videoRef}

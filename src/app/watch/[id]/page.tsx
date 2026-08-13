@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
-import { Loader2, AlertCircle, Film, X } from 'lucide-react';
+import { Loader2, AlertCircle, Film, X, Globe } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubtitleModal } from '@/components/player/SubtitleModal';
 import { getCachedSubtitleBlobUrl, cleanSubtitleCache } from '@/lib/subtitleCache';
@@ -44,7 +44,7 @@ function WatchContent() {
   });
 
   const [subtitleDelay, setSubtitleDelay] = useState(0);
-  const [subtitlePosition, setSubtitlePosition] = useState(75);
+  const [subtitlePosition, setSubtitlePosition] = useState(70);
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showResumeToast, setShowResumeToast] = useState(true);
@@ -355,9 +355,9 @@ function WatchContent() {
   };
 
   return (
-    <div className="h-screen w-screen bg-black overflow-hidden relative flex flex-col justify-center">
-      {/* Pure Full-Bleed Player Container */}
-      <div className="w-full h-full bg-black flex items-center justify-center">
+    <div className="min-h-screen w-screen bg-zinc-950 text-white flex flex-col">
+      {/* Video Player Container - 16:9 Aspect Ratio on Mobile, Expands in Fullscreen */}
+      <div className="w-full aspect-video sm:h-[65vh] max-h-[75vh] bg-black relative flex items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
         {playbackData?.streamUrl ? (
           <MoviePlayer
             src={activeStreamUrl || playbackData.streamUrl}
@@ -409,15 +409,116 @@ function WatchContent() {
             onBack={() => {
               if (typeof window !== 'undefined' && window.history.length > 1) {
                 router.back();
-              } else {
-                router.replace(`/${subjectId}`);
               }
+              setTimeout(() => {
+                router.push(`/${subjectId}`);
+              }, 100);
             }}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-zinc-500 bg-black">
             <Film className="w-12 h-12" />
             <p className="text-sm">Sumber video tidak tersedia</p>
+          </div>
+        )}
+      </div>
+
+      {/* Film Information & Synopsis Panel (Below Player) */}
+      <div className="flex-1 overflow-y-auto max-w-5xl mx-auto w-full p-4 sm:p-6 space-y-6">
+        {/* Header & Badges */}
+        <div>
+          <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight mb-2">
+            {subject?.title}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-zinc-400">
+            {releaseYear && <span>{releaseYear}</span>}
+            {!!subject?.duration && subject.duration > 0 && <span>{Math.floor(subject.duration / 60)}m</span>}
+            {genres.map((g, i) => (
+              <span key={i} className="bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300">
+                {g}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Episode Selector for TV Series */}
+        {isSeries && availableEpisodes.length > 0 && (
+          <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-sm text-zinc-200">
+                Episode Musim {effectiveSeason}
+              </h2>
+              <span className="text-xs text-zinc-400 font-mono">
+                {availableEpisodes.length} Episode
+              </span>
+            </div>
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-48 overflow-y-auto pr-1">
+              {availableEpisodes.map((ep) => {
+                const isActive = ep === effectiveEpisode;
+                return (
+                  <button
+                    key={ep}
+                    type="button"
+                    onClick={() => {
+                      setQualityIndex(0);
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.set('episode', String(ep));
+                      router.replace(`/watch/${subjectId}?${params.toString()}`);
+                    }}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? 'bg-red-600 text-white shadow-lg scale-105'
+                        : 'bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                    }`}
+                  >
+                    E{ep}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Synopsis & Translation */}
+        {subject?.description && (
+          <div className="bg-zinc-900/50 border border-zinc-850 rounded-2xl p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-sm text-zinc-200 uppercase tracking-wider">
+                Sinopsis
+              </h2>
+              <button
+                onClick={async () => {
+                  if (translatedSynopsis) {
+                    setTranslatedSynopsis(null);
+                    return;
+                  }
+                  try {
+                    setIsTranslating(true);
+                    const res = await fetch('/api/translate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ text: subject.description }),
+                    });
+                    const data = await res.json();
+                    if (data.translatedText) {
+                      setTranslatedSynopsis(data.translatedText);
+                    }
+                  } catch (e) {
+                    console.error('Translation error:', e);
+                  } finally {
+                    setIsTranslating(false);
+                  }
+                }}
+                disabled={isTranslating}
+                className="text-xs font-semibold px-3 py-1 rounded-lg border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                {isTranslating ? 'Menerjemahkan...' : translatedSynopsis ? 'Teks Asli' : 'Terjemahkan'}
+              </button>
+            </div>
+            <p className="text-zinc-300 text-sm leading-relaxed">
+              {translatedSynopsis || subject.description}
+            </p>
           </div>
         )}
       </div>

@@ -222,8 +222,15 @@ export function PlayerOverlay({
         {onBack && (
           <button
             type="button"
-            onClick={onBack}
-            className="p-2 rounded-full bg-black/50 hover:bg-red-600 text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              onBack();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              onBack();
+            }}
+            className="p-2 rounded-full bg-black/60 hover:bg-red-600 text-white backdrop-blur-md border border-white/20 transition-all hover:scale-105 active:scale-95 z-50 cursor-pointer"
             title="Kembali"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -237,9 +244,9 @@ export function PlayerOverlay({
         )}
       </div>
 
-      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - only on pause or after click/tap (no hover) */}
+      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - subtle transparent aesthetic */}
       <div
-        className={`relative z-30 flex items-center justify-center gap-3 sm:gap-5 transition-opacity duration-300 ${
+        className={`relative z-30 flex items-center justify-center gap-4 sm:gap-6 transition-opacity duration-300 ${
           showCenterControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -249,7 +256,7 @@ export function PlayerOverlay({
             e.stopPropagation();
             onSeek(Math.max(0, currentTime - 10));
           }}
-          className="p-2 sm:p-2.5 rounded-full bg-black/50 hover:bg-white/20 text-zinc-300 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95"
+          className="p-2 sm:p-2.5 rounded-full bg-black/35 hover:bg-black/60 text-zinc-200 hover:text-white backdrop-blur-md border border-white/15 transition-all hover:scale-105 active:scale-95 shadow-md"
           title="Mundur 10 Detik"
         >
           <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -261,7 +268,7 @@ export function PlayerOverlay({
             e.stopPropagation();
             onTogglePlay();
           }}
-          className="p-3 sm:p-3.5 rounded-full bg-red-600/90 hover:bg-red-600 text-white shadow-xl transition-all hover:scale-105 active:scale-95 border border-white/20 backdrop-blur-md"
+          className="p-3 sm:p-3.5 rounded-full bg-black/40 hover:bg-black/65 text-white backdrop-blur-md border border-white/25 transition-all hover:scale-105 active:scale-95 shadow-lg"
           title={isPlaying ? 'Jeda' : 'Putar'}
         >
           {isPlaying ? (
@@ -277,16 +284,16 @@ export function PlayerOverlay({
             e.stopPropagation();
             onSeek(Math.min(duration, currentTime + 10));
           }}
-          className="p-2 sm:p-2.5 rounded-full bg-black/50 hover:bg-white/20 text-zinc-300 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95"
+          className="p-2 sm:p-2.5 rounded-full bg-black/35 hover:bg-black/60 text-zinc-200 hover:text-white backdrop-blur-md border border-white/15 transition-all hover:scale-105 active:scale-95 shadow-md"
           title="Maju 10 Detik"
         >
           <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
 
-      {/* BOTTOM CONTROL BAR - same visibility as center (pause/click), not on hover */}
+      {/* BOTTOM CONTROL BAR - mobile optimized layout */}
       <div
-        className={`relative z-30 p-4 sm:p-6 space-y-3 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 p-2.5 sm:p-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
           showBottomBar ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -299,30 +306,30 @@ export function PlayerOverlay({
         />
 
         {/* Bottom Control Row */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-4 overflow-hidden">
           {/* Left Controls: Play/Pause, Volume, Time */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-3 flex-shrink min-w-0">
             <button
               type="button"
               onClick={onTogglePlay}
-              className="p-2 rounded-lg hover:bg-white/10 text-white transition"
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-white transition flex-shrink-0"
             >
-              {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}
+              {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-white" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />}
             </button>
 
             {/* Volume Control */}
-            <div className="flex items-center gap-2 group/vol">
+            <div className="flex items-center gap-1.5 group/vol flex-shrink-0">
               <button
                 type="button"
                 onClick={onToggleMute}
-                className="p-2 rounded-lg hover:bg-white/10 text-white transition"
+                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-white transition"
               >
                 {isMuted || volume === 0 ? (
-                  <VolumeX className="w-5 h-5 text-red-500" />
+                  <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                 ) : volume < 0.5 ? (
-                  <Volume1 className="w-5 h-5" />
+                  <Volume1 className="w-4 h-4 sm:w-5 sm:h-5" />
                 ) : (
-                  <Volume2 className="w-5 h-5" />
+                  <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </button>
               <input
@@ -332,20 +339,20 @@ export function PlayerOverlay({
                 step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                className="w-16 sm:w-24 accent-red-600 cursor-pointer h-1.5 bg-zinc-700 rounded-lg transition-all opacity-80 group-hover/vol:opacity-100"
+                className="hidden sm:block w-16 sm:w-24 accent-red-600 cursor-pointer h-1.5 bg-zinc-700 rounded-lg transition-all opacity-80 group-hover/vol:opacity-100"
               />
             </div>
 
             {/* Time Display */}
-            <div className="text-xs text-zinc-300 font-mono font-medium">
+            <div className="text-[11px] sm:text-xs text-zinc-300 font-mono font-medium whitespace-nowrap truncate">
               <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
-              <span className="text-zinc-500 mx-1">/</span>
+              <span className="text-zinc-500 mx-0.5 sm:mx-1">/</span>
               <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</span>
             </div>
           </div>
 
           {/* Right Controls: Unified Audio & Subtitle, Quality, Episodes, Fullscreen */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {/* Unified Audio & Subtitle Button */}
             {(subtitles.length > 0 || audioOptions.length > 0) && (
               <button
@@ -354,14 +361,14 @@ export function PlayerOverlay({
                 aria-label="Pengaturan Audio & Subtitle"
                 aria-expanded={activePopover === 'subtitle'}
                 aria-haspopup="dialog"
-                className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
+                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold ${
                   activePopover === 'subtitle'
                     ? 'bg-red-600 text-white'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
                 title="Pengaturan Audio & Subtitle"
               >
-                <MessageSquare className="w-4 h-4 text-red-500" />
+                <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
                 <span className="hidden sm:inline">Audio & Subtitle</span>
               </button>
             )}
@@ -374,15 +381,15 @@ export function PlayerOverlay({
                 aria-label="Kualitas Resolusi"
                 aria-expanded={activePopover === 'quality'}
                 aria-haspopup="dialog"
-                className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
+                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold ${
                   activePopover === 'quality'
                     ? 'bg-red-600 text-white'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
                 title="Kualitas Resolusi"
               >
-                <Film className="w-4 h-4" />
-                <span className="text-[11px]">
+                <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="text-[10px] sm:text-[11px] whitespace-nowrap">
                   {activeQualityIndex === -1
                     ? `Auto (${activeHlsHeight || (qualities.length > 0 ? qualities[0] : 1080)}p)`
                     : `${qualities[activeQualityIndex] || qualities[0]}p`}
@@ -398,15 +405,15 @@ export function PlayerOverlay({
                 aria-label="Pilihan Episode & Musim"
                 aria-expanded={activePopover === 'episode'}
                 aria-haspopup="dialog"
-                className={`p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold ${
+                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold ${
                   activePopover === 'episode'
                     ? 'bg-red-600 text-white'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
                 title="Pilihan Episode & Musim"
               >
-                <Tv className="w-4 h-4" />
-                <span className="text-[11px]">S{activeSeason} E{activeEpisode}</span>
+                <Tv className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="text-[10px] sm:text-[11px]">S{activeSeason} E{activeEpisode}</span>
               </button>
             )}
 
@@ -415,7 +422,7 @@ export function PlayerOverlay({
               <button
                 type="button"
                 onClick={onNextEpisode}
-                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-lg"
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-lg"
                 title="Episode Selanjutnya"
               >
                 <span className="hidden sm:inline">Next</span>
@@ -427,10 +434,10 @@ export function PlayerOverlay({
             <button
               type="button"
               onClick={onToggleFullscreen}
-              className="p-2 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition"
+              className="p-1.5 sm:p-2 rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 shadow-md"
               title={isFullscreen ? 'Keluar Fullscreen (F)' : 'Fullscreen (F)'}
             >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              {isFullscreen ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5 text-white" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5 text-white" />}
             </button>
           </div>
         </div>
