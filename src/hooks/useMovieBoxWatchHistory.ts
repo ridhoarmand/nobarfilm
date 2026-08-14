@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ContinueWatchingItem } from '@/types/watch-history';
 
 interface UseMovieBoxWatchHistoryParams {
@@ -8,24 +8,30 @@ interface UseMovieBoxWatchHistoryParams {
   subjectType: number;
   title: string;
   coverUrl?: string;
+  currentSeason?: number;
   currentEpisode?: number;
   totalEpisodes?: number;
 }
 
 export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
-  const { subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes } = params;
+  const { subjectId, subjectType, title, coverUrl, currentSeason, currentEpisode, totalEpisodes } = params;
+  const lastProgressRef = useRef<{ time: number; duration: number }>({ time: 0, duration: 0 });
 
   // Fetch initial progress
   const { data: progressData } = useQuery({
-    queryKey: ['watch-progress', subjectId, currentEpisode],
+    queryKey: ['watch-progress', subjectId, currentSeason, currentEpisode],
     queryFn: async () => {
       if (typeof window === 'undefined') return null;
       const historyJson = localStorage.getItem('nobarfilm_watch_history');
       if (!historyJson) return null;
       try {
         const items = JSON.parse(historyJson) as ContinueWatchingItem[];
+        const normalizedTitle = title ? title.trim().toLowerCase() : '';
         const match = items.find(
-          (item) => item.subject_id === subjectId && item.current_episode === (currentEpisode || 1)
+          (item) =>
+            (item.subject_id === subjectId || (normalizedTitle && item.title?.trim().toLowerCase() === normalizedTitle)) &&
+            item.current_episode === (currentEpisode || 1) &&
+            (!currentSeason || (item.current_season || 1) === currentSeason)
         );
         return match || null;
       } catch (e) {
@@ -38,11 +44,13 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
     refetchOnWindowFocus: false,
   });
 
-  const saveProgress = useCallback(
-    async (progressSeconds: number, durationSeconds: number) => {
+  const saveProgressSync = useCallback(
+    (progressSeconds: number, durationSeconds: number) => {
       if (typeof window === 'undefined' || !subjectId || !title || durationSeconds === 0) {
         return;
       }
+
+      lastProgressRef.current = { time: progressSeconds, duration: durationSeconds };
 
       const progress_percent = Math.round((progressSeconds / durationSeconds) * 100);
       const isCompleted = progress_percent >= 95; // Complete if 95%+ watched
@@ -57,8 +65,13 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         }
       }
 
-      // Filter out this subject_id to avoid duplicate entries (we show latest watched)
-      items = items.filter((item) => item.subject_id !== subjectId);
+      // Filter out this subject_id AND title to guarantee exactly 1 latest item per film/series
+      const normalizedTitle = title.trim().toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.subject_id !== subjectId &&
+          (!item.title || item.title.trim().toLowerCase() !== normalizedTitle)
+      );
 
       const newItem: ContinueWatchingItem = {
         id: subjectId,
@@ -66,6 +79,7 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         subject_type: subjectType,
         title,
         cover_url: coverUrl || null,
+        current_season: currentSeason || (subjectType === 2 ? 1 : 0),
         current_episode: currentEpisode || 1,
         total_episodes: totalEpisodes || null,
         progress_seconds: Math.floor(progressSeconds),
@@ -84,17 +98,46 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         items = items.slice(-15);
       }
 
-      localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('nobarfilm_watch_history_updated'));
+      try {
+        localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
+        window.dispatchEvent(new CustomEvent('nobarfilm_watch_history_updated'));
         window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error('Failed to write watch history to localStorage:', e);
       }
     },
-    [subjectId, subjectType, title, coverUrl, currentEpisode, totalEpisodes],
+    [subjectId, subjectType, title, coverUrl, currentSeason, currentEpisode, totalEpisodes]
   );
+
+  const saveProgress = useCallback(
+    (progressSeconds: number, durationSeconds: number) => {
+      saveProgressSync(progressSeconds, durationSeconds);
+    },
+    [saveProgressSync]
+  );
+
+  // Flush on unmount or pagehide/beforeunload
+  useEffect(() => {
+    const flushProgress = () => {
+      const { time, duration } = lastProgressRef.current;
+      if (time > 3 && duration > 0) {
+        saveProgressSync(time, duration);
+      }
+    };
+
+    window.addEventListener('pagehide', flushProgress);
+    window.addEventListener('beforeunload', flushProgress);
+
+    return () => {
+      flushProgress();
+      window.removeEventListener('pagehide', flushProgress);
+      window.removeEventListener('beforeunload', flushProgress);
+    };
+  }, [saveProgressSync]);
 
   return {
     saveProgress,
+    saveProgressSync,
     progressData,
   };
 }

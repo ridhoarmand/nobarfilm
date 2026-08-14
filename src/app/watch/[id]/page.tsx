@@ -127,11 +127,11 @@ function WatchContent() {
     if (season !== nextSeason || episode !== nextEpisode) {
       const params = new URLSearchParams();
       if (typeof nextSeason === 'number') params.set('season', String(nextSeason));
-      if (resumeTime > 0) params.set('t', String(resumeTime));
+      if (typeof nextEpisode === 'number') params.set('episode', String(nextEpisode));
       const paramStr = params.toString();
       router.replace(`/watch/${subjectId}${paramStr ? `?${paramStr}` : ''}`);
     }
-  }, [episode, isSeries, playerMetadata, resumeTime, router, season, subjectId]);
+  }, [episode, isSeries, playerMetadata, router, season, subjectId]);
 
   const {
     data: playbackData,
@@ -280,25 +280,24 @@ function WatchContent() {
 
   const subject = detail?.subject;
 
-  const { saveProgress } = useMovieBoxWatchHistory({
+  const { saveProgress, saveProgressSync } = useMovieBoxWatchHistory({
     subjectId,
     subjectType: subject?.subjectType || 1,
     title: subject?.title || '',
     coverUrl: subject?.cover?.url,
+    currentSeason: effectiveSeason,
     currentEpisode: effectiveEpisode,
-    totalEpisodes: undefined,
+    totalEpisodes: availableEpisodes.length > 0 ? availableEpisodes.length : undefined,
   });
 
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const lastProgressRef = useRef<{ time: number; duration: number }>({ time: 0, duration: 0 });
+
   const handleProgress = useCallback(
     (time: number, duration: number) => {
-      if (saveTimeout.current) return;
-      saveTimeout.current = setTimeout(() => {
-        saveTimeout.current = null;
-        if (time > 5 && duration > 0) {
-          saveProgress(time, duration);
-        }
-      }, 10000);
+      lastProgressRef.current = { time, duration };
+      if (time > 3 && duration > 0) {
+        saveProgress(time, duration);
+      }
     },
     [saveProgress],
   );
@@ -349,15 +348,16 @@ function WatchContent() {
   const handleNextEpisode = () => {
     if (!hasNextEpisode) return;
     setQualityIndex(0);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
     params.set('episode', String(effectiveEpisode + 1));
     router.replace(`/watch/${subjectId}?${params.toString()}`);
   };
 
   return (
-    <div className="min-h-screen w-screen bg-zinc-950 text-white flex flex-col">
-      {/* Video Player Container - 16:9 Aspect Ratio on Mobile, Expands in Fullscreen */}
-      <div className="w-full aspect-video sm:h-[65vh] max-h-[75vh] bg-black relative flex items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
+    <div className="min-h-screen w-full bg-zinc-950 text-white flex flex-col overflow-x-hidden">
+      {/* Video Player Container - 16:9 on Mobile, Immersive Theater View (85vh-92vh) on Desktop */}
+      <div className="w-full aspect-video sm:h-[82vh] lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
         {playbackData?.streamUrl ? (
           <MoviePlayer
             src={activeStreamUrl || playbackData.streamUrl}
@@ -395,24 +395,28 @@ function WatchContent() {
             activeEpisode={effectiveEpisode}
             onSeasonChange={(s: number) => {
               setQualityIndex(0);
-              const params = new URLSearchParams(searchParams.toString());
+              const params = new URLSearchParams();
               params.set('season', String(s));
               params.set('episode', '1');
               router.replace(`/watch/${subjectId}?${params.toString()}`);
             }}
             onEpisodeChange={(e: number) => {
               setQualityIndex(0);
-              const params = new URLSearchParams(searchParams.toString());
+              const params = new URLSearchParams();
+              if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
               params.set('episode', String(e));
               router.replace(`/watch/${subjectId}?${params.toString()}`);
             }}
             onBack={() => {
+              const { time, duration } = lastProgressRef.current;
+              if (time > 3 && duration > 0) {
+                saveProgressSync(time, duration);
+              }
               if (typeof window !== 'undefined' && window.history.length > 1) {
                 router.back();
-              }
-              setTimeout(() => {
+              } else {
                 router.push(`/${subjectId}`);
-              }, 100);
+              }
             }}
           />
         ) : (
@@ -424,7 +428,7 @@ function WatchContent() {
       </div>
 
       {/* Film Information & Synopsis Panel (Below Player) */}
-      <div className="flex-1 overflow-y-auto max-w-5xl mx-auto w-full p-4 sm:p-6 space-y-6">
+      <div className="max-w-5xl mx-auto w-full p-4 sm:p-8 lg:p-10 space-y-6">
         {/* Header & Badges */}
         <div>
           <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight mb-2">
@@ -441,43 +445,6 @@ function WatchContent() {
           </div>
         </div>
 
-        {/* Episode Selector for TV Series */}
-        {isSeries && availableEpisodes.length > 0 && (
-          <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-sm text-zinc-200">
-                Episode Musim {effectiveSeason}
-              </h2>
-              <span className="text-xs text-zinc-400 font-mono">
-                {availableEpisodes.length} Episode
-              </span>
-            </div>
-            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-48 overflow-y-auto pr-1">
-              {availableEpisodes.map((ep) => {
-                const isActive = ep === effectiveEpisode;
-                return (
-                  <button
-                    key={ep}
-                    type="button"
-                    onClick={() => {
-                      setQualityIndex(0);
-                      const params = new URLSearchParams(searchParams.toString());
-                      params.set('episode', String(ep));
-                      router.replace(`/watch/${subjectId}?${params.toString()}`);
-                    }}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
-                      isActive
-                        ? 'bg-red-600 text-white shadow-lg scale-105'
-                        : 'bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    E{ep}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Synopsis & Translation */}
         {subject?.description && (

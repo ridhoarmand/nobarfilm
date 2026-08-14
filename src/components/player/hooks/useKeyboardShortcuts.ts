@@ -5,9 +5,11 @@ import { useEffect, useRef } from 'react';
 interface KeyboardCallbacks {
   onTogglePlay?: () => void;
   onSeek?: (seconds: number) => void;
+  onSeekPercent?: (percent: number) => void;
   onVolumeChange?: (delta: number) => void;
   onToggleMute?: () => void;
   onToggleFullscreen?: () => void;
+  onToggleSubtitle?: () => void;
   onEscape?: () => void;
   isActive?: boolean;
 }
@@ -15,18 +17,22 @@ interface KeyboardCallbacks {
 export function useKeyboardShortcuts({
   onTogglePlay,
   onSeek,
+  onSeekPercent,
   onVolumeChange,
   onToggleMute,
   onToggleFullscreen,
+  onToggleSubtitle,
   onEscape,
   isActive = true,
 }: KeyboardCallbacks) {
   const callbacksRef = useRef({
     onTogglePlay,
     onSeek,
+    onSeekPercent,
     onVolumeChange,
     onToggleMute,
     onToggleFullscreen,
+    onToggleSubtitle,
     onEscape,
   });
 
@@ -34,9 +40,11 @@ export function useKeyboardShortcuts({
     callbacksRef.current = {
       onTogglePlay,
       onSeek,
+      onSeekPercent,
       onVolumeChange,
       onToggleMute,
       onToggleFullscreen,
+      onToggleSubtitle,
       onEscape,
     };
   });
@@ -45,13 +53,27 @@ export function useKeyboardShortcuts({
     if (!isActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture keyboard shortcuts if user is typing in an input/textarea/select
+      // Don't capture keyboard shortcuts if user is typing in an input/textarea/select/contentEditable
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
         return;
       }
 
       const callbacks = callbacksRef.current;
+
+      // Handle number keys 0-9 to jump to 0%-90% of video
+      if (e.code >= 'Digit0' && e.code <= 'Digit9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const num = parseInt(e.code.replace('Digit', ''), 10);
+        e.preventDefault();
+        callbacks.onSeekPercent?.(num * 0.1);
+        return;
+      }
 
       switch (e.code) {
         case 'Space':
@@ -74,12 +96,12 @@ export function useKeyboardShortcuts({
 
         case 'ArrowUp':
           e.preventDefault();
-          callbacks.onVolumeChange?.(0.1);
+          callbacks.onVolumeChange?.(0.05);
           break;
 
         case 'ArrowDown':
           e.preventDefault();
-          callbacks.onVolumeChange?.(-0.1);
+          callbacks.onVolumeChange?.(-0.05);
           break;
 
         case 'KeyM':
@@ -90,6 +112,11 @@ export function useKeyboardShortcuts({
         case 'KeyF':
           e.preventDefault();
           callbacks.onToggleFullscreen?.();
+          break;
+
+        case 'KeyC':
+          e.preventDefault();
+          callbacks.onToggleSubtitle?.();
           break;
 
         case 'Escape':

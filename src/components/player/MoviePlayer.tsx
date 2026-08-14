@@ -114,14 +114,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       prevEpisodeRef.current.episode !== activeEpisode
     ) {
       prevEpisodeRef.current = { season: activeSeason, episode: activeEpisode };
-      savedTimeRef.current = initialTime || 0;
+      savedTimeRef.current = 0;
       hasResumed.current = false;
-      setCurrentTime(initialTime || 0);
+      setCurrentTime(0);
       if (videoRef.current) {
-        videoRef.current.currentTime = initialTime || 0;
+        videoRef.current.currentTime = 0;
       }
     }
-  }, [activeSeason, activeEpisode, initialTime]);
+  }, [activeSeason, activeEpisode]);
 
   // Handle native player setup & sync
   const hasResumed = useRef(false);
@@ -429,12 +429,20 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   };
 
+  const [brightness, setBrightness] = useState(1.0);
+
   useKeyboardShortcuts({
     onTogglePlay: togglePlay,
-    onSeek: (seconds) => handleSeek(currentTime + seconds),
+    onSeek: (seconds) => handleSeek(Math.max(0, Math.min(duration || 0, currentTime + seconds))),
+    onSeekPercent: (percent) => handleSeek((duration || 0) * percent),
     onVolumeChange: (delta) => handleVolumeChange(volume + delta),
     onToggleMute: toggleMute,
     onToggleFullscreen: () => toggleFullscreen(),
+    onToggleSubtitle: () => {
+      if (onSubtitleSelect) {
+        onSubtitleSelect(activeSubtitleIndex === null ? 0 : null);
+      }
+    },
     onEscape: () => {
       if (document.fullscreenElement) {
         toggleFullscreen();
@@ -526,6 +534,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         playsInline
         crossOrigin="anonymous"
         {...({ referrerPolicy: 'no-referrer' } as any)}
+        style={{
+          filter: brightness !== 1.0 ? `brightness(${brightness})` : undefined,
+        }}
         className="w-full h-full object-contain bg-black block"
         onPlay={() => {
           setIsPlaying(true);
@@ -639,6 +650,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         isMuted={isMuted}
         onVolumeChange={handleVolumeChange}
         onToggleMute={toggleMute}
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onBack={onBack}

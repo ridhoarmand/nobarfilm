@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Play,
   Pause,
-  RotateCcw,
-  RotateCw,
   Volume2,
   VolumeX,
   Maximize,
@@ -16,13 +14,14 @@ import {
   Tv,
   ArrowLeft,
   SkipForward,
+  Sun,
 } from 'lucide-react';
 import { PlayerProgressBar } from './PlayerProgressBar';
 import { AudioSubtitlePopover } from './AudioSubtitlePopover';
 import { QualityPopover } from './QualityPopover';
 import { EpisodePopover } from './EpisodePopover';
 import { usePlayerControls } from './hooks/usePlayerControls';
-import { useDoubleTapSeek } from './hooks/useDoubleTapSeek';
+import { usePlayerGestures } from './hooks/usePlayerGestures';
 
 interface CustomSubtitle {
   label: string;
@@ -41,6 +40,8 @@ export interface PlayerOverlayProps {
   isMuted: boolean;
   onVolumeChange: (vol: number) => void;
   onToggleMute: () => void;
+  brightness?: number;
+  onBrightnessChange?: (brightness: number) => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onBack?: () => void;
@@ -94,6 +95,8 @@ export function PlayerOverlay({
   isMuted,
   onVolumeChange,
   onToggleMute,
+  brightness = 1.0,
+  onBrightnessChange,
   isFullscreen,
   onToggleFullscreen,
   onBack,
@@ -124,16 +127,45 @@ export function PlayerOverlay({
   hasNextEpisode = false,
   onNextEpisode,
 }: PlayerOverlayProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsMobile(window.matchMedia('(pointer: coarse)').matches);
+    }
+  }, []);
+
   const { isVisible, showControls, keepControlsVisible, scheduleQuickHide, hideControlsNow } = usePlayerControls(isPlaying, 2000);
-  const { handleTap, seekAnimation } = useDoubleTapSeek({
-    onSeek: (seconds) => onSeek(Math.max(0, Math.min(duration, currentTime + seconds))),
+
+  const {
+    handleDesktopClick,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    seekFeedback,
+    hudFeedback,
+  } = usePlayerGestures({
+    isMobile,
+    onTogglePlay,
+    onToggleFullscreen,
+    onSeek: (deltaSeconds) => onSeek(Math.max(0, Math.min(duration, currentTime + deltaSeconds))),
+    volume,
+    onVolumeChange,
+    brightness: brightness ?? 1.0,
+    onBrightnessChange: onBrightnessChange ?? (() => {}),
+    onToggleControls: () => {
+      if (isVisible) {
+        hideControlsNow();
+      } else {
+        showControls();
+      }
+    },
   });
 
   // Active popover modal state ('subtitle' | 'quality' | 'episode' | null)
   const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | null>(null);
 
   useEffect(() => {
-    // Setelah video dipause atau setelah play lagi, tapang controls otomatis
     if (!isPlaying) {
       showControls();
     }
@@ -155,34 +187,13 @@ export function PlayerOverlay({
     scheduleQuickHide(800);
   };
 
-  // Handle tap: first click/tap shows controls; subsequent clicks allow toggle/double-tap seek
-  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Mobile: first tap shows controls, nothing else, to prevent instant seek from accidental touch
-    if (e.type === 'click' && window.matchMedia('(pointer: coarse)').matches) {
-      showControls();
-      return;
-    }
-    // Desktop: click on the video -> toggle controls on (like YouTube)
-    showControls();
-    handleTap(e);
-  };
-
   const handleMouseLeave = () => {
     if (activePopover === null) {
       hideControlsNow();
     }
   };
 
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsMobile(window.matchMedia('(pointer: coarse)').matches);
-    }
-  }, []);
-
-  // YouTube-like behavior: On desktop, hover shows top & bottom controls but keeps center clean while playing.
-  // Center controls show when video is PAUSED, or on mobile touch tap.
+  // Center play/pause button is visible when controls are shown
   const showCenterControls = isVisible && (!isPlaying || isMobile);
   const showBottomBar = isVisible;
 
@@ -191,31 +202,71 @@ export function PlayerOverlay({
       onMouseMove={showControls}
       onMouseEnter={showControls}
       onMouseLeave={handleMouseLeave}
-      onClick={handleContainerClick}
-      className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300"
+      onClick={handleDesktopClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300 cursor-pointer"
     >
-      {/* Dynamic Overlay Gradient Background - only when paused or after click/tap */}
+      {/* Dynamic Overlay Gradient Background */}
       <div
-        className={`absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 pointer-events-none transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/30 pointer-events-none transition-opacity duration-300 ${
           showCenterControls ? 'opacity-100' : 'opacity-0'
         }`}
       />
 
-      {/* Ripple Animation Indicator for Double Tap */}
-      {seekAnimation && (
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 z-40 pointer-events-none ${
-            seekAnimation === 'rewind' ? 'left-12 sm:left-24' : 'right-12 sm:right-24'
-          }`}
-        >
-          <div className="p-4 bg-red-600/90 text-white rounded-full backdrop-blur-md animate-ping flex items-center justify-center font-bold text-sm shadow-2xl">
-            {seekAnimation === 'rewind' ? '-10s' : '+10s'}
+      {/* Floating HUD Feedback for Volume & Brightness */}
+      {hudFeedback && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fade-in">
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-black/85 border border-white/20 text-white rounded-2xl backdrop-blur-xl shadow-2xl">
+            {hudFeedback.type === 'volume' ? (
+              (hudFeedback.value || 0) === 0 ? (
+                <VolumeX className="w-5 h-5 text-red-500" />
+              ) : (
+                <Volume2 className="w-5 h-5 text-red-500" />
+              )
+            ) : (
+              <Sun className="w-5 h-5 text-yellow-400" />
+            )}
+            <div className="flex flex-col">
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                {hudFeedback.type === 'volume' ? 'Volume' : 'Kecerahan'}
+              </span>
+              <span className="text-sm font-extrabold font-mono text-zinc-100">
+                {hudFeedback.value}%
+              </span>
+            </div>
+            <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden ml-1">
+              <div
+                className="h-full bg-red-600 transition-all duration-75 rounded-full"
+                style={{ width: `${hudFeedback.value}%` }}
+              />
+            </div>
           </div>
         </div>
       )}
 
+      {/* Ripple Animation Indicator for Mobile Double Tap Seek */}
+      {seekFeedback && (
+        <div
+          className={`absolute top-1/2 -translate-y-1/2 z-40 pointer-events-none ${
+            seekFeedback.side === 'rewind' ? 'left-8 sm:left-24' : 'right-8 sm:right-24'
+          }`}
+        >
+          <div className="flex flex-col items-center justify-center p-3.5 sm:p-5 bg-black/85 border border-white/20 text-white rounded-full backdrop-blur-xl animate-scale-up shadow-2xl space-y-0.5 min-w-[72px] min-h-[72px]">
+            <span className="font-extrabold text-sm sm:text-base tracking-wider text-red-400 font-mono">
+              {seekFeedback.side === 'rewind' ? `-${seekFeedback.seconds}s` : `+${seekFeedback.seconds}s`}
+            </span>
+            <span className="text-[9px] sm:text-[10px] text-zinc-300 uppercase tracking-widest font-semibold">
+              {seekFeedback.side === 'rewind' ? 'Mundur' : 'Maju'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* TOP BAR */}
       <div
-        className={`relative z-30 flex items-center gap-3 p-4 sm:p-6 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-5 px-2.5 sm:px-6 transition-opacity duration-300 pointer-events-auto ${
           isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -244,9 +295,9 @@ export function PlayerOverlay({
         )}
       </div>
 
-      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - subtle transparent aesthetic */}
+      {/* CENTER PLAY/PAUSE OVERLAY BUTTON */}
       <div
-        className={`relative z-30 flex items-center justify-center gap-4 sm:gap-6 transition-opacity duration-300 ${
+        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center justify-center transition-opacity duration-300 ${
           showCenterControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -254,46 +305,22 @@ export function PlayerOverlay({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onSeek(Math.max(0, currentTime - 10));
-          }}
-          className="p-2 sm:p-2.5 rounded-full bg-black/35 hover:bg-black/60 text-zinc-200 hover:text-white backdrop-blur-md border border-white/15 transition-all hover:scale-105 active:scale-95 shadow-md"
-          title="Mundur 10 Detik"
-        >
-          <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
             onTogglePlay();
           }}
-          className="p-3 sm:p-3.5 rounded-full bg-black/40 hover:bg-black/65 text-white backdrop-blur-md border border-white/25 transition-all hover:scale-105 active:scale-95 shadow-lg"
+          className="p-4 sm:p-5 rounded-full bg-black/45 hover:bg-black/70 text-white backdrop-blur-md border border-white/25 transition-all hover:scale-110 active:scale-95 shadow-2xl cursor-pointer"
           title={isPlaying ? 'Jeda' : 'Putar'}
         >
           {isPlaying ? (
-            <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-white" />
+            <Pause className="w-7 h-7 sm:w-9 sm:h-9 fill-white" />
           ) : (
-            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-white ml-0.5" />
+            <Play className="w-7 h-7 sm:w-9 sm:h-9 fill-white ml-0.5" />
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSeek(Math.min(duration, currentTime + 10));
-          }}
-          className="p-2 sm:p-2.5 rounded-full bg-black/35 hover:bg-black/60 text-zinc-200 hover:text-white backdrop-blur-md border border-white/15 transition-all hover:scale-105 active:scale-95 shadow-md"
-          title="Maju 10 Detik"
-        >
-          <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
 
       {/* BOTTOM CONTROL BAR - mobile optimized layout */}
       <div
-        className={`relative z-30 p-2.5 sm:p-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 p-2 sm:p-4 px-2 sm:px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))] space-y-1.5 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
           showBottomBar ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >

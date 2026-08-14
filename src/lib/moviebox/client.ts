@@ -236,6 +236,9 @@ export async function callMobileApi(
 
     return await res.json();
   } catch (err: any) {
+    if (err?.digest === 'DYNAMIC_SERVER_USAGE' || err?.message?.includes('Dynamic server usage')) {
+      throw err;
+    }
     console.warn(`[MovieBox SDK] callMobileApi Error for ${path}:`, err.message);
     throw err;
   }

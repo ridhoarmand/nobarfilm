@@ -3,8 +3,7 @@ import { movieBoxQueryKeys } from '@/hooks/useMovieBox';
 import { movieBoxService } from '@/lib/moviebox';
 import { HomeClient } from './HomeClient';
 
-// Enable ISR/Caching for the whole page
-export const revalidate = 600; // 10 minutes
+export const dynamic = 'force-dynamic';
 
 export default async function MoviePage() {
   const queryClient = new QueryClient({

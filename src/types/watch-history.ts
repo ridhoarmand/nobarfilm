@@ -42,6 +42,7 @@ export interface ContinueWatchingItem {
   subject_type: number;
   title: string;
   cover_url: string | null;
+  current_season?: number;
   current_episode: number;
   total_episodes: number | null;
   progress_seconds: number;

@@ -34,8 +34,9 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
   const timeLeft = formatTime(remainingSeconds);
 
   const timestamp = Math.floor(item.progress_seconds || 0);
+  const season = item.current_season || 1;
   const baseUrl = item.subject_type === 2
-    ? `/watch/${item.subject_id}?season=1&episode=${item.current_episode}`
+    ? `/watch/${item.subject_id}?season=${season}&episode=${item.current_episode}`
     : `/watch/${item.subject_id}?season=0&episode=0`;
   const watchUrl = timestamp > 0 ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${timestamp}` : baseUrl;
 
@@ -51,9 +52,15 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
         if (historyJson) {
           try {
             let items = JSON.parse(historyJson) as ContinueWatchingItem[];
-            items = items.filter((i) => i.id !== item.id && i.subject_id !== item.subject_id);
+            const normalizedTitle = item.title ? item.title.trim().toLowerCase() : '';
+            items = items.filter(
+              (i) =>
+                i.id !== item.id &&
+                i.subject_id !== item.subject_id &&
+                (!normalizedTitle || !i.title || i.title.trim().toLowerCase() !== normalizedTitle)
+            );
             localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
-            window.dispatchEvent(new Event('nobarfilm_watch_history_updated'));
+            window.dispatchEvent(new CustomEvent('nobarfilm_watch_history_updated'));
             window.dispatchEvent(new Event('storage'));
           } catch (err) {
             console.error('Failed to update localStorage history:', err);
@@ -96,7 +103,7 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
         <div className="mt-2 px-1">
           <h3 className="text-white font-medium text-sm truncate">{item.title}</h3>
           <div className="flex items-center justify-between text-xs text-zinc-400 mt-1">
-            <span>{item.subject_type === 2 ? `S1 E${item.current_episode}` : timeLeft}</span>
+            <span>{item.subject_type === 2 ? `S${season} E${item.current_episode}` : timeLeft}</span>
             <span className="text-red-500">{item.progress_percent}%</span>
           </div>
         </div>
