@@ -617,6 +617,9 @@ export const movieBoxService = {
       let captions: Caption[] = [];
       if (downloads.length > 0) {
         const streamId = downloads[0].id;
+        const rawList: any[] = [];
+
+        // Method 1: Fetch via get-stream-captions (Used primarily by Movies and stream-bound captions)
         try {
           const captionsRes = await callMobileApi(
             'GET',
@@ -633,31 +636,58 @@ export const movieBoxService = {
           );
 
           if (captionsRes.code === 0 && captionsRes.data) {
-            const rawList = [
-              ...(Array.isArray(captionsRes.data.extCaptions) ? captionsRes.data.extCaptions : []),
-              ...(Array.isArray(captionsRes.data.subtitles) ? captionsRes.data.subtitles : []),
-              ...(Array.isArray(captionsRes.data.captions) ? captionsRes.data.captions : []),
-            ];
-
-            const seenUrls = new Set<string>();
-            captions = rawList
-              .map((item: any, index: number) => ({
-                id: String(item.id || `caption-${index}`),
-                lan: String(item.lan || ''),
-                lanName: String(item.lanName || item.lan || ''),
-                url: String(item.url || ''),
-                size: String(item.size || '0'),
-                delay: typeof item.delay === 'number' ? item.delay : 0,
-              }))
-              .filter((item: any) => {
-                if (!item.url || seenUrls.has(item.url)) return false;
-                seenUrls.add(item.url);
-                return true;
-              });
+            if (Array.isArray(captionsRes.data.extCaptions)) rawList.push(...captionsRes.data.extCaptions);
+            if (Array.isArray(captionsRes.data.subtitles)) rawList.push(...captionsRes.data.subtitles);
+            if (Array.isArray(captionsRes.data.captions)) rawList.push(...captionsRes.data.captions);
           }
         } catch (capErr: any) {
           console.warn(`[MovieBox SDK] Failed to fetch stream-captions for streamId ${streamId}:`, capErr.message);
         }
+
+        // Method 2: If empty, fetch via get-ext-captions (Used by TV Series and episode resources)
+        if (rawList.length === 0) {
+          try {
+            const epNum = resolvedEpisode && resolvedEpisode > 0 ? resolvedEpisode : 1;
+            const extCaptionsRes = await callMobileApi(
+              'GET',
+              '/wefeed-mobile-bff/subject-api/get-ext-captions',
+              {
+                host: HOST,
+                subjectId,
+                resourceId: streamId,
+                episode: String(epNum),
+                lang: 'id',
+              },
+              null,
+              true,
+              activeToken
+            );
+
+            if (extCaptionsRes.code === 0 && extCaptionsRes.data) {
+              if (Array.isArray(extCaptionsRes.data.extCaptions)) rawList.push(...extCaptionsRes.data.extCaptions);
+              if (Array.isArray(extCaptionsRes.data.subtitles)) rawList.push(...extCaptionsRes.data.subtitles);
+              if (Array.isArray(extCaptionsRes.data.captions)) rawList.push(...extCaptionsRes.data.captions);
+            }
+          } catch (extCapErr: any) {
+            console.warn(`[MovieBox SDK] Failed to fetch get-ext-captions for resourceId ${streamId}:`, extCapErr.message);
+          }
+        }
+
+        const seenUrls = new Set<string>();
+        captions = rawList
+          .map((item: any, index: number) => ({
+            id: String(item.id || `caption-${index}`),
+            lan: String(item.lan || ''),
+            lanName: String(item.lanName || item.lan || ''),
+            url: String(item.url || ''),
+            size: String(item.size || '0'),
+            delay: typeof item.delay === 'number' ? item.delay : 0,
+          }))
+          .filter((item: any) => {
+            if (!item.url || seenUrls.has(item.url)) return false;
+            seenUrls.add(item.url);
+            return true;
+          });
       }
 
       const data: SourcesResponse = {

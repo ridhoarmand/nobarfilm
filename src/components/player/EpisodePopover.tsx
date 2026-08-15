@@ -52,7 +52,7 @@ export function EpisodePopover({
       </div>
 
       {/* Episode Grid */}
-      <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+      <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1 scrollbar-hide">
         <p className="text-[11px] font-semibold text-zinc-400 mb-2">Musim {activeSeason} — Daftar Episode</p>
         <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
           {episodes.map((ep) => {

@@ -208,9 +208,9 @@ export function PlayerOverlay({
       onTouchEnd={handleTouchEnd}
       className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300 cursor-pointer"
     >
-      {/* Dynamic Overlay Gradient Background */}
+      {/* Dynamic Overlay Gradient Background - Clean top & bottom only */}
       <div
-        className={`absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/30 pointer-events-none transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/40 pointer-events-none transition-opacity duration-300 ${
           showCenterControls ? 'opacity-100' : 'opacity-0'
         }`}
       />
@@ -218,25 +218,25 @@ export function PlayerOverlay({
       {/* Floating HUD Feedback for Volume & Brightness */}
       {hudFeedback && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fade-in">
-          <div className="flex items-center gap-3 px-4 py-2.5 bg-black/85 border border-white/20 text-white rounded-2xl backdrop-blur-xl shadow-2xl">
+          <div className="flex items-center gap-3 px-4 py-2 bg-black/70 border border-white/15 text-white rounded-2xl backdrop-blur-md shadow-xl">
             {hudFeedback.type === 'volume' ? (
               (hudFeedback.value || 0) === 0 ? (
-                <VolumeX className="w-5 h-5 text-red-500" />
+                <VolumeX className="w-4 h-4 text-red-500" />
               ) : (
-                <Volume2 className="w-5 h-5 text-red-500" />
+                <Volume2 className="w-4 h-4 text-red-500" />
               )
             ) : (
-              <Sun className="w-5 h-5 text-yellow-400" />
+              <Sun className="w-4 h-4 text-yellow-400" />
             )}
             <div className="flex flex-col">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+              <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
                 {hudFeedback.type === 'volume' ? 'Volume' : 'Kecerahan'}
               </span>
-              <span className="text-sm font-extrabold font-mono text-zinc-100">
+              <span className="text-xs font-bold font-mono text-zinc-100">
                 {hudFeedback.value}%
               </span>
             </div>
-            <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden ml-1">
+            <div className="w-16 h-1 bg-zinc-800 rounded-full overflow-hidden ml-1">
               <div
                 className="h-full bg-red-600 transition-all duration-75 rounded-full"
                 style={{ width: `${hudFeedback.value}%` }}
@@ -246,19 +246,16 @@ export function PlayerOverlay({
         </div>
       )}
 
-      {/* Ripple Animation Indicator for Mobile Double Tap Seek */}
+      {/* Ripple Animation Indicator for Mobile Double Tap Seek - Soft & Minimal */}
       {seekFeedback && (
         <div
           className={`absolute top-1/2 -translate-y-1/2 z-40 pointer-events-none ${
-            seekFeedback.side === 'rewind' ? 'left-8 sm:left-24' : 'right-8 sm:right-24'
+            seekFeedback.side === 'rewind' ? 'left-6 sm:left-20' : 'right-6 sm:right-20'
           }`}
         >
-          <div className="flex flex-col items-center justify-center p-3.5 sm:p-5 bg-black/85 border border-white/20 text-white rounded-full backdrop-blur-xl animate-scale-up shadow-2xl space-y-0.5 min-w-[72px] min-h-[72px]">
-            <span className="font-extrabold text-sm sm:text-base tracking-wider text-red-400 font-mono">
+          <div className="flex items-center justify-center p-3 sm:p-3.5 bg-black/60 border border-white/15 text-white rounded-full backdrop-blur-md animate-scale-up shadow-xl min-w-[54px] min-h-[54px]">
+            <span className="font-bold text-xs sm:text-sm tracking-wider text-white font-mono">
               {seekFeedback.side === 'rewind' ? `-${seekFeedback.seconds}s` : `+${seekFeedback.seconds}s`}
-            </span>
-            <span className="text-[9px] sm:text-[10px] text-zinc-300 uppercase tracking-widest font-semibold">
-              {seekFeedback.side === 'rewind' ? 'Mundur' : 'Maju'}
             </span>
           </div>
         </div>

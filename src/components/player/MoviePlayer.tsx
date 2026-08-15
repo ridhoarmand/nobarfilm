@@ -598,19 +598,34 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         ))}
       </video>
 
-      {/* Netflix-Style Buffering / Loading Indicator */}
+      {/* Soft & Minimalist Buffering / Loading Indicator */}
       {isBuffering && !hasVideoError && (
-        <div className="absolute inset-0 z-35 pointer-events-none flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all duration-300">
-          <div className="flex flex-col items-center gap-3 bg-zinc-950/85 px-6 py-4 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-md animate-fade-in">
-            <div className="relative flex items-center justify-center">
-              {/* Outer Pulsing Glow */}
-              <div className="absolute w-12 h-12 rounded-full bg-red-600/30 animate-ping" />
-              {/* Inner Red Spinner */}
-              <div className="w-10 h-10 border-4 border-red-600/20 border-t-red-600 rounded-full animate-spin shadow-lg" />
-            </div>
-            <span className="text-xs font-semibold text-zinc-200 tracking-wide animate-pulse">
-              Memuat Stream...
-            </span>
+        <div className="absolute inset-0 z-35 pointer-events-none flex items-center justify-center transition-opacity duration-300">
+          <div className="relative flex items-center justify-center p-3 rounded-full bg-black/40 backdrop-blur-sm shadow-xl border border-white/5 animate-fade-in">
+            <svg
+              className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-white/90"
+              viewBox="0 0 48 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Subtle background track */}
+              <circle
+                cx="24"
+                cy="24"
+                r="19"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                className="opacity-15"
+              />
+              {/* Soft rotating arc */}
+              <path
+                d="M24 5C13.5066 5 5 13.5066 5 24"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                className="opacity-90 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
+              />
+            </svg>
           </div>
         </div>
       )}

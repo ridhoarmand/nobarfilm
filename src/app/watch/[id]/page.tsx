@@ -208,15 +208,20 @@ function WatchContent() {
 
   // Auto-select subtitle based on user preference (stored in localStorage), fallback to Indonesian -> English -> First available
   useEffect(() => {
-    if (playbackData?.captions && playbackData.captions.length > 0) {
+    if (filteredCaptions && filteredCaptions.length > 0) {
       let preferredLang = 'indonesia';
       if (typeof window !== 'undefined') {
         const savedPref = localStorage.getItem('nobarfilm_pref_sub_lang');
         if (savedPref) preferredLang = savedPref.toLowerCase();
       }
 
-      // Try preferred language match
-      let matchedIdx = playbackData.captions.findIndex((c) => {
+      if (preferredLang === 'off') {
+        setSelectedSubtitleIndex(null);
+        return;
+      }
+
+      // Try preferred language match in filteredCaptions
+      let matchedIdx = filteredCaptions.findIndex((c) => {
         const name = (c.lanName || '').toLowerCase();
         const code = (c.lan || '').toLowerCase();
         return name.includes(preferredLang) || code.includes(preferredLang);
@@ -224,14 +229,14 @@ function WatchContent() {
 
       // Fallback 1: Indonesian
       if (matchedIdx === -1) {
-        matchedIdx = playbackData.captions.findIndex(
+        matchedIdx = filteredCaptions.findIndex(
           (c) => (c.lanName || '').toLowerCase().includes('indonesia') || (c.lan || '').toLowerCase().includes('id')
         );
       }
 
       // Fallback 2: English
       if (matchedIdx === -1) {
-        matchedIdx = playbackData.captions.findIndex(
+        matchedIdx = filteredCaptions.findIndex(
           (c) => (c.lanName || '').toLowerCase().includes('english') || (c.lan || '').toLowerCase().includes('en')
         );
       }
@@ -249,11 +254,18 @@ function WatchContent() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('nobarfilm_pref_sub_lang', 'off');
       }
-    } else if (playbackData?.captions && playbackData.captions[idx]) {
-      const cap = playbackData.captions[idx];
+    } else if (filteredCaptions && filteredCaptions[idx]) {
+      const cap = filteredCaptions[idx];
       const langKey = (cap.lanName || cap.lan || 'indonesia').toLowerCase();
       if (typeof window !== 'undefined') {
-        localStorage.setItem('nobarfilm_pref_sub_lang', langKey.includes('indonesia') || langKey.includes('id') ? 'indonesia' : langKey.includes('english') || langKey.includes('en') ? 'english' : langKey);
+        localStorage.setItem(
+          'nobarfilm_pref_sub_lang',
+          langKey.includes('indonesia') || langKey.includes('id')
+            ? 'indonesia'
+            : langKey.includes('english') || langKey.includes('en')
+            ? 'english'
+            : langKey
+        );
       }
     }
   };
@@ -313,10 +325,30 @@ function WatchContent() {
 
   if (isLoading || isLoadingMetadata) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
-          <p className="text-zinc-500 text-sm">Memuat...</p>
+      <div className="h-screen w-full bg-zinc-950 flex flex-col items-center justify-center">
+        <div className="relative flex items-center justify-center p-4 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-sm shadow-2xl">
+          <svg
+            className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-white/80"
+            viewBox="0 0 48 48"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="24"
+              cy="24"
+              r="19"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="opacity-15"
+            />
+            <path
+              d="M24 5C13.5066 5 5 13.5066 5 24"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              className="opacity-90"
+            />
+          </svg>
         </div>
       </div>
     );
