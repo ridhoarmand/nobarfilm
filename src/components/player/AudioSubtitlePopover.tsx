@@ -61,7 +61,13 @@ export function AudioSubtitlePopover({
   };
 
   return (
-    <div className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-50 w-[calc(100vw-1rem)] sm:w-[460px] max-h-[82vh] overflow-y-auto bg-zinc-950/95 border border-zinc-800/90 text-white rounded-2xl shadow-2xl backdrop-blur-2xl p-3.5 sm:p-5 animate-fade-in scrollbar-thin">
+    <div
+      data-interactive="true"
+      data-popover="true"
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-50 w-[calc(100vw-1rem)] sm:w-[460px] max-h-[82vh] overflow-y-auto bg-zinc-950/95 border border-zinc-800/90 text-white rounded-2xl shadow-2xl backdrop-blur-2xl p-3.5 sm:p-5 animate-fade-in scrollbar-thin"
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-4">
         <div className="flex items-center gap-2">

@@ -25,7 +25,13 @@ export function QualityPopover({
   const runningRes = activeHlsHeight || (qualities.length > 0 ? qualities[0] : 1080);
 
   return (
-    <div className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-40 w-64 max-w-[calc(100vw-1rem)] bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-xs">
+    <div
+      data-interactive="true"
+      data-popover="true"
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-40 w-64 max-w-[calc(100vw-1rem)] bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-xs"
+    >
       {/* Header */}
       <div className="flex items-center gap-2 pb-3 border-b border-zinc-800/80 mb-3">
         <Film className="w-4 h-4 text-red-500" />

@@ -263,13 +263,14 @@ export function PlayerOverlay({
 
       {/* TOP BAR */}
       <div
-        className={`relative z-30 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-5 px-2.5 sm:px-6 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-5 pt-[max(0.6rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] transition-opacity duration-300 pointer-events-auto ${
           isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
         {onBack && (
           <button
             type="button"
+            data-interactive="true"
             onClick={(e) => {
               e.stopPropagation();
               onBack();
@@ -278,7 +279,7 @@ export function PlayerOverlay({
               e.stopPropagation();
               onBack();
             }}
-            className="p-2 rounded-full bg-black/60 hover:bg-red-600 text-white backdrop-blur-md border border-white/20 transition-all hover:scale-105 active:scale-95 z-50 cursor-pointer"
+            className="p-2 sm:p-2.5 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-full bg-black/60 hover:bg-red-600 text-white backdrop-blur-md border border-white/20 transition-all hover:scale-105 active:scale-95 z-50 cursor-pointer"
             title="Kembali"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -286,13 +287,13 @@ export function PlayerOverlay({
         )}
 
         {title && (
-          <h2 className="text-white font-bold text-sm sm:text-lg truncate drop-shadow-md">
+          <h2 className="text-white font-bold text-sm sm:text-base lg:text-lg truncate drop-shadow-md">
             {title}
           </h2>
         )}
       </div>
 
-      {/* CENTER PLAY/PAUSE OVERLAY BUTTON */}
+      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - Sleek & Modern Proportion */}
       <div
         className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center justify-center transition-opacity duration-300 ${
           showCenterControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -300,24 +301,28 @@ export function PlayerOverlay({
       >
         <button
           type="button"
+          data-interactive="true"
           onClick={(e) => {
             e.stopPropagation();
             onTogglePlay();
           }}
-          className="p-4 sm:p-5 rounded-full bg-black/45 hover:bg-black/70 text-white backdrop-blur-md border border-white/25 transition-all hover:scale-110 active:scale-95 shadow-2xl cursor-pointer"
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+          }}
+          className="p-3 sm:p-4 rounded-full bg-black/55 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-all duration-200 hover:scale-110 active:scale-95 shadow-2xl cursor-pointer min-w-[50px] min-h-[50px] sm:min-w-[56px] sm:min-h-[56px] flex items-center justify-center"
           title={isPlaying ? 'Jeda' : 'Putar'}
         >
           {isPlaying ? (
-            <Pause className="w-7 h-7 sm:w-9 sm:h-9 fill-white" />
+            <Pause className="w-6 h-6 sm:w-7 sm:h-7 fill-white" />
           ) : (
-            <Play className="w-7 h-7 sm:w-9 sm:h-9 fill-white ml-0.5" />
+            <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-white ml-0.5" />
           )}
         </button>
       </div>
 
-      {/* BOTTOM CONTROL BAR - mobile optimized layout */}
+      {/* BOTTOM CONTROL BAR - Mobile & Desktop optimized layout */}
       <div
-        className={`relative z-30 p-2 sm:p-4 px-2 sm:px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))] space-y-1.5 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 p-2 sm:p-4 px-2.5 sm:px-6 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.6rem,env(safe-area-inset-bottom))] space-y-1.5 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
           showBottomBar ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -335,18 +340,34 @@ export function PlayerOverlay({
           <div className="flex items-center gap-1 sm:gap-3 flex-shrink min-w-0">
             <button
               type="button"
-              onClick={onTogglePlay}
-              className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-white transition flex-shrink-0"
+              data-interactive="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePlay();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+              }}
+              className="p-2 rounded-xl hover:bg-white/15 text-white transition flex-shrink-0 min-w-[38px] min-h-[38px] flex items-center justify-center cursor-pointer"
+              title={isPlaying ? 'Jeda' : 'Putar'}
             >
-              {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-white" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />}
+              {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-white" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white ml-0.5" />}
             </button>
 
             {/* Volume Control */}
-            <div className="flex items-center gap-1.5 group/vol flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 group/vol flex-shrink-0">
               <button
                 type="button"
-                onClick={onToggleMute}
-                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 text-white transition"
+                data-interactive="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleMute();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
+                className="p-2 rounded-xl hover:bg-white/15 text-white transition min-w-[38px] min-h-[38px] flex items-center justify-center cursor-pointer"
+                title={isMuted || volume === 0 ? 'Nyalakan Suara' : 'Bisukan'}
               >
                 {isMuted || volume === 0 ? (
                   <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
@@ -358,17 +379,19 @@ export function PlayerOverlay({
               </button>
               <input
                 type="range"
+                data-interactive="true"
                 min="0"
                 max="1"
                 step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                onClick={(e) => e.stopPropagation()}
                 className="hidden sm:block w-16 sm:w-24 accent-red-600 cursor-pointer h-1.5 bg-zinc-700 rounded-lg transition-all opacity-80 group-hover/vol:opacity-100"
               />
             </div>
 
             {/* Time Display */}
-            <div className="text-[11px] sm:text-xs text-zinc-300 font-mono font-medium whitespace-nowrap truncate">
+            <div className="text-[11px] sm:text-xs text-zinc-300 font-mono font-medium whitespace-nowrap truncate select-none">
               <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
               <span className="text-zinc-500 mx-0.5 sm:mx-1">/</span>
               <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</span>
@@ -381,18 +404,25 @@ export function PlayerOverlay({
             {(subtitles.length > 0 || audioOptions.length > 0) && (
               <button
                 type="button"
-                onClick={() => togglePopover('subtitle')}
+                data-interactive="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePopover('subtitle');
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
                 aria-label="Pengaturan Audio & Subtitle"
                 aria-expanded={activePopover === 'subtitle'}
                 aria-haspopup="dialog"
-                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold ${
+                className={`p-2 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold min-w-[38px] min-h-[38px] justify-center cursor-pointer ${
                   activePopover === 'subtitle'
                     ? 'bg-red-600 text-white'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
                 title="Pengaturan Audio & Subtitle"
               >
-                <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
+                <MessageSquare className="w-4 h-4 text-red-500" />
                 <span className="hidden sm:inline">Audio & Subtitle</span>
               </button>
             )}
@@ -401,18 +431,25 @@ export function PlayerOverlay({
             {qualities.length > 0 && onSelectQuality && (
               <button
                 type="button"
-                onClick={() => togglePopover('quality')}
+                data-interactive="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePopover('quality');
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
                 aria-label="Kualitas Resolusi"
                 aria-expanded={activePopover === 'quality'}
                 aria-haspopup="dialog"
-                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold ${
+                className={`p-2 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold min-w-[38px] min-h-[38px] justify-center cursor-pointer ${
                   activePopover === 'quality'
                     ? 'bg-red-600 text-white'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
                 title="Kualitas Resolusi"
               >
-                <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Film className="w-4 h-4 text-zinc-300" />
                 <span className="text-[10px] sm:text-[11px] whitespace-nowrap">
                   {activeQualityIndex === -1
                     ? `Auto (${activeHlsHeight || (qualities.length > 0 ? qualities[0] : 1080)}p)`
@@ -425,18 +462,25 @@ export function PlayerOverlay({
             {isSeries && episodes.length > 0 && (
               <button
                 type="button"
-                onClick={() => togglePopover('episode')}
+                data-interactive="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePopover('episode');
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
                 aria-label="Pilihan Episode & Musim"
                 aria-expanded={activePopover === 'episode'}
                 aria-haspopup="dialog"
-                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold ${
+                className={`p-2 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1 text-xs font-semibold min-w-[38px] min-h-[38px] justify-center cursor-pointer ${
                   activePopover === 'episode'
                     ? 'bg-red-600 text-white'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300'
                 }`}
                 title="Pilihan Episode & Musim"
               >
-                <Tv className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Tv className="w-4 h-4 text-zinc-300" />
                 <span className="text-[10px] sm:text-[11px]">S{activeSeason} E{activeEpisode}</span>
               </button>
             )}
@@ -445,20 +489,34 @@ export function PlayerOverlay({
             {hasNextEpisode && onNextEpisode && (
               <button
                 type="button"
-                onClick={onNextEpisode}
-                className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-lg"
+                data-interactive="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNextEpisode();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
+                className="px-2.5 sm:px-3 py-1.5 sm:py-2 min-h-[38px] bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-lg cursor-pointer"
                 title="Episode Selanjutnya"
               >
                 <span className="hidden sm:inline">Next</span>
-                <SkipForward className="w-3.5 h-3.5" />
+                <SkipForward className="w-4 h-4" />
               </button>
             )}
 
             {/* Fullscreen Button */}
             <button
               type="button"
-              onClick={onToggleFullscreen}
-              className="p-1.5 sm:p-2 rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 shadow-md"
+              data-interactive="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFullscreen();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+              }}
+              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 shadow-md cursor-pointer"
               title={isFullscreen ? 'Keluar Fullscreen (F)' : 'Fullscreen (F)'}
             >
               {isFullscreen ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5 text-white" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5 text-white" />}

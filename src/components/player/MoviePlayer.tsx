@@ -381,13 +381,46 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   }, [ref]);
 
-  // Track Fullscreen state
+  // Helper to check if currently in fullscreen across all browsers & devices
+  const checkIsFullscreen = () => {
+    const video = videoRef.current;
+    return !!(
+      document.fullscreenElement ||
+      (document as any).webkitFullscreenElement ||
+      (document as any).mozFullScreenElement ||
+      (document as any).msFullscreenElement ||
+      (video && (video as any).webkitDisplayingFullscreen)
+    );
+  };
+
+  // Fullscreen state listener & synchronization
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(checkIsFullscreen());
     };
+
+    const video = videoRef.current;
+
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    if (video) {
+      video.addEventListener('webkitbeginfullscreen', handleFullscreenChange);
+      video.addEventListener('webkitendfullscreen', handleFullscreenChange);
+    }
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      if (video) {
+        video.removeEventListener('webkitbeginfullscreen', handleFullscreenChange);
+        video.removeEventListener('webkitendfullscreen', handleFullscreenChange);
+      }
+    };
   }, []);
 
   const togglePlay = () => {
@@ -431,6 +464,63 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   const [brightness, setBrightness] = useState(1.0);
 
+  const toggleFullscreen = () => {
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container || !video) return;
+
+    const isFs = checkIsFullscreen();
+
+    if (!isFs) {
+      // Enter Fullscreen
+      const requestFs =
+        container.requestFullscreen ||
+        (container as any).webkitRequestFullscreen ||
+        (container as any).mozRequestFullScreen ||
+        (container as any).msRequestFullscreen;
+
+      if (requestFs) {
+        const promise = requestFs.call(container);
+        if (promise && typeof promise.then === 'function') {
+          promise
+            .then(() => {
+              try {
+                if ('orientation' in screen && (screen.orientation as any)?.lock) {
+                  (screen.orientation as any).lock('landscape').catch(() => {});
+                }
+              } catch {}
+            })
+            .catch(() => {
+              if ((video as any).webkitEnterFullscreen) {
+                (video as any).webkitEnterFullscreen();
+              }
+            });
+        }
+      } else if ((video as any).webkitEnterFullscreen) {
+        (video as any).webkitEnterFullscreen();
+      }
+    } else {
+      // Exit Fullscreen
+      const exitFs =
+        document.exitFullscreen ||
+        (document as any).webkitExitFullscreen ||
+        (document as any).mozCancelFullScreen ||
+        (document as any).msExitFullscreen;
+
+      if (exitFs) {
+        exitFs.call(document)?.catch?.(() => {});
+      }
+      if ((video as any).webkitExitFullscreen) {
+        (video as any).webkitExitFullscreen();
+      }
+      try {
+        if ('orientation' in screen && (screen.orientation as any)?.unlock) {
+          (screen.orientation as any).unlock();
+        }
+      } catch {}
+    }
+  };
+
   useKeyboardShortcuts({
     onTogglePlay: togglePlay,
     onSeek: (seconds) => handleSeek(Math.max(0, Math.min(duration || 0, currentTime + seconds))),
@@ -444,7 +534,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       }
     },
     onEscape: () => {
-      if (document.fullscreenElement) {
+      if (checkIsFullscreen()) {
         toggleFullscreen();
       } else {
         onBack?.();
@@ -455,57 +545,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   const [hasVideoError, setHasVideoError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-
-  // Track fullscreen state only (no auto-lock orientation), prevent finishing
-  // buttons from disappearing when exiting fullscreen on mobile.
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-      const webkitFs = (videoRef.current as any)?.webkitDisplayingFullscreen === true;
-      setIsFullscreen((prev) => prev || webkitFs);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-    };
-  }, []);
-
-
-
-  const toggleFullscreen = () => {
-    const container = containerRef.current;
-    const video = videoRef.current;
-    if (!container || !video) return;
-
-    if (!document.fullscreenElement && !(video as any).webkitDisplayingFullscreen) {
-      if (container.requestFullscreen) {
-        container.requestFullscreen()
-          .then(() => {
-            try {
-              if ('orientation' in screen && (screen.orientation as any)?.lock) {
-                (screen.orientation as any).lock('landscape').catch(() => {});
-              }
-            } catch {}
-          })
-          .catch(() => {
-            if ((video as any).webkitEnterFullscreen) {
-              (video as any).webkitEnterFullscreen();
-            }
-          });
-      } else if ((video as any).webkitEnterFullscreen) {
-        (video as any).webkitEnterFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if ((video as any).webkitExitFullscreen) {
-        (video as any).webkitExitFullscreen();
-      }
-    }
-  };
 
   const handleRetryVideo = () => {
     setHasVideoError(false);
@@ -533,7 +572,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         poster={poster || ''}
         playsInline
         crossOrigin="anonymous"
-        {...({ referrerPolicy: 'no-referrer' } as any)}
+        {...({ referrerPolicy: 'no-referrer', 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
         style={{
           filter: brightness !== 1.0 ? `brightness(${brightness})` : undefined,
         }}

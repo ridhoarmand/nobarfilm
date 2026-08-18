@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 
 interface UsePlayerGesturesProps {
-  isMobile: boolean;
+  isMobile?: boolean;
   onTogglePlay: () => void;
   onToggleFullscreen: () => void;
   onSeek: (deltaSeconds: number) => void;
@@ -14,8 +14,15 @@ interface UsePlayerGesturesProps {
   onToggleControls: () => void;
 }
 
+const isInteractiveTarget = (target: EventTarget | null): boolean => {
+  if (!target || !(target instanceof Element)) return false;
+  return !!target.closest(
+    'button, input, select, textarea, a, [data-interactive="true"], [role="dialog"], [role="menu"], [data-popover]'
+  );
+};
+
 export function usePlayerGestures({
-  isMobile,
+  isMobile: _isMobile,
   onTogglePlay,
   onToggleFullscreen,
   onSeek,
@@ -39,6 +46,8 @@ export function usePlayerGestures({
   const hudTimerRef = useRef<NodeJS.Timeout | null>(null);
   const seekTimerRef = useRef<NodeJS.Timeout | null>(null);
   const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTouchTimeRef = useRef<number>(0);
 
   const showHud = useCallback((type: 'volume' | 'brightness' | 'play' | 'pause', value?: number) => {
     if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
@@ -48,7 +57,7 @@ export function usePlayerGestures({
     }, 1000);
   }, []);
 
-  // Tracking refs for mobile gestures
+  // Tracking refs for gestures
   const touchStartRef = useRef<{
     x: number;
     y: number;
@@ -62,17 +71,20 @@ export function usePlayerGestures({
   const lastTapRef = useRef<{ time: number; side: 'left' | 'right' | 'center' }>({ time: 0, side: 'center' });
   const accumulatedSeekRef = useRef<number>(0);
 
-  // Desktop click & double click handler
+  // Mouse click & double click handler (works for desktop and mouse on touchscreen laptops)
   const handleDesktopClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (isMobile) return;
-      const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('input') || target.closest('[data-interactive]')) {
+      // If this click was triggered right after a touch event (synthetic click), ignore it
+      if (Date.now() - lastTouchTimeRef.current < 450) {
+        return;
+      }
+
+      if (isInteractiveTarget(e.target)) {
         return;
       }
 
       if (clickTimerRef.current) {
-        // Double click detected anywhere on video -> Toggle Fullscreen!
+        // Double click detected -> Toggle Fullscreen!
         clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
         onToggleFullscreen();
@@ -84,12 +96,20 @@ export function usePlayerGestures({
         }, 220);
       }
     },
-    [isMobile, onToggleFullscreen, onTogglePlay]
+    [onToggleFullscreen, onTogglePlay]
   );
 
-  // Mobile touch handlers
+  // Touch handlers (works for phones, tablets, and touchscreen laptops)
   const handleTouchStart = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
+      lastTouchTimeRef.current = Date.now();
+
+      // Don't intercept touches on buttons, progress bar, or interactive dialogs
+      if (isInteractiveTarget(e.target)) {
+        touchStartRef.current = null;
+        return;
+      }
+
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       const rect = e.currentTarget.getBoundingClientRect();
@@ -97,9 +117,9 @@ export function usePlayerGestures({
       const width = rect.width;
 
       let side: 'left' | 'right' | 'center' = 'center';
-      if (relativeX < width * 0.45) {
+      if (relativeX < width * 0.4) {
         side = 'left';
-      } else if (relativeX > width * 0.55) {
+      } else if (relativeX > width * 0.6) {
         side = 'right';
       }
 
@@ -118,6 +138,7 @@ export function usePlayerGestures({
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
+      lastTouchTimeRef.current = Date.now();
       if (!touchStartRef.current || e.touches.length !== 1) return;
       const touch = e.touches[0];
       const start = touchStartRef.current;
@@ -126,8 +147,13 @@ export function usePlayerGestures({
 
       // Check if vertical drag is initiated
       if (!start.isVerticalDrag) {
-        if (Math.abs(deltaY) > 12 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        if (Math.abs(deltaY) > 12 && Math.abs(deltaY) > Math.abs(deltaX) * 1.2) {
           start.isVerticalDrag = true;
+          // Cancel any pending tap toggle
+          if (singleTapTimerRef.current) {
+            clearTimeout(singleTapTimerRef.current);
+            singleTapTimerRef.current = null;
+          }
         }
       }
 
@@ -153,21 +179,27 @@ export function usePlayerGestures({
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
+      lastTouchTimeRef.current = Date.now();
       if (!touchStartRef.current) return;
       const start = touchStartRef.current;
       const now = Date.now();
       const duration = now - start.time;
 
       if (!start.isVerticalDrag && duration < 300) {
-        // Tap or Double Tap
-        const DOUBLE_TAP_DELAY = 320;
+        const DOUBLE_TAP_DELAY = 280;
         const isDoubleTap =
           lastTapRef.current.side === start.side &&
           now - lastTapRef.current.time < DOUBLE_TAP_DELAY &&
           (start.side === 'left' || start.side === 'right');
 
         if (isDoubleTap) {
-          // Double Tap Seek on Mobile Left or Right
+          // Clear pending single tap action
+          if (singleTapTimerRef.current) {
+            clearTimeout(singleTapTimerRef.current);
+            singleTapTimerRef.current = null;
+          }
+
+          // Double Tap Seek on Left or Right
           const isLeft = start.side === 'left';
           const step = isLeft ? -10 : 10;
           onSeek(step);
@@ -191,13 +223,23 @@ export function usePlayerGestures({
           seekTimerRef.current = setTimeout(() => {
             setSeekFeedback(null);
             accumulatedSeekRef.current = 0;
-          }, 1000);
+          }, 900);
 
           lastTapRef.current = { time: 0, side: 'center' };
         } else {
           lastTapRef.current = { time: now, side: start.side };
-          // Single tap on mobile toggles controls
-          onToggleControls();
+
+          if (start.side === 'left' || start.side === 'right') {
+            // For left/right, wait briefly in case user is double tapping
+            if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
+            singleTapTimerRef.current = setTimeout(() => {
+              singleTapTimerRef.current = null;
+              onToggleControls();
+            }, DOUBLE_TAP_DELAY);
+          } else {
+            // Center tap immediately toggles controls
+            onToggleControls();
+          }
         }
       }
 

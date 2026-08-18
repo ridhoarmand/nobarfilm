@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 
 interface PlayerProgressBarProps {
   currentTime: number;
@@ -18,9 +18,11 @@ export function PlayerProgressBar({
   const barRef = useRef<HTMLDivElement>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPos, setHoverPos] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const displayTime = isScrubbing && scrubTime !== null ? scrubTime : currentTime;
+  const progressPercent = duration > 0 ? (displayTime / duration) * 100 : 0;
   const bufferedPercent = duration > 0 ? (buffered / duration) * 100 : 0;
 
   const formatTime = (seconds: number) => {
@@ -35,55 +37,123 @@ export function PlayerProgressBar({
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
-  const calculateTimeFromEvent = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
-    if (!barRef.current || duration <= 0) return 0;
-    const rect = barRef.current.getBoundingClientRect();
-    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const percent = clickX / rect.width;
-    return percent * duration;
+  const getTimeFromClientX = useCallback(
+    (clientX: number) => {
+      if (!barRef.current || duration <= 0) return { time: 0, pos: 0 };
+      const rect = barRef.current.getBoundingClientRect();
+      const clickX = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const percent = rect.width > 0 ? clickX / rect.width : 0;
+      return { time: percent * duration, pos: clickX };
+    },
+    [duration]
+  );
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (duration <= 0) return;
+    setIsScrubbing(true);
+    const { time, pos } = getTimeFromClientX(e.clientX);
+    setScrubTime(time);
+    setHoverPos(pos);
+    setHoverTime(time);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!barRef.current || duration <= 0) return;
-    const rect = barRef.current.getBoundingClientRect();
-    const moveX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    setHoverPos(moveX);
-    setHoverTime((moveX / rect.width) * duration);
+    if (duration <= 0) return;
+    const { time, pos } = getTimeFromClientX(e.clientX);
+    setHoverPos(pos);
+    setHoverTime(time);
+    if (isScrubbing) {
+      setScrubTime(time);
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isScrubbing) {
+      const { time } = getTimeFromClientX(e.clientX);
+      onSeek(time);
+      setIsScrubbing(false);
+      setScrubTime(null);
+    }
   };
 
   const handleMouseLeave = () => {
-    if (!isDragging) {
+    if (!isScrubbing) {
       setHoverTime(null);
     }
   };
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const targetTime = calculateTimeFromEvent(e);
-    onSeek(targetTime);
+    e.stopPropagation();
+    const { time } = getTimeFromClientX(e.clientX);
+    onSeek(time);
+  };
+
+  // Touch Handlers for mobile & touchscreens
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (e.touches.length !== 1 || duration <= 0) return;
+    const { time, pos } = getTimeFromClientX(e.touches[0].clientX);
+    setIsScrubbing(true);
+    setScrubTime(time);
+    setHoverPos(pos);
+    setHoverTime(time);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (e.touches.length !== 1 || duration <= 0) return;
+    const { time, pos } = getTimeFromClientX(e.touches[0].clientX);
+    setScrubTime(time);
+    setHoverPos(pos);
+    setHoverTime(time);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    let finalTime = scrubTime;
+    if (e.changedTouches.length > 0) {
+      const { time } = getTimeFromClientX(e.changedTouches[0].clientX);
+      finalTime = time;
+    }
+    if (finalTime !== null) {
+      onSeek(finalTime);
+    }
+    setIsScrubbing(false);
+    setScrubTime(null);
+    setHoverTime(null);
   };
 
   return (
-    <div className="w-full flex items-center gap-3 group/progress py-1 cursor-pointer">
+    <div
+      data-interactive="true"
+      className="w-full flex items-center gap-2.5 sm:gap-3 group/progress py-2 sm:py-1.5 cursor-pointer touch-none select-none"
+    >
       {/* Time Current */}
-      <span className="text-xs font-semibold text-zinc-300 min-w-[36px] text-right">
-        {formatTime(currentTime)}
+      <span className="text-[11px] sm:text-xs font-semibold text-zinc-300 min-w-[34px] sm:min-w-[36px] text-right font-mono">
+        {formatTime(displayTime)}
       </span>
 
       {/* Progress Bar Track */}
       <div
         ref={barRef}
         onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative flex-1 h-1.5 hover:h-2.5 bg-zinc-800/80 rounded-full overflow-visible transition-all duration-150"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        className="relative flex-1 h-2 sm:h-1.5 group-hover/progress:h-2.5 bg-zinc-800/80 rounded-full overflow-visible transition-all duration-150"
       >
-        {/* Hover Time Tooltip */}
-        {hoverTime !== null && (
+        {/* Hover / Scrub Time Tooltip */}
+        {(hoverTime !== null || isScrubbing) && (
           <div
-            className="absolute -top-8 -translate-x-1/2 px-2 py-0.5 bg-zinc-900 border border-zinc-700 rounded text-[11px] font-bold text-white shadow-md pointer-events-none"
+            className="absolute -top-8 -translate-x-1/2 px-2 py-0.5 bg-zinc-900/95 border border-zinc-700 rounded-md text-[11px] font-bold text-white shadow-xl pointer-events-none backdrop-blur-sm z-50 whitespace-nowrap"
             style={{ left: `${hoverPos}px` }}
           >
-            {formatTime(hoverTime)}
+            {formatTime(hoverTime ?? (scrubTime || 0))}
           </div>
         )}
 
@@ -93,18 +163,22 @@ export function PlayerProgressBar({
           style={{ width: `${Math.min(100, bufferedPercent)}%` }}
         />
 
-        {/* Current Progress (Red Netflix Bar) */}
+        {/* Current Progress (Red Bar) */}
         <div
           className="absolute top-0 left-0 h-full bg-red-600 rounded-full relative"
           style={{ width: `${Math.min(100, progressPercent)}%` }}
         >
-          {/* Scrub Knob / Indicator */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-white shadow-md opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+          {/* Scrub Knob / Indicator (always visible on mobile or when scrubbing / hovering) */}
+          <div
+            className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3.5 h-3.5 sm:w-3 sm:h-3 rounded-full bg-red-500 border-2 border-white shadow-lg transition-transform ${
+              isScrubbing ? 'scale-125 opacity-100' : 'opacity-90 sm:opacity-0 group-hover/progress:opacity-100 group-hover/progress:scale-110'
+            }`}
+          />
         </div>
       </div>
 
       {/* Time Duration */}
-      <span className="text-xs font-semibold text-zinc-400 min-w-[36px]">
+      <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 min-w-[34px] sm:min-w-[36px] font-mono">
         {formatTime(duration)}
       </span>
     </div>
