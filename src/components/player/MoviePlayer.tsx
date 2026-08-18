@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, forwardRef, useSyncExternalStore, useState } from 'react';
+import React, { useEffect, useRef, forwardRef, useSyncExternalStore, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -57,7 +57,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   onSubtitleSelect,
   subtitleDelay = 0,
   onSubtitleDelayChange,
-  subtitlePosition = 85,
+  subtitlePosition = 88,
   onSubtitlePositionChange,
   onCustomSubtitleUpload,
   poster,
@@ -117,6 +117,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       savedTimeRef.current = 0;
       hasResumed.current = false;
       setCurrentTime(0);
+      setDuration(0);
+      setBuffered(0);
+      setBufferPercent(15);
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
       }
@@ -156,7 +159,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     if (!video || !currentSrc) return;
 
     const isEpisodeChanged = prevEpisodeRef.current.season !== activeSeason || prevEpisodeRef.current.episode !== activeEpisode;
-    if (!isEpisodeChanged && video.currentTime > 0) {
+    if (isEpisodeChanged) {
+      savedTimeRef.current = 0;
+      setCurrentTime(0);
+      setDuration(0);
+      setBuffered(0);
+      if (video) video.currentTime = 0;
+    } else if (video.currentTime > 0) {
       savedTimeRef.current = video.currentTime;
     }
 
@@ -191,6 +200,20 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           hls!.currentLevel = -1;
         }
         restoreTimeAndPlay();
+      });
+
+      hls.on(Hls.Events.FRAG_LOADING, () => {
+        setIsBuffering(true);
+      });
+
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        const real = calculateBufferProgress();
+        setBufferPercent((prev) => Math.max(prev, real));
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        const real = calculateBufferProgress();
+        setBufferPercent((prev) => Math.max(prev, real));
       });
 
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
@@ -308,10 +331,10 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   const getFontSizeRem = (size: 'sm' | 'md' | 'lg' | 'xl') => {
     switch (size) {
-      case 'sm': return '0.95rem';
-      case 'lg': return '1.4rem';
-      case 'xl': return '1.65rem';
-      default: return '1.15rem';
+      case 'sm': return '1.05rem';
+      case 'lg': return '1.45rem';
+      case 'xl': return '1.7rem';
+      default: return '1.25rem';
     }
   };
 
@@ -332,14 +355,26 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
     styleEl.innerHTML = `
       video::cue {
-        font-size: ${getFontSizeRem(subtitleFontSize)};
-        line-height: 1.35;
-        background: rgba(0, 0, 0, 0.55);
-        color: #f8fafc;
-        text-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.9);
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        padding: 0.15em 0.5em;
-        border-radius: 0.25em;
+        font-size: ${getFontSizeRem(subtitleFontSize)} !important;
+        line-height: 1.4 !important;
+        background-color: transparent !important;
+        background: transparent !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        text-shadow:
+          -1.5px -1.5px 0 #000000,
+           1.5px -1.5px 0 #000000,
+          -1.5px  1.5px 0 #000000,
+           1.5px  1.5px 0 #000000,
+          -2px 0 0 #000000,
+           2px 0 0 #000000,
+           0 -2px 0 #000000,
+           0  2px 0 #000000,
+           0 2.5px 6px rgba(0, 0, 0, 0.95) !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        white-space: pre-line !important;
       }
     `;
 
@@ -545,10 +580,56 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   const [hasVideoError, setHasVideoError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [bufferPercent, setBufferPercent] = useState<number>(0);
+
+  // Helper to compute buffer ahead percentage
+  const calculateBufferProgress = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return 0;
+    const curTime = video.currentTime;
+    let bufEnd = curTime;
+    if (video.buffered && video.buffered.length > 0) {
+      for (let i = 0; i < video.buffered.length; i++) {
+        const start = video.buffered.start(i);
+        const end = video.buffered.end(i);
+        if (start <= curTime + 0.5 && end >= curTime) {
+          bufEnd = end;
+          break;
+        }
+      }
+    }
+    const bufferedAhead = Math.max(0, bufEnd - curTime);
+    const targetBufferAhead = 3.5; // seconds target for smooth play
+    const pct = Math.min(99, Math.round((bufferedAhead / targetBufferAhead) * 100));
+    return pct;
+  }, []);
+
+  // Update buffer percentage smoothly while buffering
+  useEffect(() => {
+    if (!isBuffering) {
+      setBufferPercent(100);
+      return;
+    }
+
+    setBufferPercent((prev) => (prev > 0 ? prev : 15));
+
+    const timer = setInterval(() => {
+      const realPct = calculateBufferProgress();
+      setBufferPercent((prev) => {
+        const nextTarget = Math.max(prev, realPct);
+        if (nextTarget > prev) return nextTarget;
+        if (prev < 90) return prev + Math.floor(Math.random() * 5) + 2;
+        return prev;
+      });
+    }, 200);
+
+    return () => clearInterval(timer);
+  }, [isBuffering, calculateBufferProgress]);
 
   const handleRetryVideo = () => {
     setHasVideoError(false);
     setIsBuffering(true);
+    setBufferPercent(15);
     const video = videoRef.current;
     if (video) {
       video.load();
@@ -580,16 +661,30 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onPlay={() => {
           setIsPlaying(true);
           setIsBuffering(false);
+          setBufferPercent(100);
           setHasVideoError(false);
         }}
         onPause={() => setIsPlaying(false)}
-        onWaiting={() => setIsBuffering(true)}
-        onSeeking={() => setIsBuffering(true)}
-        onSeeked={() => setIsBuffering(false)}
-        onCanPlay={() => setIsBuffering(false)}
+        onWaiting={() => {
+          setIsBuffering(true);
+          setBufferPercent((prev) => (prev > 0 ? prev : 20));
+        }}
+        onSeeking={() => {
+          setIsBuffering(true);
+          setBufferPercent(20);
+        }}
+        onSeeked={() => {
+          setIsBuffering(false);
+          setBufferPercent(100);
+        }}
+        onCanPlay={() => {
+          setIsBuffering(false);
+          setBufferPercent(100);
+        }}
         onPlaying={() => {
           setIsPlaying(true);
           setIsBuffering(false);
+          setBufferPercent(100);
           setHasVideoError(false);
         }}
         onError={() => {
@@ -605,6 +700,12 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           }
           setHasVideoError(true);
           setIsBuffering(false);
+        }}
+        onProgress={() => {
+          if (isBuffering) {
+            const real = calculateBufferProgress();
+            if (real > 0) setBufferPercent((prev) => Math.max(prev, real));
+          }
         }}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
@@ -637,34 +738,48 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         ))}
       </video>
 
-      {/* Soft & Minimalist Buffering / Loading Indicator */}
+      {/* Soft & Minimalist Buffering / Loading Indicator with Percentage */}
       {isBuffering && !hasVideoError && (
-        <div className="absolute inset-0 z-35 pointer-events-none flex items-center justify-center transition-opacity duration-300">
-          <div className="relative flex items-center justify-center p-3 rounded-full bg-black/40 backdrop-blur-sm shadow-xl border border-white/5 animate-fade-in">
-            <svg
-              className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-white/90"
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {/* Subtle background track */}
-              <circle
-                cx="24"
-                cy="24"
-                r="19"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                className="opacity-15"
-              />
-              {/* Soft rotating arc */}
-              <path
-                d="M24 5C13.5066 5 5 13.5066 5 24"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                className="opacity-90 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
-              />
-            </svg>
+        <div className="absolute inset-0 z-35 pointer-events-none flex flex-col items-center justify-center transition-opacity duration-300 animate-fade-in">
+          <div className="relative flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl bg-black/60 backdrop-blur-md shadow-2xl border border-white/10">
+            {/* Circular Progress Ring */}
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
+                {/* Background track circle */}
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  className="text-white/15"
+                  fill="none"
+                />
+                {/* Dynamic animated progress arc */}
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeDasharray="125.66"
+                  strokeDashoffset={125.66 - (125.66 * Math.max(5, Math.min(99, bufferPercent || 15))) / 100}
+                  strokeLinecap="round"
+                  className="text-red-500 transition-all duration-200 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                  fill="none"
+                />
+              </svg>
+              {/* Percentage text in center */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs sm:text-sm font-bold font-mono text-white tracking-tighter">
+                  {Math.max(1, Math.min(99, bufferPercent || 15))}%
+                </span>
+              </div>
+            </div>
+
+            <span className="text-[10px] sm:text-[11px] text-zinc-300 font-semibold mt-2 tracking-wide animate-pulse">
+              Memuat Video...
+            </span>
           </div>
         </div>
       )}

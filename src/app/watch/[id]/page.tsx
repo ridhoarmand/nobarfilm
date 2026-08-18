@@ -44,7 +44,7 @@ function WatchContent() {
   });
 
   const [subtitleDelay, setSubtitleDelay] = useState(0);
-  const [subtitlePosition, setSubtitlePosition] = useState(70);
+  const [subtitlePosition, setSubtitlePosition] = useState(88);
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showResumeToast, setShowResumeToast] = useState(true);
@@ -320,10 +320,10 @@ function WatchContent() {
     return playbackData.allDownloads?.[qualityIndex]?.streamUrl || playbackData.streamUrl;
   }, [playbackData, qualityIndex]);
 
-  const isLoading = isLoadingDetail || isLoadingPlayback;
-  const error = detailError || playbackError;
+  const isInitialLoading = !detail && (isLoadingDetail || isLoadingMetadata);
+  const isDetailError = detailError || (!isLoadingDetail && !detail);
 
-  if (isLoading || isLoadingMetadata) {
+  if (isInitialLoading) {
     return (
       <div className="h-screen w-full bg-zinc-950 flex flex-col items-center justify-center">
         <div className="relative flex items-center justify-center p-4 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-sm shadow-2xl">
@@ -354,12 +354,12 @@ function WatchContent() {
     );
   }
 
-  if (error || !detail) {
+  if (isDetailError) {
     return (
       <div className="h-screen bg-black flex flex-col items-center justify-center px-6 text-center gap-4">
         <AlertCircle className="w-14 h-14 text-red-600" />
         <h1 className="text-xl text-white font-bold">Tidak dapat memutar konten</h1>
-        <p className="text-zinc-400 max-w-md text-sm">{error?.message || 'Konten tidak ditemukan atau sumber tidak tersedia.'}</p>
+        <p className="text-zinc-400 max-w-md text-sm">{detailError?.message || 'Konten tidak ditemukan atau sumber tidak tersedia.'}</p>
         <div className="flex gap-3 mt-2">
           <button onClick={() => router.back()} className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition">
             Kembali
@@ -379,6 +379,11 @@ function WatchContent() {
 
   const handleNextEpisode = () => {
     if (!hasNextEpisode) return;
+    const { time, duration } = lastProgressRef.current;
+    if (time > 3 && duration > 0) {
+      saveProgressSync(time, duration);
+    }
+    lastProgressRef.current = { time: 0, duration: 0 };
     setQualityIndex(0);
     const params = new URLSearchParams();
     if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
@@ -390,73 +395,76 @@ function WatchContent() {
     <div className="min-h-screen w-full bg-zinc-950 text-white flex flex-col overflow-x-hidden">
       {/* Video Player Container - 16:9 on Mobile, Immersive Theater View (85vh-92vh) on Desktop */}
       <div className="w-full aspect-video sm:h-[82vh] lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
-        {playbackData?.streamUrl ? (
-          <MoviePlayer
-            src={activeStreamUrl || playbackData.streamUrl}
-            title={displayTitle}
-            poster={subject?.coverHorizontalUrl || subject?.cover?.url}
-            autoPlay
-            initialTime={resumeTime}
-            subtitles={formattedSubtitles}
-            activeSubtitleIndex={selectedSubtitleIndex}
-            onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
-            subtitleDelay={subtitleDelay}
-            onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
-            subtitlePosition={subtitlePosition}
-            onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
-            onCustomSubtitleUpload={(customSub: { label: string; src: string }) => {
-              setCustomSubtitles((prev) => [...prev, customSub]);
-              setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
-            }}
-            onProgress={handleProgress}
-            hasNextEpisode={hasNextEpisode}
-            onNextEpisode={handleNextEpisode}
-            onEnded={() => {
-              if (hasNextEpisode) handleNextEpisode();
-            }}
-            qualities={availableQualities}
-            activeQualityIndex={qualityIndex}
-            onQualityChange={(idx: number) => setQualityIndex(idx)}
-            audioOptions={filteredAudioOptions}
-            activeAudioCode={subjectId}
-            onAudioChange={handleAudioChange}
-            isSeries={isSeries}
-            seasons={availableSeasons}
-            episodes={availableEpisodes}
-            activeSeason={effectiveSeason}
-            activeEpisode={effectiveEpisode}
-            onSeasonChange={(s: number) => {
-              setQualityIndex(0);
-              const params = new URLSearchParams();
-              params.set('season', String(s));
-              params.set('episode', '1');
-              router.replace(`/watch/${subjectId}?${params.toString()}`);
-            }}
-            onEpisodeChange={(e: number) => {
-              setQualityIndex(0);
-              const params = new URLSearchParams();
-              if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
-              params.set('episode', String(e));
-              router.replace(`/watch/${subjectId}?${params.toString()}`);
-            }}
-            onBack={() => {
-              const { time, duration } = lastProgressRef.current;
-              if (time > 3 && duration > 0) {
-                saveProgressSync(time, duration);
-              }
-              if (typeof window !== 'undefined' && window.history.length > 1) {
-                router.back();
-              } else {
-                router.push(`/${subjectId}`);
-              }
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-zinc-500 bg-black">
-            <Film className="w-12 h-12" />
-            <p className="text-sm">Sumber video tidak tersedia</p>
-          </div>
-        )}
+        <MoviePlayer
+          src={activeStreamUrl || playbackData?.streamUrl || ''}
+          title={displayTitle}
+          poster={subject?.coverHorizontalUrl || subject?.cover?.url}
+          autoPlay
+          initialTime={resumeTime}
+          subtitles={formattedSubtitles}
+          activeSubtitleIndex={selectedSubtitleIndex}
+          onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
+          subtitleDelay={subtitleDelay}
+          onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
+          subtitlePosition={subtitlePosition}
+          onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
+          onCustomSubtitleUpload={(customSub: { label: string; src: string }) => {
+            setCustomSubtitles((prev) => [...prev, customSub]);
+            setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
+          }}
+          onProgress={handleProgress}
+          hasNextEpisode={hasNextEpisode}
+          onNextEpisode={handleNextEpisode}
+          onEnded={() => {
+            if (hasNextEpisode) handleNextEpisode();
+          }}
+          qualities={availableQualities}
+          activeQualityIndex={qualityIndex}
+          onQualityChange={(idx: number) => setQualityIndex(idx)}
+          audioOptions={filteredAudioOptions}
+          activeAudioCode={subjectId}
+          onAudioChange={handleAudioChange}
+          isSeries={isSeries}
+          seasons={availableSeasons}
+          episodes={availableEpisodes}
+          activeSeason={effectiveSeason}
+          activeEpisode={effectiveEpisode}
+          onSeasonChange={(s: number) => {
+            const { time, duration } = lastProgressRef.current;
+            if (time > 3 && duration > 0) {
+              saveProgressSync(time, duration);
+            }
+            lastProgressRef.current = { time: 0, duration: 0 };
+            setQualityIndex(0);
+            const params = new URLSearchParams();
+            params.set('season', String(s));
+            params.set('episode', '1');
+            router.replace(`/watch/${subjectId}?${params.toString()}`);
+          }}
+          onEpisodeChange={(e: number) => {
+            const { time, duration } = lastProgressRef.current;
+            if (time > 3 && duration > 0) {
+              saveProgressSync(time, duration);
+            }
+            lastProgressRef.current = { time: 0, duration: 0 };
+            setQualityIndex(0);
+            const params = new URLSearchParams();
+            if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
+            params.set('episode', String(e));
+            router.replace(`/watch/${subjectId}?${params.toString()}`);
+          }}
+          onBack={() => {
+            const { time, duration } = lastProgressRef.current;
+            if (time > 3 && duration > 0) {
+              saveProgressSync(time, duration);
+            }
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push(`/${subjectId}`);
+            }
+          }}
+        />
       </div>
 
       {/* Film Information & Synopsis Panel (Below Player) */}

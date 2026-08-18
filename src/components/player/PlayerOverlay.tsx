@@ -208,17 +208,10 @@ export function PlayerOverlay({
       onTouchEnd={handleTouchEnd}
       className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300 cursor-pointer"
     >
-      {/* Dynamic Overlay Gradient Background - Clean top & bottom only */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/40 pointer-events-none transition-opacity duration-300 ${
-          showCenterControls ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-
       {/* Floating HUD Feedback for Volume & Brightness */}
       {hudFeedback && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fade-in">
-          <div className="flex items-center gap-3 px-4 py-2 bg-black/70 border border-white/15 text-white rounded-2xl backdrop-blur-md shadow-xl">
+          <div className="flex items-center gap-3 px-4 py-2 bg-black/75 border border-white/15 text-white rounded-2xl backdrop-blur-md shadow-2xl">
             {hudFeedback.type === 'volume' ? (
               (hudFeedback.value || 0) === 0 ? (
                 <VolumeX className="w-4 h-4 text-red-500" />
@@ -246,7 +239,7 @@ export function PlayerOverlay({
         </div>
       )}
 
-      {/* Ripple Animation Indicator for Mobile Double Tap Seek - Soft & Minimal */}
+      {/* Ripple Animation Indicator for Mobile Double Tap Seek */}
       {seekFeedback && (
         <div
           className={`absolute top-1/2 -translate-y-1/2 z-40 pointer-events-none ${
@@ -261,9 +254,9 @@ export function PlayerOverlay({
         </div>
       )}
 
-      {/* TOP BAR */}
+      {/* TOP BAR with subtle header gradient */}
       <div
-        className={`relative z-30 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-5 pt-[max(0.6rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-5 pt-[max(0.6rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] bg-gradient-to-b from-black/80 via-black/30 to-transparent transition-opacity duration-300 pointer-events-auto ${
           isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -279,10 +272,10 @@ export function PlayerOverlay({
               e.stopPropagation();
               onBack();
             }}
-            className="p-2 sm:p-2.5 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-full bg-black/60 hover:bg-red-600 text-white backdrop-blur-md border border-white/20 transition-all hover:scale-105 active:scale-95 z-50 cursor-pointer"
+            className="p-2 sm:p-2.5 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl text-white/90 hover:text-white hover:bg-white/15 active:bg-white/25 transition-all active:scale-95 z-50 cursor-pointer"
             title="Kembali"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
           </button>
         )}
 
@@ -293,7 +286,7 @@ export function PlayerOverlay({
         )}
       </div>
 
-      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - Sleek & Modern Proportion */}
+      {/* CENTER PLAY/PAUSE OVERLAY BUTTON - Sleek, Translucent & Modern */}
       <div
         className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center justify-center transition-opacity duration-300 ${
           showCenterControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -309,20 +302,20 @@ export function PlayerOverlay({
           onTouchEnd={(e) => {
             e.stopPropagation();
           }}
-          className="p-3 sm:p-4 rounded-full bg-black/55 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-all duration-200 hover:scale-110 active:scale-95 shadow-2xl cursor-pointer min-w-[50px] min-h-[50px] sm:min-w-[56px] sm:min-h-[56px] flex items-center justify-center"
+          className="p-3 sm:p-3.5 rounded-full bg-black/35 hover:bg-black/60 text-white backdrop-blur-sm border border-white/15 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg cursor-pointer min-w-[48px] min-h-[48px] sm:min-w-[52px] sm:min-h-[52px] flex items-center justify-center"
           title={isPlaying ? 'Jeda' : 'Putar'}
         >
           {isPlaying ? (
-            <Pause className="w-6 h-6 sm:w-7 sm:h-7 fill-white" />
+            <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-white" />
           ) : (
-            <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-white ml-0.5" />
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-white ml-0.5" />
           )}
         </button>
       </div>
 
-      {/* BOTTOM CONTROL BAR - Mobile & Desktop optimized layout */}
+      {/* BOTTOM CONTROL BAR - Clean footer gradient */}
       <div
-        className={`relative z-30 p-2 sm:p-4 px-2.5 sm:px-6 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.6rem,env(safe-area-inset-bottom))] space-y-1.5 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
+        className={`relative z-30 p-2 sm:p-4 px-2.5 sm:px-6 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.6rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/85 via-black/40 to-transparent space-y-1.5 sm:space-y-3 transition-opacity duration-300 pointer-events-auto ${
           showBottomBar ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -497,11 +490,11 @@ export function PlayerOverlay({
                 onTouchEnd={(e) => {
                   e.stopPropagation();
                 }}
-                className="px-2.5 sm:px-3 py-1.5 sm:py-2 min-h-[38px] bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-lg cursor-pointer"
+                className="min-w-[44px] min-h-[40px] sm:min-h-[38px] px-3 sm:px-3.5 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg active:scale-95 cursor-pointer select-none flex-shrink-0"
                 title="Episode Selanjutnya"
               >
-                <span className="hidden sm:inline">Next</span>
-                <SkipForward className="w-4 h-4" />
+                <span className="text-xs font-bold pointer-events-none select-none">Next</span>
+                <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4 pointer-events-none" />
               </button>
             )}
 

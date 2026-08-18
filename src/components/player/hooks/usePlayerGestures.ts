@@ -66,6 +66,7 @@ export function usePlayerGestures({
     initialBright: number;
     side: 'left' | 'right' | 'center';
     isVerticalDrag: boolean;
+    canVerticalDrag: boolean;
   } | null>(null);
 
   const lastTapRef = useRef<{ time: number; side: 'left' | 'right' | 'center' }>({ time: 0, side: 'center' });
@@ -114,7 +115,16 @@ export function usePlayerGestures({
       const touch = e.touches[0];
       const rect = e.currentTarget.getBoundingClientRect();
       const relativeX = touch.clientX - rect.left;
+      const relativeY = touch.clientY - rect.top;
       const width = rect.width;
+      const height = rect.height;
+
+      // Status Bar & Navigation Bar Dead-Zone:
+      // If touch begins in top 18% (e.g. status bar / notification pull down)
+      // or bottom 18% (e.g. nav bar / progress bar), do NOT allow vertical drag gestures.
+      const topDeadZone = Math.max(55, height * 0.18);
+      const bottomDeadZone = Math.max(55, height * 0.18);
+      const isEdgeZone = relativeY < topDeadZone || relativeY > height - bottomDeadZone;
 
       let side: 'left' | 'right' | 'center' = 'center';
       if (relativeX < width * 0.4) {
@@ -131,6 +141,7 @@ export function usePlayerGestures({
         initialBright: brightness,
         side,
         isVerticalDrag: false,
+        canVerticalDrag: !isEdgeZone,
       };
     },
     [volume, brightness]
@@ -145,9 +156,9 @@ export function usePlayerGestures({
       const deltaX = touch.clientX - start.x;
       const deltaY = touch.clientY - start.y;
 
-      // Check if vertical drag is initiated
-      if (!start.isVerticalDrag) {
-        if (Math.abs(deltaY) > 12 && Math.abs(deltaY) > Math.abs(deltaX) * 1.2) {
+      // Check if vertical drag is initiated (only if touch did not start in edge dead-zone)
+      if (!start.isVerticalDrag && start.canVerticalDrag) {
+        if (Math.abs(deltaY) > 28 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
           start.isVerticalDrag = true;
           // Cancel any pending tap toggle
           if (singleTapTimerRef.current) {
@@ -158,7 +169,7 @@ export function usePlayerGestures({
       }
 
       if (start.isVerticalDrag) {
-        const sensitivity = 220; // px for full 0-100% range
+        const sensitivity = 320; // Smooth px for full 0-100% range
         const step = -deltaY / sensitivity;
 
         if (start.side === 'right') {
