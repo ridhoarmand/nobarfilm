@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const targetUrl = new URL(url);
-    return NextResponse.redirect(targetUrl, 302);
+    const response = NextResponse.redirect(targetUrl, 302);
+    response.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400');
+    return response;
   } catch {
     return NextResponse.json({ error: 'Invalid URL parameter' }, { status: 400 });
   }

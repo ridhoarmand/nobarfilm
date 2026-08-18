@@ -130,26 +130,13 @@ export function Hero({ slides }: HeroProps) {
       {/* Background Image Container */}
       <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         <div className="relative w-full h-full" style={{ position: 'relative' }}>
-          {/* Mobile Image */}
+          {/* Hero Banner Image */}
           <Image
-            src={mobileImage}
+            src={desktopImage || mobileImage}
             alt={currentSlide.title}
             fill
-            className="object-cover object-top sm:hidden"
+            className="object-cover object-center"
             priority
-            loading="eager"
-            fetchPriority="high"
-            sizes="(max-width: 640px) 100vw, 1px"
-          />
-          {/* Desktop Image */}
-          <Image
-            src={desktopImage}
-            alt={currentSlide.title}
-            fill
-            className="object-cover object-center hidden sm:block"
-            priority
-            loading="eager"
-            fetchPriority="high"
             sizes="100vw"
           />
         </div>

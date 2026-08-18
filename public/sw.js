@@ -56,7 +56,9 @@ self.addEventListener('fetch', (event) => {
   // Always prefer network for page navigations to avoid stale HTML/RSC payloads.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() => 
+        caches.match(event.request).then(r => r || caches.match('/'))
+      )
     );
     return;
   }
@@ -67,10 +69,12 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
         return fetch(event.request).then((networkResponse) => {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
           return networkResponse;
         });
       })
@@ -84,14 +88,20 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
         return fetch(event.request).then((networkResponse) => {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
           return networkResponse;
         });
       })
     );
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -16,6 +16,10 @@ function MovieSearchContent() {
   const router = useRouter();
   const query = searchParams.get('q') || '';
   const [searchInput, setSearchInput] = useState(query);
+
+  useEffect(() => {
+    setSearchInput(query);
+  }, [query]);
 
   const { data, isLoading, isError, error, refetch } = useMovieBoxSearch(query, 1);
   const { data: trendingData, isLoading: isLoadingTrending } = useMovieBoxTrending(1);
@@ -142,7 +146,7 @@ function MovieSearchContent() {
                           color: item.subjectType === 1 ? '#E52E2E' : '#2E7DE5',
                         }}
                         topRightBadge={
-                          item.imdbRatingValue
+                          item.imdbRatingValue && !isNaN(parseFloat(item.imdbRatingValue)) && parseFloat(item.imdbRatingValue) > 0
                             ? {
                                 text: parseFloat(item.imdbRatingValue).toFixed(1),
                                 color: '#F59E0B',
@@ -185,7 +189,7 @@ function MovieSearchContent() {
                               color: item.subjectType === 1 ? '#E52E2E' : '#2E7DE5',
                             }}
                             topRightBadge={
-                              item.imdbRatingValue
+                              item.imdbRatingValue && !isNaN(parseFloat(item.imdbRatingValue)) && parseFloat(item.imdbRatingValue) > 0
                                 ? {
                                     text: parseFloat(item.imdbRatingValue).toFixed(1),
                                     color: '#F59E0B',
@@ -235,7 +239,7 @@ function MovieSearchContent() {
                           color: item.subjectType === 1 ? '#E52E2E' : '#2E7DE5',
                         }}
                         topRightBadge={
-                          item.imdbRatingValue
+                          item.imdbRatingValue && !isNaN(parseFloat(item.imdbRatingValue)) && parseFloat(item.imdbRatingValue) > 0
                             ? {
                                 text: parseFloat(item.imdbRatingValue).toFixed(1),
                                 color: '#F59E0B',

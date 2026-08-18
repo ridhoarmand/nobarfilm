@@ -3,31 +3,27 @@
 import { useRef } from 'react';
 import { useMovieBoxHomepage } from '@/hooks/useMovieBox';
 import { useContinueWatching } from '@/hooks/useContinueWatching';
-import { useAuth } from '@/components/providers/AuthProvider';
 import { useQueryClient } from '@tanstack/react-query';
 import { Hero, HeroSlide } from '@/components/home/Hero';
 import { Navbar } from '@/components/layout/Navbar';
 import { LoadingPage } from '@/components/shared/LoadingSkeleton';
 import { Subject, BannerItem } from '@/types/api';
 import { ErrorDisplay } from '@/components/shared/ErrorDisplay';
-import dynamic from 'next/dynamic';
 
 import { ContinueWatchingCard } from '@/components/shared/ContinueWatchingCard';
 import { SectionSlider } from '@/components/shared/SectionSlider';
-import { MovieCard } from '@/components/shared/MovieCard';
 import { Footer } from '@/components/layout/Footer';
 
 import { useWatchlist } from '@/hooks/useWatchlist';
 
 export function HomeClient() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: continueWatchingData } = useContinueWatching();
   const continueWatchingRef = useRef<HTMLDivElement>(null);
   const { watchlist } = useWatchlist();
   
   // These will now use the prefetched data from HydrationBoundary
-  const { data: homeData, isLoading: isHomeLoading, error: homeError } = useMovieBoxHomepage();
+  const { data: homeData, isLoading: isHomeLoading, error: homeError, refetch } = useMovieBoxHomepage();
 
   // Handle Initial Loading state - SEAMLESS HYDRATION
   // We NEVER return a full-page loading skeleton if we have homeData (from hydration)
@@ -39,7 +35,7 @@ export function HomeClient() {
       <>
         <Navbar />
         <div className="min-h-screen bg-black flex items-center justify-center px-4">
-          <ErrorDisplay message={homeError.message || 'Failed to load content'} onRetry={() => window.location.reload()} />
+          <ErrorDisplay message={homeError.message || 'Failed to load content'} onRetry={() => refetch()} />
         </div>
         <Footer />
       </>

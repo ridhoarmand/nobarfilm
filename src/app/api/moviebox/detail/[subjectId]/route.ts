@@ -11,7 +11,9 @@ export async function GET(
   try {
     const clientToken = getClientToken(request);
     const data = await movieBoxService.getDetail(subjectId, clientToken);
-    return encryptedResponse(data);
+    return encryptedResponse(data, 200, {
+      'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1800',
+    });
   } catch (error: any) {
     console.error("[detail] API Error:", error);
     return NextResponse.json(

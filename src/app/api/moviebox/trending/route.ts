@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
   try {
     const clientToken = getClientToken(request);
     const data = await movieBoxService.getTrending(page, clientToken);
-    return encryptedResponse(data);
+    return encryptedResponse(data, 200, {
+      'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300',
+    });
   } catch (error: any) {
     console.error('[trending] API Error:', error);
     return NextResponse.json(

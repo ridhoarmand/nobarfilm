@@ -25,13 +25,20 @@ export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Handle scroll effect
+  // Handle scroll effect with passive listener and RAF throttling
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsScrolled(window.scrollY > 20);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -56,12 +63,12 @@ export function Navbar() {
       setIsSearching(true);
       setShowDropdown(true);
       try {
-        const res = await fetch(`/api/moviebox/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        const res = await fetch(`/api/moviebox/search?query=${encodeURIComponent(searchQuery.trim())}`);
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setSearchResults(data.slice(0, 6)); // Top 6 instant results
-        } else if (data.items && Array.isArray(data.items)) {
-          setSearchResults(data.items.slice(0, 6));
+        if (Array.isArray(data?.data?.items)) {
+          setSearchResults(data.data.items.slice(0, 6)); // Top 6 instant results
+        } else if (Array.isArray(data?.data)) {
+          setSearchResults(data.data.slice(0, 6));
         } else {
           setSearchResults([]);
         }

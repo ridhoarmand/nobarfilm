@@ -5,45 +5,14 @@ import { generateClientToken, generateSignature } from './crypto';
 
 export const MASTER_TOKEN_KEY = 'auth:master_jwt';
 export const GUEST_TOKEN_KEY = 'auth:guest_device_token';
-let cachedJwtToken: string | null = null;
 
-export async function getGuestSessionToken(): Promise<string> {
-  const cached = serverCache.get<string>(GUEST_TOKEN_KEY);
-  if (cached) return cached;
 
-  try {
-    const res = await callMobileApi(
-      'POST',
-      '/wefeed-mobile-bff/user-api/device-sessions',
-      { host: HOST, lang: 'id', locale: 'id_ID' },
-      { package_name: 'com.moviebox.android' },
-      false,
-      null
-    );
-
-    if (res && res.code === 0 && res.data?.token) {
-      const token = res.data.token;
-      const expireTime = typeof res.data.expireTime === 'number' ? res.data.expireTime : 0;
-      const nowSec = Math.floor(Date.now() / 1000);
-      const ttl = expireTime > nowSec ? expireTime - nowSec - 300 : 24 * 3600;
-      serverCache.set(GUEST_TOKEN_KEY, token, Math.max(300, ttl));
-      console.log(`[MovieBox SDK] Guest device session token cached (TTL: ${ttl}s).`);
-      return token;
-    }
-  } catch (err: any) {
-    console.warn(`[MovieBox SDK] Failed to get guest device session token:`, err.message);
-  }
-
-  return '';
-}
 
 export async function getAccessToken(retry = 0): Promise<string> {
   const cachedFromStore = serverCache.get<string>(MASTER_TOKEN_KEY);
   if (cachedFromStore) {
-    cachedJwtToken = cachedFromStore;
     return cachedFromStore;
   }
-  if (cachedJwtToken) return cachedJwtToken;
 
   const email = process.env.MOVIEBOX_MASTER_EMAIL || 'armandhodrb@gmail.com';
   const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || 'Armandho1234567890';
@@ -103,7 +72,6 @@ export async function getAccessToken(retry = 0): Promise<string> {
     const nowSec = Math.floor(Date.now() / 1000);
     const ttlSeconds = expireTime > nowSec ? expireTime - nowSec - 600 : 7 * 24 * 3600;
 
-    cachedJwtToken = token;
     serverCache.set(MASTER_TOKEN_KEY, token, Math.max(600, ttlSeconds));
     console.log(`[MovieBox SDK] Authentication successful. Token cached with TTL ${ttlSeconds}s.`);
     return token;
@@ -157,17 +125,6 @@ export async function callMobileApi(
     '/wefeed-mobile-bff/user-api/check-sms-code',
     '/wefeed-mobile-bff/user-api/check-mail-account',
     '/wefeed-mobile-bff/user-api/check-phone-account',
-  ];
-
-  const guestAuthPaths = [
-    '/wefeed-mobile-bff/subject-api/get-ext-captions',
-    '/wefeed-mobile-bff/subject-api/get-stream-captions',
-    '/wefeed-mobile-bff/subject-api/get',
-    '/wefeed-mobile-bff/subject-api/season-info',
-    '/wefeed-mobile-bff/subject-api/search/v2',
-    '/wefeed-mobile-bff/subject-api/search-suggest',
-    '/wefeed-mobile-bff/subject-api/list',
-    '/wefeed-mobile-bff/tab-operating',
   ];
 
   let token: string | null = null;
@@ -224,7 +181,6 @@ export async function callMobileApi(
         throw new Error(`Unauthorized (HTTP ${res.status})`);
       }
       console.log(`[MovieBox SDK] Request returned ${res.status}, retrying with Master Account token: ${path}`);
-      cachedJwtToken = null;
       serverCache.delete(GUEST_TOKEN_KEY);
       const masterToken = await getAccessToken();
       return callMobileApi(method, path, queryParams, body, false, masterToken, clientIp);

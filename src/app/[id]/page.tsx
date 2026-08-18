@@ -9,6 +9,7 @@ import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Star, Calendar, Clock, Download, Globe } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function DetailPage() {
   const params = useParams();
@@ -198,6 +199,7 @@ export default function DetailPage() {
                           }
                         } catch (e) {
                           console.error('Translation error:', e);
+                          toast.error('Gagal menerjemahkan sinopsis');
                         } finally {
                           setIsTranslating(false);
                         }

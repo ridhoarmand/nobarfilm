@@ -4,9 +4,9 @@ import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } 
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { Loader2, AlertCircle, Film, X, Globe } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SubtitleModal } from '@/components/player/SubtitleModal';
-import { getCachedSubtitleBlobUrl, cleanSubtitleCache } from '@/lib/subtitleCache';
+import { getCachedSubtitleBlobUrl } from '@/lib/subtitleCache';
 
 function WatchContent() {
   const params = useParams();
@@ -44,11 +44,10 @@ function WatchContent() {
   });
 
   const [subtitleDelay, setSubtitleDelay] = useState(0);
-  const [subtitlePosition, setSubtitlePosition] = useState(88);
+  const [subtitlePosition, setSubtitlePosition] = useState(84);
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showResumeToast, setShowResumeToast] = useState(true);
-  const [isAdvancedSubtitleOpen, setIsAdvancedSubtitleOpen] = useState(false);
 
   const availableSeasons = useMemo(() => playerMetadata?.seasons || [], [playerMetadata]);
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
@@ -62,12 +61,12 @@ function WatchContent() {
     return audioOptions;
   }, [audioOptions, subjectId]);
 
-  // Auto-hide resume toast after 4 seconds for a clean UX
+  // Auto-hide resume toast quickly after 2.5 seconds for a clean, non-intrusive UX
   useEffect(() => {
     if (showResumeToast && resumeTime > 5) {
       const timer = setTimeout(() => {
         setShowResumeToast(false);
-      }, 4000);
+      }, 2500);
       return () => clearTimeout(timer);
     }
   }, [showResumeToast, resumeTime]);
@@ -512,6 +511,7 @@ function WatchContent() {
                     }
                   } catch (e) {
                     console.error('Translation error:', e);
+                    toast.error('Gagal menerjemahkan sinopsis');
                   } finally {
                     setIsTranslating(false);
                   }

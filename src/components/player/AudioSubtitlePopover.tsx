@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, MessageSquare, Upload, Sliders, Check, Clock, Type, X } from 'lucide-react';
 
 interface AudioSubtitlePopoverProps {
@@ -46,6 +46,15 @@ export function AudioSubtitlePopover({
   onCustomSubtitleUpload,
 }: AudioSubtitlePopoverProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -53,7 +62,13 @@ export function AudioSubtitlePopover({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+
     const url = URL.createObjectURL(file);
+    objectUrlRef.current = url;
+    
     onCustomSubtitleUpload?.({
       label: file.name.replace(/\.[^/.]+$/, ''),
       src: url,

@@ -57,7 +57,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   onSubtitleSelect,
   subtitleDelay = 0,
   onSubtitleDelayChange,
-  subtitlePosition = 88,
+  subtitlePosition = 84,
   onSubtitlePositionChange,
   onCustomSubtitleUpload,
   poster,
@@ -403,6 +403,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         track.mode = 'disabled';
       }
     }
+
+    return () => {
+      const styleElToRemove = document.getElementById('nobar-subtitle-style');
+      if (styleElToRemove) {
+        styleElToRemove.remove();
+      }
+    };
   }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize, subtitleDelay]);
 
   // Expose video DOM element to the ref
@@ -605,22 +612,36 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   }, []);
 
   // Update buffer percentage smoothly while buffering
+  const simulatedProgressRef = useRef<number>(15);
+
   useEffect(() => {
     if (!isBuffering) {
       setBufferPercent(100);
       return;
     }
 
-    setBufferPercent((prev) => (prev > 0 ? prev : 15));
+    setBufferPercent((prev) => {
+      const start = prev > 0 ? prev : 15;
+      simulatedProgressRef.current = start;
+      return start;
+    });
 
     const timer = setInterval(() => {
       const realPct = calculateBufferProgress();
-      setBufferPercent((prev) => {
-        const nextTarget = Math.max(prev, realPct);
-        if (nextTarget > prev) return nextTarget;
-        if (prev < 90) return prev + Math.floor(Math.random() * 5) + 2;
-        return prev;
-      });
+      
+      let nextSimulated = simulatedProgressRef.current;
+      if (realPct > nextSimulated) {
+        nextSimulated = realPct;
+      } else if (nextSimulated < 90) {
+        nextSimulated += Math.floor(Math.random() * 5) + 2;
+      }
+      
+      if (nextSimulated - simulatedProgressRef.current >= 5 || nextSimulated >= 90 || realPct > simulatedProgressRef.current) {
+        simulatedProgressRef.current = nextSimulated;
+        setBufferPercent(nextSimulated);
+      } else {
+        simulatedProgressRef.current = nextSimulated;
+      }
     }, 200);
 
     return () => clearInterval(timer);

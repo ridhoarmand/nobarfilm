@@ -30,8 +30,8 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         const match = items.find(
           (item) =>
             (item.subject_id === subjectId || (normalizedTitle && item.title?.trim().toLowerCase() === normalizedTitle)) &&
-            item.current_episode === (currentEpisode || 1) &&
-            (!currentSeason || (item.current_season || 1) === currentSeason)
+            item.current_episode === (currentEpisode ?? 1) &&
+            (typeof currentSeason !== 'number' || (item.current_season ?? 1) === currentSeason)
         );
         return match || null;
       } catch (e) {
@@ -79,8 +79,8 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         subject_type: subjectType,
         title,
         cover_url: coverUrl || null,
-        current_season: currentSeason || (subjectType === 2 ? 1 : 0),
-        current_episode: currentEpisode || 1,
+        current_season: currentSeason ?? (subjectType === 2 ? 1 : 0),
+        current_episode: currentEpisode ?? 0,
         total_episodes: totalEpisodes || null,
         progress_seconds: Math.floor(progressSeconds),
         duration_seconds: Math.floor(durationSeconds),

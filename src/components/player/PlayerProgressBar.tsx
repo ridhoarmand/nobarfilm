@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 
 interface PlayerProgressBarProps {
   currentTime: number;
@@ -57,35 +57,40 @@ export function PlayerProgressBar({
     setHoverTime(time);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (duration <= 0) return;
-    const { time, pos } = getTimeFromClientX(e.clientX);
-    setHoverPos(pos);
-    setHoverTime(time);
-    if (isScrubbing) {
+  useEffect(() => {
+    if (!isScrubbing) return;
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      if (duration <= 0) return;
+      const { time, pos } = getTimeFromClientX(e.clientX);
+      setHoverPos(pos);
+      setHoverTime(time);
       setScrubTime(time);
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isScrubbing) {
+    };
+    const handleWindowMouseUp = (e: MouseEvent) => {
       const { time } = getTimeFromClientX(e.clientX);
       onSeek(time);
       setIsScrubbing(false);
       setScrubTime(null);
-    }
+    };
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [isScrubbing, duration, getTimeFromClientX, onSeek]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isScrubbing || duration <= 0) return;
+    const { time, pos } = getTimeFromClientX(e.clientX);
+    setHoverPos(pos);
+    setHoverTime(time);
   };
 
   const handleMouseLeave = () => {
     if (!isScrubbing) {
       setHoverTime(null);
     }
-  };
-
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const { time } = getTimeFromClientX(e.clientX);
-    onSeek(time);
   };
 
   // Touch Handlers for mobile & touchscreens
@@ -136,9 +141,7 @@ export function PlayerProgressBar({
       {/* Progress Bar Track */}
       <div
         ref={barRef}
-        onClick={handleClick}
         onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchStart}

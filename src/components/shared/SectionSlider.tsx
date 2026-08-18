@@ -45,7 +45,7 @@ export function SectionSlider({ title, items, isRanked = false }: SectionSliderP
         <div ref={sliderRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
           {items.map((movie, index) => (
             <div key={movie.subjectId} className="flex-none w-40 sm:w-48 md:w-56 snap-start">
-              <MovieCard movie={movie} rank={isRanked ? index + 1 : undefined} priority={index < 3} />
+              <MovieCard movie={movie} rank={isRanked ? index + 1 : undefined} />
             </div>
           ))}
         </div>

@@ -23,8 +23,13 @@ export async function safeJson<T>(response: Response): Promise<T> {
   }
 }
 
-export function encryptedResponse(data: unknown, status = 200) {
-  return NextResponse.json({ success: true, data }, { status });
+export function encryptedResponse(data: unknown, status = 200, headersInit?: HeadersInit) {
+  const response = NextResponse.json({ success: true, data }, { status });
+  if (headersInit) {
+    const headers = new Headers(headersInit);
+    headers.forEach((val, key) => response.headers.set(key, val));
+  }
+  return response;
 }
 
 /**
