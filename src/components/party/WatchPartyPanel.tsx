@@ -86,21 +86,24 @@ export function WatchPartyPanel({
   };
 
   const handleShare = async () => {
+    if (typeof window === 'undefined') return;
     const fullUrl = getFullShareUrl();
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    const shareData = {
+      title: 'Nobar Bareng di NobarFilm 🎉',
+      text: `Ayo nobar bareng di room ${roomCode}! 🍿🎬`,
+      url: fullUrl,
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
       try {
-        await navigator.share({
-          title: 'Nobar Bareng di NobarFilm 🎉',
-          text: `Ayo nobar bareng di room ${roomCode}!`,
-          url: fullUrl,
-        });
-        return;
+        await navigator.share(shareData);
       } catch (err: any) {
         if (err?.name === 'AbortError') return;
+        console.warn('[Share] Native share failed:', err);
       }
+    } else {
+      toast('Gunakan tombol Salin Link untuk membagikan tautan nobar', { icon: '📋' });
     }
-    // Fallback to copy link
-    handleCopyLink();
   };
 
   const handleCopyCode = async () => {
@@ -113,7 +116,7 @@ export function WatchPartyPanel({
   };
 
   return (
-    <div className="w-full lg:w-80 h-[50vh] lg:h-full flex flex-col bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 shrink-0 z-30 animate-fade-in shadow-2xl">
+    <div className="w-full lg:w-80 xl:w-96 h-[380px] sm:h-[440px] lg:h-full flex flex-col bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 shrink-0 z-30 animate-fade-in shadow-2xl">
       {/* Room Header */}
       <div className="p-3 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur-md flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">

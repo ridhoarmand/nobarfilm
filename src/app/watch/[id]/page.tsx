@@ -569,9 +569,10 @@ function WatchContent() {
 
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white flex flex-col overflow-x-hidden">
-      {/* Video Player Container - 16:9 on Mobile, Immersive Theater View (85vh-92vh) on Desktop */}
-      <div className="w-full aspect-video sm:h-[82vh] lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex flex-col lg:flex-row items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
-        <div className="flex-1 w-full h-full relative flex items-center justify-center overflow-hidden">
+      {/* Video & Watch Party Container */}
+      <div className="w-full bg-black relative flex flex-col lg:flex-row items-stretch justify-center shrink-0 shadow-2xl z-20">
+        {/* Video Player Box: 16:9 fixed aspect ratio on mobile, Theater height on desktop */}
+        <div className="w-full aspect-video lg:aspect-auto lg:flex-1 lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex items-center justify-center overflow-hidden">
           <MoviePlayer
             ref={videoRef}
             src={effectiveStreamUrl}

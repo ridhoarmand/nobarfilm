@@ -153,18 +153,32 @@ export default function DetailPage() {
   const watchUrl = isMovie ? `/watch/${subjectId}` : `/watch/${subjectId}?season=1&episode=1`;
 
   const handleShare = async () => {
+    if (typeof window === 'undefined') return;
+
+    const shareData = {
+      title: subject.title,
+      text: `Nonton film "${subject.title}" subtitle indonesia gratis tanpa iklan di NobarFilm! 🍿🎬`,
+      url: window.location.href,
+    };
+
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: subject.title,
-          url: window.location.href,
-        });
-      } else {
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return; // User closed native share sheet on mobile
+      console.warn('[Share] Web Share API failed:', err);
+    }
+
+    // Fallback only if device does not support native sharing
+    try {
+      if (navigator.clipboard) {
         await navigator.clipboard.writeText(window.location.href);
-        toast.success('Tautan disalin ke clipboard');
+        toast.success('Tautan film disalin ke clipboard! 📋');
       }
     } catch (e) {
-      console.error(e);
+      console.error('[Share] Clipboard fallback failed:', e);
     }
   };
 
@@ -247,52 +261,63 @@ export default function DetailPage() {
 
                   // Show play button for released content
                   return (
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                      <Link
-                        href={watchUrl}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
-                      >
-                        <Play className="w-5 h-5 fill-current" />
-                        <span>Play Now</span>
-                      </Link>
-
-                      <button
-                        onClick={handleNobarClick}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-7 py-3 border text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
-                          activeRoomCode && isRoomHost
-                            ? 'bg-red-950/60 hover:bg-red-900/80 border-red-500/60'
-                            : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
-                        }`}
-                        title={activeRoomCode && isRoomHost ? `Putar film ini bersama Room ${activeRoomCode}` : 'Buat room nonton bareng teman'}
-                      >
-                        <Users className="w-5 h-5 text-red-500" />
-                        <span>{activeRoomCode && isRoomHost ? `Tonton Bersama Room (${activeRoomCode})` : 'Nonton Bareng'}</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => toggleWatchlist(subject)}
-                        className={`flex items-center justify-center gap-2 px-4 py-3 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base ${isBookmarked ? 'bg-red-600/10 border-red-500/50 text-red-500' : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-white'}`}
-                      >
-                        <Heart className={`w-5 h-5 ${isBookmarked ? 'fill-current' : ''}`} />
-                      </button>
-
-                      <button
-                        onClick={handleShare}
-                        className="flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base"
-                      >
-                        <Share2 className="w-5 h-5" />
-                      </button>
-
-                      {/* Download button - Only for Movies */}
-                      {!isSeries && (
-                        <button
-                          onClick={() => openDownloadModal(0, 0)}
-                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base"
+                    <div className="flex flex-col gap-2.5 sm:gap-3 w-full sm:w-auto max-w-md">
+                      {/* Baris 1: Play Now | Party */}
+                      <div className="flex items-center gap-2 sm:gap-3 w-full">
+                        <Link
+                          href={watchUrl}
+                          className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
                         >
-                          <Download className="w-5 h-5" />
+                          <Play className="w-5 h-5 fill-current" />
+                          <span>Play Now</span>
+                        </Link>
+
+                        <button
+                          onClick={handleNobarClick}
+                          className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 border text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
+                            activeRoomCode && isRoomHost
+                              ? 'bg-red-950/60 hover:bg-red-900/80 border-red-500/60'
+                              : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
+                          }`}
+                          title={activeRoomCode && isRoomHost ? `Putar film ini bersama Room ${activeRoomCode}` : 'Buat room nonton bareng teman'}
+                        >
+                          <Users className="w-5 h-5 text-red-500" />
+                          <span>{activeRoomCode && isRoomHost ? `Room (${activeRoomCode})` : 'Party'}</span>
+                        </button>
+                      </div>
+
+                      {/* Baris 2: Download | Like Share */}
+                      <div className="flex items-center gap-2 sm:gap-3 w-full">
+                        <button
+                          onClick={() => openDownloadModal(isSeries ? 1 : 0, isSeries ? 1 : 0)}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm cursor-pointer"
+                        >
+                          <Download className="w-4 h-4 text-zinc-300" />
                           <span>Download</span>
                         </button>
-                      )}
+
+                        <button
+                          onClick={() => toggleWatchlist(subject)}
+                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm cursor-pointer ${
+                            isBookmarked
+                              ? 'bg-red-600/10 border-red-500/50 text-red-500'
+                              : 'bg-zinc-800/90 hover:bg-zinc-700 border-zinc-700/80 text-white'
+                          }`}
+                          title={isBookmarked ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
+                        >
+                          <Heart className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+                          <span>Like</span>
+                        </button>
+
+                        <button
+                          onClick={handleShare}
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm cursor-pointer"
+                          title="Bagikan Film"
+                        >
+                          <Share2 className="w-4 h-4 text-zinc-300" />
+                          <span>Share</span>
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}
