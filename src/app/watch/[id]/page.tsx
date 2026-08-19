@@ -1,8 +1,15 @@
 'use client';
+
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
+import { useWatchParty } from '@/hooks/useWatchParty';
+import { useWatchPartyStore } from '@/stores/watchPartyStore';
+import { WatchPartyPanel } from '@/components/party/WatchPartyPanel';
+import { WatchPartyControls } from '@/components/party/WatchPartyControls';
+import { WatchPartyJoinModal } from '@/components/party/WatchPartyJoinModal';
+import { WatchPartyReactions } from '@/components/party/WatchPartyReactions';
 import { Loader2, AlertCircle, Film, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -48,6 +55,121 @@ function WatchContent() {
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showResumeToast, setShowResumeToast] = useState(true);
+
+  // Video Ref for Player & Watch Party Synchronization
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const partyParam = searchParams.get('party');
+
+  const handleRemoteMediaChange = useCallback(
+    (data: { subjectId: string; season: number; episode: number; title: string }) => {
+      const urlParams = new URLSearchParams();
+      if (partyParam) urlParams.set('party', partyParam);
+      if (data.season > 0) urlParams.set('season', String(data.season));
+      if (data.episode > 0) urlParams.set('episode', String(data.episode));
+      router.replace(`/watch/${data.subjectId}?${urlParams.toString()}`);
+    },
+    [partyParam, router],
+  );
+
+  // Watch Party Hook
+  const {
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    sendChat,
+    sendReaction,
+    kickUser,
+    notifyBuffering,
+    changeMedia,
+    uploadStreamPayload,
+    streamPayload,
+    isHost,
+    onPartyPlay,
+    onPartyPause,
+    onPartySeek,
+    isInParty,
+  } = useWatchParty(videoRef, {
+    subjectId,
+    season: effectiveSeason,
+    episode: effectiveEpisode,
+    partyCode: partyParam,
+    onRemoteMediaChange: handleRemoteMediaChange,
+  });
+
+  const [partyModalState, setPartyModalState] = useState<{
+    isOpen: boolean;
+    mode: 'create' | 'join';
+    code?: string;
+  }>({
+    isOpen: false,
+    mode: 'join',
+    code: partyParam || undefined,
+  });
+
+  useEffect(() => {
+    if (!partyParam || isInParty) return;
+
+    let savedName = '';
+    try {
+      const saved = localStorage.getItem('nobarfilm_party_guest');
+      if (saved) savedName = JSON.parse(saved).displayName || '';
+    } catch {}
+
+    // 1. Direct room creation intent from detail page
+    if (partyParam === 'create') {
+      if (savedName.trim()) {
+        createRoom(savedName.trim()).then((code) => {
+          if (code) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('party', code);
+            router.replace(url.pathname + url.search);
+          }
+        });
+      } else {
+        setPartyModalState({
+          isOpen: true,
+          mode: 'create',
+        });
+      }
+      return;
+    }
+
+    // 2. Joining an existing room by code
+    const cleanCode = partyParam.trim().toUpperCase();
+    let isCreator = false;
+    try {
+      isCreator = sessionStorage.getItem(`nobarfilm_host_${cleanCode}`) === 'true';
+    } catch {}
+
+    if (isCreator && savedName.trim()) {
+      joinRoom(cleanCode, savedName.trim()).then((ok) => {
+        if (ok) {
+          useWatchPartyStore.getState().setPanelOpen(true);
+        }
+      });
+    } else {
+      setPartyModalState({
+        isOpen: true,
+        mode: 'join',
+        code: cleanCode,
+      });
+    }
+  }, [partyParam, isInParty, createRoom, joinRoom, router]);
+
+  const handleLeaveParty = useCallback(() => {
+    leaveRoom();
+    if (partyParam) {
+      try {
+        sessionStorage.removeItem(`nobarfilm_host_${partyParam}`);
+      } catch {}
+    }
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('party');
+      router.replace(url.pathname + (url.search ? url.search : ''));
+    }
+  }, [leaveRoom, partyParam, router]);
 
   const availableSeasons = useMemo(() => playerMetadata?.seasons || [], [playerMetadata]);
   const availableEpisodes = useMemo(() => playerMetadata?.episodes || [], [playerMetadata]);
@@ -320,18 +442,53 @@ function WatchContent() {
   const handleProgress = useCallback(
     (time: number, duration: number) => {
       lastProgressRef.current = { time, duration };
-      if (time > 3 && duration > 0) {
+      // Bypass upstream watch history sync when in party mode
+      if (!isInParty && time > 3 && duration > 0) {
         saveProgress(time, duration);
       }
     },
-    [saveProgress],
+    [isInParty, saveProgress],
   );
 
-  const activeStreamUrl = useMemo(() => {
+  const lastUploadedStreamUrlRef = useRef<string>('');
+
+  // Host uploads stream payload to the room so guests load with 0 upstream API requests
+  useEffect(() => {
+    if (
+      isInParty &&
+      isHost &&
+      playbackData?.streamUrl &&
+      lastUploadedStreamUrlRef.current !== playbackData.streamUrl
+    ) {
+      lastUploadedStreamUrlRef.current = playbackData.streamUrl;
+      uploadStreamPayload({
+        streamUrl: playbackData.streamUrl,
+        qualities: (playbackData.allDownloads || []).map((q) => ({
+          label: `${q.resolution}p`,
+          url: q.streamUrl,
+          quality: q.resolution,
+        })),
+        subtitles: formattedSubtitles,
+      });
+    }
+  }, [isInParty, isHost, playbackData?.streamUrl, formattedSubtitles, uploadStreamPayload]);
+
+  const effectiveStreamUrl = useMemo(() => {
+    if (isInParty && !isHost && streamPayload?.streamUrl) {
+      if (qualityIndex === -1) return streamPayload.streamUrl;
+      return streamPayload.qualities?.[qualityIndex]?.url || streamPayload.streamUrl;
+    }
     if (!playbackData) return '';
     if (qualityIndex === -1) return playbackData.streamUrl;
     return playbackData.allDownloads?.[qualityIndex]?.streamUrl || playbackData.streamUrl;
-  }, [playbackData, qualityIndex]);
+  }, [isInParty, isHost, streamPayload, playbackData, qualityIndex]);
+
+  const effectiveQualities = useMemo(() => {
+    if (isInParty && !isHost && streamPayload?.qualities && streamPayload.qualities.length > 0) {
+      return streamPayload.qualities.map((item: any) => item.quality || item.resolution || parseInt(item.label) || 720);
+    }
+    return availableQualities;
+  }, [isInParty, isHost, streamPayload, availableQualities]);
 
   const isInitialLoading = !detail && (isLoadingDetail || isLoadingMetadata);
   const isDetailError = detailError || (!isLoadingDetail && !detail);
@@ -398,87 +555,144 @@ function WatchContent() {
     }
     lastProgressRef.current = { time: 0, duration: 0 };
     setQualityIndex(0);
+    const nextEp = effectiveEpisode + 1;
+    if (isInParty && useWatchPartyStore.getState().isHost) {
+      changeMedia(subjectId, effectiveSeason, nextEp, subject?.title || '');
+    }
     const params = new URLSearchParams();
+    if (partyParam) params.set('party', partyParam);
     if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
-    params.set('episode', String(effectiveEpisode + 1));
+    params.set('episode', String(nextEp));
     router.replace(`/watch/${subjectId}?${params.toString()}`);
   };
 
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white flex flex-col overflow-x-hidden">
       {/* Video Player Container - 16:9 on Mobile, Immersive Theater View (85vh-92vh) on Desktop */}
-      <div className="w-full aspect-video sm:h-[82vh] lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
-        <MoviePlayer
-          src={activeStreamUrl || playbackData?.streamUrl || ''}
-          title={displayTitle}
-          poster={subject?.coverHorizontalUrl || subject?.cover?.url}
-          autoPlay
-          initialTime={resumeTime}
-          subtitles={formattedSubtitles}
-          activeSubtitleIndex={selectedSubtitleIndex}
-          onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
-          subtitleDelay={subtitleDelay}
-          onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
-          subtitlePosition={subtitlePosition}
-          onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
-          onCustomSubtitleUpload={(customSub: { label: string; src: string }) => {
-            setCustomSubtitles((prev) => [...prev, customSub]);
-            setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
-          }}
-          onProgress={handleProgress}
-          hasNextEpisode={hasNextEpisode}
-          onNextEpisode={handleNextEpisode}
-          onEnded={() => {
-            if (hasNextEpisode) handleNextEpisode();
-          }}
-          qualities={availableQualities}
-          activeQualityIndex={qualityIndex}
-          onQualityChange={(idx: number) => setQualityIndex(idx)}
-          audioOptions={filteredAudioOptions}
-          activeAudioCode={subjectId}
-          onAudioChange={handleAudioChange}
-          isSeries={isSeries}
-          seasons={availableSeasons}
-          episodes={availableEpisodes}
-          activeSeason={effectiveSeason}
-          activeEpisode={effectiveEpisode}
-          onSeasonChange={(s: number) => {
-            const { time, duration } = lastProgressRef.current;
-            if (time > 3 && duration > 0) {
-              saveProgressSync(time, duration);
+      <div className="w-full aspect-video sm:h-[82vh] lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex flex-col lg:flex-row items-center justify-center overflow-hidden shrink-0 shadow-2xl z-20">
+        <div className="flex-1 w-full h-full relative flex items-center justify-center overflow-hidden">
+          <MoviePlayer
+            ref={videoRef}
+            src={effectiveStreamUrl}
+            title={displayTitle}
+            poster={subject?.coverHorizontalUrl || subject?.cover?.url}
+            autoPlay
+            initialTime={resumeTime}
+            subtitles={formattedSubtitles}
+            activeSubtitleIndex={selectedSubtitleIndex}
+            onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
+            subtitleDelay={subtitleDelay}
+            onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
+            subtitlePosition={subtitlePosition}
+            onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
+            onCustomSubtitleUpload={(customSub: { label: string; src: string }) => {
+              setCustomSubtitles((prev) => [...prev, customSub]);
+              setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
+            }}
+            onProgress={handleProgress}
+            hasNextEpisode={hasNextEpisode}
+            onNextEpisode={handleNextEpisode}
+            onEnded={() => {
+              if (hasNextEpisode && (!isInParty || isHost)) handleNextEpisode();
+            }}
+            qualities={effectiveQualities}
+            activeQualityIndex={qualityIndex}
+            onQualityChange={(idx: number) => setQualityIndex(idx)}
+            audioOptions={filteredAudioOptions}
+            activeAudioCode={subjectId}
+            onAudioChange={handleAudioChange}
+            isSeries={isSeries}
+            seasons={availableSeasons}
+            episodes={availableEpisodes}
+            activeSeason={effectiveSeason}
+            activeEpisode={effectiveEpisode}
+            onSeasonChange={(s: number) => {
+              if (isInParty && !isHost) {
+                toast('Hanya Host yang dapat mengganti season', { icon: '👑' });
+                return;
+              }
+              const { time, duration } = lastProgressRef.current;
+              if (!isInParty && time > 3 && duration > 0) {
+                saveProgressSync(time, duration);
+              }
+              lastProgressRef.current = { time: 0, duration: 0 };
+              setQualityIndex(0);
+              if (isInParty && isHost) {
+                changeMedia(subjectId, s, 1, subject?.title || '');
+              }
+              const params = new URLSearchParams();
+              if (partyParam) params.set('party', partyParam);
+              params.set('season', String(s));
+              params.set('episode', '1');
+              router.replace(`/watch/${subjectId}?${params.toString()}`);
+            }}
+            onEpisodeChange={(e: number) => {
+              if (isInParty && !isHost) {
+                toast('Hanya Host yang dapat mengganti episode', { icon: '👑' });
+                return;
+              }
+              const { time, duration } = lastProgressRef.current;
+              if (!isInParty && time > 3 && duration > 0) {
+                saveProgressSync(time, duration);
+              }
+              lastProgressRef.current = { time: 0, duration: 0 };
+              setQualityIndex(0);
+              if (isInParty && isHost) {
+                changeMedia(subjectId, effectiveSeason, e, subject?.title || '');
+              }
+              const params = new URLSearchParams();
+              if (partyParam) params.set('party', partyParam);
+              if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
+              params.set('episode', String(e));
+              router.replace(`/watch/${subjectId}?${params.toString()}`);
+            }}
+            onBack={() => {
+              const { time, duration } = lastProgressRef.current;
+              if (!isInParty && time > 3 && duration > 0) {
+                saveProgressSync(time, duration);
+              }
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push(`/${subjectId}`);
+              }
+            }}
+            isInParty={isInParty}
+            onPartyPlay={onPartyPlay}
+            onPartyPause={onPartyPause}
+            onPartySeek={onPartySeek}
+            onPartyBuffering={notifyBuffering}
+            partySlot={
+              <WatchPartyControls
+                onOpenCreateModal={() =>
+                  setPartyModalState({ isOpen: true, mode: 'create' })
+                }
+              />
             }
-            lastProgressRef.current = { time: 0, duration: 0 };
-            setQualityIndex(0);
-            const params = new URLSearchParams();
-            params.set('season', String(s));
-            params.set('episode', '1');
-            router.replace(`/watch/${subjectId}?${params.toString()}`);
-          }}
-          onEpisodeChange={(e: number) => {
-            const { time, duration } = lastProgressRef.current;
-            if (time > 3 && duration > 0) {
-              saveProgressSync(time, duration);
-            }
-            lastProgressRef.current = { time: 0, duration: 0 };
-            setQualityIndex(0);
-            const params = new URLSearchParams();
-            if (typeof effectiveSeason === 'number') params.set('season', String(effectiveSeason));
-            params.set('episode', String(e));
-            router.replace(`/watch/${subjectId}?${params.toString()}`);
-          }}
-          onBack={() => {
-            const { time, duration } = lastProgressRef.current;
-            if (time > 3 && duration > 0) {
-              saveProgressSync(time, duration);
-            }
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              router.back();
-            } else {
-              router.push(`/${subjectId}`);
-            }
-          }}
+          >
+            <WatchPartyReactions />
+          </MoviePlayer>
+        </div>
+
+        {/* Watch Party Side Panel */}
+        <WatchPartyPanel
+          onSendChat={sendChat}
+          onSendReaction={sendReaction}
+          onLeaveRoom={handleLeaveParty}
+          onKickUser={kickUser}
         />
       </div>
+
+      {/* Watch Party Join / Create Modal */}
+      <WatchPartyJoinModal
+        isOpen={partyModalState.isOpen}
+        onClose={() => setPartyModalState((prev) => ({ ...prev, isOpen: false }))}
+        mode={partyModalState.mode}
+        joinCode={partyModalState.code}
+        onJoin={joinRoom}
+        onCreate={createRoom}
+        movieTitle={subject?.title}
+      />
 
       {/* Film Information & Synopsis Panel (Below Player) */}
       <div className="max-w-5xl mx-auto w-full p-4 sm:p-8 lg:p-10 space-y-6">

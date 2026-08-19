@@ -10,7 +10,9 @@ import { SeasonSelector } from '@/components/detail/SeasonSelector';
 import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Calendar, Clock, Download, Globe, Share2, Heart } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Download, Globe, Share2, Heart, Users } from 'lucide-react';
+import { WatchPartyJoinModal } from '@/components/party/WatchPartyJoinModal';
+import { useWatchPartyStore } from '@/stores/watchPartyStore';
 import toast from 'react-hot-toast';
 
 export default function DetailPage() {
@@ -19,7 +21,11 @@ export default function DetailPage() {
   const subjectId = params.id as string;
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
+  const activeRoomCode = useWatchPartyStore((s) => s.roomCode);
+  const isRoomHost = useWatchPartyStore((s) => s.isHost);
+
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
   const [downloadParams, setDownloadParams] = useState({ season: 0, episode: 0 });
   const [translatedSynopsis, setTranslatedSynopsis] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -27,6 +33,59 @@ export default function DetailPage() {
   const openDownloadModal = (season = 0, episode = 0) => {
     setDownloadParams({ season, episode });
     setIsDownloadModalOpen(true);
+  };
+
+  const handleCreateParty = async (nickname: string): Promise<string | null> => {
+    const isSeriesContent = data?.subject?.subjectType === 2;
+    if (typeof window !== 'undefined') {
+      const current = localStorage.getItem('nobarfilm_party_guest');
+      let color = '#EF4444';
+      try {
+        if (current) color = JSON.parse(current).avatarColor || color;
+      } catch {}
+      localStorage.setItem(
+        'nobarfilm_party_guest',
+        JSON.stringify({ displayName: nickname.trim(), avatarColor: color }),
+      );
+    }
+    const urlParams = new URLSearchParams();
+    urlParams.set('party', 'create');
+    if (isSeriesContent) {
+      urlParams.set('season', '1');
+      urlParams.set('episode', '1');
+    }
+    router.push(`/watch/${subjectId}?${urlParams.toString()}`);
+    return 'create';
+  };
+
+  const handleNobarClick = async () => {
+    // If user is host of an active room, switch room's media directly to this movie!
+    if (activeRoomCode && isRoomHost) {
+      const isSeriesContent = data?.subject?.subjectType === 2;
+      const urlParams = new URLSearchParams();
+      urlParams.set('party', activeRoomCode);
+      if (isSeriesContent) {
+        urlParams.set('season', '1');
+        urlParams.set('episode', '1');
+      }
+      toast.success(`Mengalihkan Room ${activeRoomCode} ke film ini... 🎬`);
+      router.push(`/watch/${subjectId}?${urlParams.toString()}`);
+      return;
+    }
+
+    let savedName = '';
+    try {
+      const saved = localStorage.getItem('nobarfilm_party_guest');
+      if (saved) {
+        savedName = JSON.parse(saved).displayName || '';
+      }
+    } catch {}
+
+    if (savedName.trim()) {
+      await handleCreateParty(savedName.trim());
+    } else {
+      setIsPartyModalOpen(true);
+    }
   };
 
   const { data, isLoading, error } = useMovieBoxDetail(subjectId);
@@ -177,6 +236,19 @@ export default function DetailPage() {
                         <Play className="w-5 h-5 fill-current" />
                         <span>Play Now</span>
                       </Link>
+
+                      <button
+                        onClick={handleNobarClick}
+                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-7 py-3 border text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
+                          activeRoomCode && isRoomHost
+                            ? 'bg-red-950/60 hover:bg-red-900/80 border-red-500/60'
+                            : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
+                        }`}
+                        title={activeRoomCode && isRoomHost ? `Putar film ini bersama Room ${activeRoomCode}` : 'Buat room nonton bareng teman'}
+                      >
+                        <Users className="w-5 h-5 text-red-500" />
+                        <span>{activeRoomCode && isRoomHost ? `Tonton Bersama Room (${activeRoomCode})` : 'Nonton Bareng'}</span>
+                      </button>
                       
                       <button
                         onClick={() => toggleWatchlist(subject)}
@@ -336,6 +408,16 @@ export default function DetailPage() {
           episodeNumber={downloadParams.episode}
         />
       )}
+
+      {/* Watch Party Create Modal */}
+      <WatchPartyJoinModal
+        isOpen={isPartyModalOpen}
+        onClose={() => setIsPartyModalOpen(false)}
+        mode="create"
+        onJoin={async () => false}
+        onCreate={handleCreateParty}
+        movieTitle={subject?.title}
+      />
     </>
   );
 }

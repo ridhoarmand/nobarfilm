@@ -47,6 +47,14 @@ interface MoviePlayerProps {
   onSeasonChange?: (season: number) => void;
   onEpisodeChange?: (episode: number) => void;
   onBack?: () => void;
+  // Watch Party
+  isInParty?: boolean;
+  onPartyPlay?: () => void;
+  onPartyPause?: () => void;
+  onPartySeek?: (time: number) => void;
+  onPartyBuffering?: (isBuffering: boolean) => void;
+  partySlot?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
@@ -81,6 +89,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   onSeasonChange,
   onEpisodeChange,
   onBack,
+  isInParty = false,
+  onPartyPlay,
+  onPartyPause,
+  onPartySeek,
+  onPartyBuffering,
+  partySlot,
+  children,
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -496,24 +511,27 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     };
   }, []);
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
       video.play().catch(() => {});
+      if (isInParty && onPartyPlay) onPartyPlay();
     } else {
       video.pause();
+      if (isInParty && onPartyPause) onPartyPause();
     }
-  };
+  }, [isInParty, onPartyPlay, onPartyPause]);
 
-  const handleSeek = (targetTime: number) => {
+  const handleSeek = useCallback((targetTime: number) => {
     const video = videoRef.current;
     if (!video) return;
     video.currentTime = targetTime;
     setCurrentTime(targetTime);
-  };
+    if (isInParty && onPartySeek) onPartySeek(targetTime);
+  }, [isInParty, onPartySeek]);
 
-  const handleVolumeChange = (newVol: number) => {
+  const handleVolumeChange = useCallback((newVol: number) => {
     const video = videoRef.current;
     if (!video) return;
     const clamped = Math.max(0, Math.min(1, newVol));
@@ -525,9 +543,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       localStorage.setItem('nobarfilm_pref_volume', clamped.toString());
       localStorage.setItem('nobarfilm_pref_muted', (clamped === 0).toString());
     }
-  };
+  }, []);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     if (isMuted) {
@@ -539,7 +557,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       setIsMuted(true);
       if (typeof window !== 'undefined') localStorage.setItem('nobarfilm_pref_muted', 'true');
     }
-  };
+  }, [isMuted]);
 
   const [brightness, setBrightness] = useState(1.0);
 
@@ -726,6 +744,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onWaiting={() => {
           setIsBuffering(true);
           setBufferPercent((prev) => (prev > 0 ? prev : 20));
+          if (isInParty && onPartyBuffering) onPartyBuffering(true);
         }}
         onSeeking={() => {
           setIsBuffering(true);
@@ -738,12 +757,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onCanPlay={() => {
           setIsBuffering(false);
           setBufferPercent(100);
+          if (isInParty && onPartyBuffering) onPartyBuffering(false);
         }}
         onPlaying={() => {
           setIsPlaying(true);
           setIsBuffering(false);
           setBufferPercent(100);
           setHasVideoError(false);
+          if (isInParty && onPartyBuffering) onPartyBuffering(false);
         }}
         onError={() => {
           // Attempt proxy fallback ONLY ONCE per stream URL to prevent infinite fallback loop
@@ -909,7 +930,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         hasNextEpisode={hasNextEpisode}
         onNextEpisode={onNextEpisode}
         onTogglePiP={togglePictureInPicture}
+        partySlot={partySlot}
       />
+
+      {/* Floating Overlays / Reactions */}
+      {children}
     </div>
   );
 });

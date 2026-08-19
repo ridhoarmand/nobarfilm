@@ -19,6 +19,7 @@ import {
   Unlock,
   Clock,
   PictureInPicture,
+  MoreVertical,
 } from 'lucide-react';
 import { PlayerProgressBar } from './PlayerProgressBar';
 import { AudioSubtitlePopover } from './AudioSubtitlePopover';
@@ -87,6 +88,8 @@ export interface PlayerOverlayProps {
   onNextEpisode?: () => void;
   // PiP
   onTogglePiP?: () => void;
+  // Watch Party
+  partySlot?: React.ReactNode;
 }
 
 export function PlayerOverlay({
@@ -133,6 +136,7 @@ export function PlayerOverlay({
   hasNextEpisode = false,
   onNextEpisode,
   onTogglePiP,
+  partySlot,
 }: PlayerOverlayProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -155,34 +159,34 @@ export function PlayerOverlay({
 
   // Handle Sleep Timer tick
   useEffect(() => {
-    if (sleepTimerEnd === null) {
-      setSleepTimerDisplay('');
-      return;
-    }
+    if (!sleepTimerEnd) return;
     
-    const interval = setInterval(() => {
+    const tick = () => {
       const now = Date.now();
       const remaining = sleepTimerEnd - now;
       if (remaining <= 0) {
         setSleepTimerEnd(null);
         setSleepTimerMs(null);
+        setSleepTimerDisplay('');
         if (isPlaying) {
           onTogglePlay();
-          // Optionally show toast/HUD here, maybe through hudFeedback (already done elsewhere or just relying on pause)
         }
       } else {
         const m = Math.floor(remaining / 60000);
         const s = Math.floor((remaining % 60000) / 1000);
         setSleepTimerDisplay(`${m}:${s.toString().padStart(2, '0')}`);
       }
-    }, 1000);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [sleepTimerEnd, isPlaying, onTogglePlay]);
   
   const { isVisible, showControls, keepControlsVisible, scheduleQuickHide, hideControlsNow } = usePlayerControls(isPlaying, 2000);
 
-  // Active popover modal state ('subtitle' | 'quality' | 'episode' | 'sleep' | null)
-  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | 'sleep' | null>(null);
+  // Active popover modal state ('subtitle' | 'quality' | 'episode' | 'more' | null)
+  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | 'more' | null>(null);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -197,7 +201,7 @@ export function PlayerOverlay({
     }
   }, [activePopover, keepControlsVisible]);
 
-  const togglePopover = (popover: 'subtitle' | 'quality' | 'episode' | 'sleep') => {
+  const togglePopover = (popover: 'subtitle' | 'quality' | 'episode' | 'more') => {
     setActivePopover((prev) => (prev === popover ? null : popover));
   };
 
@@ -210,8 +214,9 @@ export function PlayerOverlay({
     if (minutes === 0) {
       setSleepTimerMs(null);
       setSleepTimerEnd(null);
+      setSleepTimerDisplay('');
     } else if (minutes === -1) {
-      const remainingMs = (duration - currentTime) * 1000;
+      const remainingMs = Math.max(0, (duration - currentTime) * 1000);
       setSleepTimerMs(remainingMs);
       setSleepTimerEnd(Date.now() + remainingMs);
     } else {
@@ -616,68 +621,8 @@ export function PlayerOverlay({
                 <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4 pointer-events-none" />
               </button>
             )}
-            {/* Sleep Timer Button */}
-            <button
-              type="button"
-              data-interactive="true"
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePopover('sleep');
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-              }}
-              className={`p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl transition flex-shrink-0 cursor-pointer ${
-                activePopover === 'sleep' || sleepTimerEnd !== null
-                  ? 'bg-red-600 text-white'
-                  : 'bg-black/40 sm:bg-transparent hover:bg-white/20 text-white'
-              }`}
-              title="Timer Tidur"
-            >
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
-              {sleepTimerDisplay && (
-                <span className="text-[10px] ml-1 font-bold">{sleepTimerDisplay}</span>
-              )}
-            </button>
-
-            {/* Screen Lock Button */}
-            <button
-              type="button"
-              data-interactive="true"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsLocked(true);
-                hideControlsNow();
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-                setIsLocked(true);
-                hideControlsNow();
-              }}
-              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 cursor-pointer"
-              title="Kunci Layar"
-            >
-              <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </button>
-
-            {/* PiP Button */}
-            {onTogglePiP && (
-              <button
-                type="button"
-                data-interactive="true"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTogglePiP();
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                }}
-                className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 cursor-pointer"
-                title="Picture-in-Picture"
-              >
-                <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </button>
-            )}
+            {/* Watch Party Slot */}
+            {partySlot}
 
             {/* Fullscreen Button */}
             <button
@@ -694,6 +639,35 @@ export function PlayerOverlay({
               title={isFullscreen ? 'Keluar Fullscreen (F)' : 'Fullscreen (F)'}
             >
               {isFullscreen ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5 text-white" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5 text-white" />}
+            </button>
+
+            {/* More Menu (Titik 3) Button */}
+            <button
+              type="button"
+              data-interactive="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePopover('more');
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+              }}
+              aria-label="Opsi Lainnya"
+              aria-expanded={activePopover === 'more'}
+              aria-haspopup="dialog"
+              className={`p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl transition flex-shrink-0 cursor-pointer ${
+                activePopover === 'more' || sleepTimerEnd !== null
+                  ? 'bg-red-600 text-white shadow-lg'
+                  : 'bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white'
+              }`}
+              title="Opsi Lainnya"
+            >
+              <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              {sleepTimerDisplay && (
+                <span className="text-[9px] sm:text-[10px] ml-0.5 font-bold text-red-200">
+                  {sleepTimerDisplay}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -755,37 +729,88 @@ export function PlayerOverlay({
         />
       )}
 
-      {/* Sleep Timer Popover */}
-      {activePopover === 'sleep' && (
-        <div className="absolute bottom-[4.5rem] sm:bottom-20 right-4 sm:right-8 z-40 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 min-w-[160px] animate-fade-in flex flex-col pointer-events-auto">
-          <div className="px-3 py-2 border-b border-white/10 mb-1">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Timer Tidur</h3>
+      {/* More Options (Titik 3) Popover */}
+      {activePopover === 'more' && (
+        <div
+          className="absolute bottom-[4.5rem] sm:bottom-20 right-2 sm:right-6 z-40 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 min-w-[210px] animate-fade-in flex flex-col pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-2 border-b border-white/10 mb-1 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Opsi Lainnya</h3>
           </div>
-          {[
-            { label: 'Off', value: 0 },
-            { label: '15 Menit', value: 15 },
-            { label: '30 Menit', value: 30 },
-            { label: '45 Menit', value: 45 },
-            { label: '60 Menit', value: 60 },
-            { label: 'Akhir Episode', value: -1 },
-          ].map((opt) => (
+
+          {/* 1. Kunci Layar */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsLocked(true);
+              hideControlsNow();
+              closePopover();
+            }}
+            className="w-full text-left px-3 py-2.5 text-xs font-medium rounded-xl text-zinc-200 hover:bg-white/10 transition-colors flex items-center gap-2.5 cursor-pointer"
+          >
+            <Lock className="w-4 h-4 text-red-500" />
+            <span>Kunci Layar (Screen Lock)</span>
+          </button>
+
+          {/* 2. PiP */}
+          {onTogglePiP && (
             <button
-              key={opt.label}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSetSleepTimer(opt.value);
+              type="button"
+              onClick={() => {
+                onTogglePiP();
+                closePopover();
               }}
-              className={`text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${
-                (opt.value === 0 && sleepTimerEnd === null) ||
-                (opt.value > 0 && sleepTimerMs === opt.value * 60000) ||
-                (opt.value === -1 && sleepTimerMs !== null && sleepTimerMs % 60000 !== 0) // rough heuristic for Akhir Episode
-                  ? 'bg-red-600/20 text-red-500'
-                  : 'text-zinc-300 hover:bg-white/10'
-              }`}
+              className="w-full text-left px-3 py-2.5 text-xs font-medium rounded-xl text-zinc-200 hover:bg-white/10 transition-colors flex items-center gap-2.5 cursor-pointer"
             >
-              {opt.label}
+              <PictureInPicture className="w-4 h-4 text-red-500" />
+              <span>Picture-in-Picture (PiP)</span>
             </button>
-          ))}
+          )}
+
+          {/* 3. Timer Tidur */}
+          <div className="pt-1.5 mt-1 border-t border-white/10">
+            <div className="px-3 py-1 flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-red-500" />
+                <span>Timer Tidur</span>
+              </div>
+              {sleepTimerDisplay && (
+                <span className="text-[10px] text-red-400 font-bold font-mono">
+                  {sleepTimerDisplay}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-1 mt-1 px-1">
+              {[
+                { label: 'Off', value: 0 },
+                { label: '15 Menit', value: 15 },
+                { label: '30 Menit', value: 30 },
+                { label: '45 Menit', value: 45 },
+                { label: '60 Menit', value: 60 },
+                { label: 'Akhir Ep.', value: -1 },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => {
+                    handleSetSleepTimer(opt.value);
+                    closePopover();
+                  }}
+                  className={`px-2 py-1.5 text-[11px] font-medium rounded-lg transition-colors text-center cursor-pointer ${
+                    (opt.value === 0 && sleepTimerEnd === null) ||
+                    (opt.value > 0 && sleepTimerMs === opt.value * 60000) ||
+                    (opt.value === -1 && sleepTimerMs !== null && sleepTimerMs % 60000 !== 0)
+                      ? 'bg-red-600 text-white font-bold'
+                      : 'bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

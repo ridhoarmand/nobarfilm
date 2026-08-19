@@ -44,7 +44,9 @@ export function usePlayerControls(isPlaying: boolean, autoHideDelayMs: number = 
   }, [isPlaying]);
 
   useEffect(() => {
-    showControls();
+    queueMicrotask(() => {
+      showControls();
+    });
     return () => {
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current);

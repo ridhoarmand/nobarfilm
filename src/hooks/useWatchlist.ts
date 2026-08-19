@@ -8,12 +8,15 @@ const WATCHLIST_STORAGE_KEY = 'nobarfilm_watchlist_v1';
 export function useWatchlist() {
   const [watchlist, setWatchlist] = useState<Subject[]>([]);
 
-  // Load from localStorage on mount (prevents SSR mismatch)
+  // Load from localStorage on mount (prevents SSR mismatch and cascading renders)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
       if (saved) {
-        setWatchlist(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        queueMicrotask(() => {
+          setWatchlist(parsed);
+        });
       }
     } catch (e) {
       console.error('Error loading watchlist:', e);

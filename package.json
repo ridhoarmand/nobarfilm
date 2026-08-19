@@ -1,11 +1,12 @@
 {
   "name": "nobarfilm",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "tsx server/dev.ts",
+    "build": "next build && npm run build:server",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --target=node20 --outfile=.next/standalone/server.js --external:next",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -19,6 +20,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hot-toast": "^2.6.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.11"
   },
@@ -29,10 +32,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.25.12",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

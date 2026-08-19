@@ -22,7 +22,6 @@ const isInteractiveTarget = (target: EventTarget | null): boolean => {
 };
 
 export function usePlayerGestures({
-  isMobile: _isMobile,
   onTogglePlay,
   onToggleFullscreen,
   onSeek,
@@ -188,8 +187,7 @@ export function usePlayerGestures({
     [onVolumeChange, onBrightnessChange, showHud]
   );
 
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchEnd = useCallback(() => {
       lastTouchTimeRef.current = Date.now();
       if (!touchStartRef.current) return;
       const start = touchStartRef.current;
