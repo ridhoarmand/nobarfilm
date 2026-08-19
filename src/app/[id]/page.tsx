@@ -1,6 +1,8 @@
-'use client';import { useState } from 'react';
+'use client';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMovieBoxDetail } from '@/hooks/useMovieBox';
+import { useWatchlist } from '@/hooks/useWatchlist';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CastList } from '@/components/detail/CastList';
@@ -8,13 +10,14 @@ import { SeasonSelector } from '@/components/detail/SeasonSelector';
 import { DownloadModal } from '@/components/detail/DownloadModal';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Calendar, Clock, Download, Globe } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Download, Globe, Share2, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function DetailPage() {
   const params = useParams();
   const router = useRouter();
   const subjectId = params.id as string;
+  const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [downloadParams, setDownloadParams] = useState({ season: 0, episode: 0 });
@@ -32,9 +35,14 @@ export default function DetailPage() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black pt-16 flex items-center justify-center">
-          <div className="text-white">Loading...</div>
-        </div>
+        <main className="min-h-screen bg-black pt-16">
+          <div className="relative h-[60vh] md:h-[70vh] bg-zinc-900 animate-pulse" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="w-1/3 h-10 bg-zinc-800 rounded animate-pulse mb-6" />
+            <div className="w-full h-32 bg-zinc-800 rounded animate-pulse" />
+          </div>
+        </main>
+        <Footer />
       </>
     );
   }
@@ -60,10 +68,27 @@ export default function DetailPage() {
   const { subject, stars, resource } = data;
   const isSeries = subject.subjectType === 2;
   const isMovie = subject.subjectType === 1;
+  const isBookmarked = isInWatchlist(subjectId);
 
   // Movies: /watch/[id] (clean URL)
   // Series: /watch/[id]?season=1&episode=1 (default to first season/episode)
   const watchUrl = isMovie ? `/watch/${subjectId}` : `/watch/${subjectId}?season=1&episode=1`;
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: subject.title,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Tautan disalin ke clipboard');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <>
@@ -144,7 +169,7 @@ export default function DetailPage() {
 
                   // Show play button for released content
                   return (
-                    <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
                       <Link
                         href={watchUrl}
                         className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
@@ -152,6 +177,21 @@ export default function DetailPage() {
                         <Play className="w-5 h-5 fill-current" />
                         <span>Play Now</span>
                       </Link>
+                      
+                      <button
+                        onClick={() => toggleWatchlist(subject)}
+                        className={`flex items-center justify-center gap-2 px-4 py-3 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base ${isBookmarked ? 'bg-red-600/10 border-red-500/50 text-red-500' : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-white'}`}
+                      >
+                        <Heart className={`w-5 h-5 ${isBookmarked ? 'fill-current' : ''}`} />
+                      </button>
+
+                      <button
+                        onClick={handleShare}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base"
+                      >
+                        <Share2 className="w-5 h-5" />
+                      </button>
+
                       {/* Download button - Only for Movies */}
                       {!isSeries && (
                         <button

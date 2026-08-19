@@ -1,9 +1,18 @@
 import { movieBoxService } from '@/lib/moviebox';
 import { NextResponse, NextRequest } from 'next/server';
+import { checkRateLimit } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const rateLimit = checkRateLimit(request, 5, 60000);
+    if (!rateLimit.success && rateLimit.response) return rateLimit.response;
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ code: 400, message: 'Invalid JSON request body' }, { status: 400 });
+    }
     const { email } = body;
 
     if (!email) {

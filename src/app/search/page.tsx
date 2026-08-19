@@ -16,10 +16,41 @@ function MovieSearchContent() {
   const router = useRouter();
   const query = searchParams.get('q') || '';
   const [searchInput, setSearchInput] = useState(query);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<'Semua' | 'Film' | 'Series'>('Semua');
 
   useEffect(() => {
     setSearchInput(query);
   }, [query]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nobarfilm_recent_searches');
+      if (saved) {
+        setRecentSearches(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Error loading recent searches', e);
+    }
+  }, []);
+
+  const saveRecentSearch = (term: string) => {
+    if (!term) return;
+    try {
+      const saved = localStorage.getItem('nobarfilm_recent_searches');
+      let current = saved ? JSON.parse(saved) : [];
+      current = [term, ...current.filter((item: string) => item.toLowerCase() !== term.toLowerCase())].slice(0, 5);
+      localStorage.setItem('nobarfilm_recent_searches', JSON.stringify(current));
+      setRecentSearches(current);
+    } catch (e) {
+      console.error('Error saving recent searches', e);
+    }
+  };
+
+  const clearRecentSearches = () => {
+    localStorage.removeItem('nobarfilm_recent_searches');
+    setRecentSearches([]);
+  };
 
   const { data, isLoading, isError, error, refetch } = useMovieBoxSearch(query, 1);
   const { data: trendingData, isLoading: isLoadingTrending } = useMovieBoxTrending(1);
@@ -27,14 +58,22 @@ function MovieSearchContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchInput.trim()) {
+      saveRecentSearch(searchInput.trim());
       router.push(`/search?q=${encodeURIComponent(searchInput.trim())}`);
     }
   };
 
   const handleChipClick = (tag: string) => {
     setSearchInput(tag);
+    saveRecentSearch(tag);
     router.push(`/search?q=${encodeURIComponent(tag)}`);
   };
+
+  const filteredItems = data?.items.filter(item => {
+    if (categoryFilter === 'Film') return item.subjectType === 1;
+    if (categoryFilter === 'Series') return item.subjectType === 2;
+    return true;
+  }) || [];
 
   return (
     <>
@@ -74,6 +113,31 @@ function MovieSearchContent() {
               </button>
             </form>
 
+            {/* Recent Searches */}
+            {recentSearches.length > 0 && (
+              <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
+                <span className="text-xs text-zinc-500 font-semibold whitespace-nowrap flex items-center gap-1">
+                  Terakhir Dicari:
+                </span>
+                {recentSearches.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleChipClick(tag)}
+                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-all whitespace-nowrap border bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-white"
+                  >
+                    {tag}
+                  </button>
+                ))}
+                <button
+                  onClick={clearRecentSearches}
+                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-all whitespace-nowrap text-red-500 hover:text-red-400 ml-1"
+                >
+                  Hapus
+                </button>
+              </div>
+            )}
+
             {/* Quick Search Chips */}
             <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
               <span className="text-xs text-zinc-500 font-semibold whitespace-nowrap flex items-center gap-1">
@@ -95,6 +159,21 @@ function MovieSearchContent() {
               ))}
             </div>
           </div>
+
+          {/* Category Tabs */}
+          {query && !isLoading && !isError && data && data.items.length > 0 && (
+            <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2">
+              {(['Semua', 'Film', 'Series'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setCategoryFilter(tab)}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${categoryFilter === tab ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Loading State */}
           {isLoading && (
@@ -129,13 +208,13 @@ function MovieSearchContent() {
           {/* Search Results */}
           {!isLoading && !isError && data && (
             <>
-              {data.items.length > 0 ? (
+              {filteredItems.length > 0 ? (
                 <>
                   <div className="mb-4 text-zinc-400 text-sm font-medium">
-                    Menampilkan <span className="text-white font-bold">{data.items.length}</span> hasil
+                    Menampilkan <span className="text-white font-bold">{filteredItems.length}</span> hasil
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {data.items.map((item, index) => (
+                    {filteredItems.map((item, index) => (
                       <UnifiedMediaCard
                         key={`${item.subjectId}-${index}`}
                         title={item.title}

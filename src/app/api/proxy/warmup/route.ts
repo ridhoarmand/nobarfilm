@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 // Custom agent to ignore SSL issues
 const agent = new https.Agent({
-  rejectUnauthorized: false,
+  rejectUnauthorized: true,
 });
 
 // Helper: Make a request with redirect handling
@@ -16,6 +16,11 @@ function fetchHead(url: string, redirectCount = 5): Promise<{ statusCode: number
     const isHttp = url.startsWith('http:');
     const requestModule = isHttp ? http : https;
     const urlObj = new URL(url);
+
+    const isLocalIP = /^(127\.|10\.|192\.168\.|169\.254\.)/.test(urlObj.hostname) || urlObj.hostname === 'localhost';
+    if (!['http:', 'https:'].includes(urlObj.protocol) || isLocalIP) {
+      return reject(new Error('Invalid or restricted URL'));
+    }
 
     const options = {
       hostname: urlObj.hostname,

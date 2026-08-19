@@ -1,21 +1,57 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Subject } from '@/types/api';
 
 const WATCHLIST_STORAGE_KEY = 'nobarfilm_watchlist_v1';
 
 export function useWatchlist() {
-  const [watchlist, setWatchlist] = useState<Subject[]>(() => {
-    if (typeof window === 'undefined') return [];
+  const [watchlist, setWatchlist] = useState<Subject[]>([]);
+
+  // Load from localStorage on mount (prevents SSR mismatch)
+  useEffect(() => {
     try {
       const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        setWatchlist(JSON.parse(saved));
+      }
     } catch (e) {
       console.error('Error loading watchlist:', e);
-      return [];
     }
-  });
+  }, []);
+
+  // Listen for sync events
+  useEffect(() => {
+    const syncWatchlist = () => {
+      try {
+        const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+        if (saved) {
+          setWatchlist(JSON.parse(saved));
+        } else {
+          setWatchlist([]);
+        }
+      } catch (e) {
+        console.error('Error syncing watchlist:', e);
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.key || e.key === WATCHLIST_STORAGE_KEY) syncWatchlist();
+    };
+
+    window.addEventListener('nobarfilm_watchlist_updated', syncWatchlist);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('nobarfilm_watchlist_updated', syncWatchlist);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const triggerSync = () => {
+    window.dispatchEvent(new CustomEvent('nobarfilm_watchlist_updated'));
+    window.dispatchEvent(new Event('storage'));
+  };
 
   const addToWatchlist = useCallback((movie: Subject) => {
     setWatchlist((prev) => {
@@ -23,6 +59,7 @@ export function useWatchlist() {
       const updated = [movie, ...prev];
       try {
         localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(updated));
+        setTimeout(triggerSync, 0);
       } catch (e) {
         console.error(e);
       }
@@ -35,6 +72,7 @@ export function useWatchlist() {
       const updated = prev.filter((item) => item.subjectId !== subjectId);
       try {
         localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(updated));
+        setTimeout(triggerSync, 0);
       } catch (e) {
         console.error(e);
       }
@@ -50,6 +88,7 @@ export function useWatchlist() {
         : [movie, ...prev];
       try {
         localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(updated));
+        setTimeout(triggerSync, 0);
       } catch (e) {
         console.error(e);
       }

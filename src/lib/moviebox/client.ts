@@ -14,8 +14,12 @@ export async function getAccessToken(retry = 0): Promise<string> {
     return cachedFromStore;
   }
 
-  const email = process.env.MOVIEBOX_MASTER_EMAIL || 'armandhodrb@gmail.com';
-  const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD || 'Armandho1234567890';
+  const email = process.env.MOVIEBOX_MASTER_EMAIL;
+  const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD;
+
+  if (!email || !rawPassword) {
+    throw new Error('MOVIEBOX_MASTER_EMAIL and MOVIEBOX_MASTER_PASSWORD environment variables are required.');
+  }
   const md5Password = /^[a-f0-9]{32}$/i.test(rawPassword)
     ? rawPassword
     : crypto.createHash('md5').update(rawPassword).digest('hex');

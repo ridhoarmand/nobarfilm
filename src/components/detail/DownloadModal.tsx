@@ -172,11 +172,15 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
                 disabled={isDownloading}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-50"
               >
-                {downloads.map((download, index) => (
-                  <option key={index} value={index}>
-                    {download.resolution}p - {(parseInt(download.size) / 1024 / 1024).toFixed(2)} MB
-                  </option>
-                ))}
+                {downloads.map((download, index) => {
+                  const sizeRaw = parseInt(download.size || '0', 10);
+                  const sizeDisplay = !isNaN(sizeRaw) && sizeRaw > 0 ? ` - ${(sizeRaw / 1024 / 1024).toFixed(2)} MB` : '';
+                  return (
+                    <option key={index} value={index}>
+                      {download.resolution}p{sizeDisplay}
+                    </option>
+                  );
+                })}
               </select>
               {downloads.length === 0 && <p className="text-gray-500 text-sm mt-2">No download options available</p>}
               {/* Preview filename */}

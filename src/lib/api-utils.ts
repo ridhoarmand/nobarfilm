@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
+export { checkRateLimit } from './rate-limit';
 
 export async function safeJson<T>(response: Response): Promise<T> {
   const text = await response.text();

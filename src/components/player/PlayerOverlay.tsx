@@ -15,6 +15,10 @@ import {
   ArrowLeft,
   SkipForward,
   Sun,
+  Lock,
+  Unlock,
+  Clock,
+  PictureInPicture,
 } from 'lucide-react';
 import { PlayerProgressBar } from './PlayerProgressBar';
 import { AudioSubtitlePopover } from './AudioSubtitlePopover';
@@ -81,6 +85,8 @@ export interface PlayerOverlayProps {
   onEpisodeChange?: (episode: number) => void;
   hasNextEpisode?: boolean;
   onNextEpisode?: () => void;
+  // PiP
+  onTogglePiP?: () => void;
 }
 
 export function PlayerOverlay({
@@ -126,16 +132,95 @@ export function PlayerOverlay({
   onEpisodeChange,
   hasNextEpisode = false,
   onNextEpisode,
+  onTogglePiP,
 }: PlayerOverlayProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isAutoNextDismissed, setIsAutoNextDismissed] = useState(false);
 
+  useEffect(() => {
+    setIsAutoNextDismissed(false);
+  }, [activeEpisode, activeSeason]);
+  
+  // Sleep Timer (in milliseconds)
+  const [sleepTimerMs, setSleepTimerMs] = useState<number | null>(null);
+  const [sleepTimerEnd, setSleepTimerEnd] = useState<number | null>(null);
+  const [sleepTimerDisplay, setSleepTimerDisplay] = useState<string>('');
+  
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsMobile(window.matchMedia('(pointer: coarse)').matches);
     }
   }, []);
 
+  // Handle Sleep Timer tick
+  useEffect(() => {
+    if (sleepTimerEnd === null) {
+      setSleepTimerDisplay('');
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = sleepTimerEnd - now;
+      if (remaining <= 0) {
+        setSleepTimerEnd(null);
+        setSleepTimerMs(null);
+        if (isPlaying) {
+          onTogglePlay();
+          // Optionally show toast/HUD here, maybe through hudFeedback (already done elsewhere or just relying on pause)
+        }
+      } else {
+        const m = Math.floor(remaining / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        setSleepTimerDisplay(`${m}:${s.toString().padStart(2, '0')}`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sleepTimerEnd, isPlaying, onTogglePlay]);
+  
   const { isVisible, showControls, keepControlsVisible, scheduleQuickHide, hideControlsNow } = usePlayerControls(isPlaying, 2000);
+
+  // Active popover modal state ('subtitle' | 'quality' | 'episode' | 'sleep' | null)
+  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | 'sleep' | null>(null);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      showControls();
+    }
+  }, [isPlaying, showControls]);
+
+  // If any popover is open, keep controls visible
+  useEffect(() => {
+    if (activePopover !== null) {
+      keepControlsVisible();
+    }
+  }, [activePopover, keepControlsVisible]);
+
+  const togglePopover = (popover: 'subtitle' | 'quality' | 'episode' | 'sleep') => {
+    setActivePopover((prev) => (prev === popover ? null : popover));
+  };
+
+  const closePopover = () => {
+    setActivePopover(null);
+    scheduleQuickHide(800);
+  };
+
+  const handleSetSleepTimer = (minutes: number) => {
+    if (minutes === 0) {
+      setSleepTimerMs(null);
+      setSleepTimerEnd(null);
+    } else if (minutes === -1) {
+      const remainingMs = (duration - currentTime) * 1000;
+      setSleepTimerMs(remainingMs);
+      setSleepTimerEnd(Date.now() + remainingMs);
+    } else {
+      const ms = minutes * 60000;
+      setSleepTimerMs(ms);
+      setSleepTimerEnd(Date.now() + ms);
+    }
+    closePopover();
+  };
 
   const {
     handleDesktopClick,
@@ -162,30 +247,6 @@ export function PlayerOverlay({
     },
   });
 
-  // Active popover modal state ('subtitle' | 'quality' | 'episode' | null)
-  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | null>(null);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      showControls();
-    }
-  }, [isPlaying, showControls]);
-
-  // If any popover is open, keep controls visible
-  useEffect(() => {
-    if (activePopover !== null) {
-      keepControlsVisible();
-    }
-  }, [activePopover, keepControlsVisible]);
-
-  const togglePopover = (popover: 'subtitle' | 'quality' | 'episode') => {
-    setActivePopover((prev) => (prev === popover ? null : popover));
-  };
-
-  const closePopover = () => {
-    setActivePopover(null);
-    scheduleQuickHide(800);
-  };
 
   const handleMouseLeave = () => {
     if (activePopover === null) {
@@ -193,19 +254,20 @@ export function PlayerOverlay({
     }
   };
 
-  // Center play/pause button is visible when controls are shown
-  const showCenterControls = isVisible && (!isPlaying || isMobile);
-  const showBottomBar = isVisible;
+  // Center play/pause button is visible when controls are shown and not locked
+  const showCenterControls = !isLocked && isVisible && (!isPlaying || isMobile);
+  const showBottomBar = !isLocked && isVisible;
+  const showTopBar = !isLocked && isVisible;
 
   return (
     <div
-      onMouseMove={showControls}
-      onMouseEnter={showControls}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleDesktopClick}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onMouseMove={!isLocked ? showControls : undefined}
+      onMouseEnter={!isLocked ? showControls : undefined}
+      onMouseLeave={!isLocked ? handleMouseLeave : undefined}
+      onClick={!isLocked ? handleDesktopClick : undefined}
+      onTouchStart={!isLocked ? handleTouchStart : undefined}
+      onTouchMove={!isLocked ? handleTouchMove : undefined}
+      onTouchEnd={!isLocked ? handleTouchEnd : undefined}
       className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300 cursor-pointer"
     >
       {/* Floating HUD Feedback for Volume & Brightness */}
@@ -254,10 +316,67 @@ export function PlayerOverlay({
         </div>
       )}
 
+      {/* SCREEN LOCK UNLOCK BUTTON */}
+      {isLocked && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-auto bg-transparent">
+          <button
+            type="button"
+            data-interactive="true"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsLocked(false);
+              showControls();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              setIsLocked(false);
+              showControls();
+            }}
+            className="p-3 sm:p-4 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-all shadow-2xl animate-fade-in flex flex-col items-center gap-1"
+          >
+            <Unlock className="w-6 h-6 sm:w-8 sm:h-8" />
+            <span className="text-[10px] font-bold">Buka</span>
+          </button>
+        </div>
+      )}
+
+      {/* AUTO NEXT EPISODE BANNER */}
+      {isSeries && hasNextEpisode && !isAutoNextDismissed && duration > 0 && duration - currentTime <= 8 && duration - currentTime > 0 && isPlaying && !isLocked && (
+        <div className="absolute bottom-24 right-4 sm:bottom-28 sm:right-8 z-40 pointer-events-auto animate-fade-in">
+          <div className="flex flex-col items-end gap-2 bg-black/80 backdrop-blur-md border border-white/10 p-3 sm:p-4 rounded-xl shadow-2xl">
+            <span className="text-xs sm:text-sm text-zinc-200 font-medium">
+              Episode selanjutnya dalam <span className="font-bold text-white">{Math.ceil(duration - currentTime)}s</span>
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAutoNextDismissed(true);
+                }}
+                className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onNextEpisode) onNextEpisode();
+                }}
+                className="px-3 py-1.5 bg-white text-black font-bold text-xs rounded-lg hover:bg-zinc-200 transition-colors"
+              >
+                Putar Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TOP BAR with subtle header gradient */}
       <div
         className={`relative z-30 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-5 pt-[max(0.6rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] bg-gradient-to-b from-black/80 via-black/30 to-transparent transition-opacity duration-300 pointer-events-auto ${
-          isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          showTopBar ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
         {onBack && (
@@ -497,6 +616,68 @@ export function PlayerOverlay({
                 <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4 pointer-events-none" />
               </button>
             )}
+            {/* Sleep Timer Button */}
+            <button
+              type="button"
+              data-interactive="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePopover('sleep');
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+              }}
+              className={`p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl transition flex-shrink-0 cursor-pointer ${
+                activePopover === 'sleep' || sleepTimerEnd !== null
+                  ? 'bg-red-600 text-white'
+                  : 'bg-black/40 sm:bg-transparent hover:bg-white/20 text-white'
+              }`}
+              title="Timer Tidur"
+            >
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+              {sleepTimerDisplay && (
+                <span className="text-[10px] ml-1 font-bold">{sleepTimerDisplay}</span>
+              )}
+            </button>
+
+            {/* Screen Lock Button */}
+            <button
+              type="button"
+              data-interactive="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsLocked(true);
+                hideControlsNow();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                setIsLocked(true);
+                hideControlsNow();
+              }}
+              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 cursor-pointer"
+              title="Kunci Layar"
+            >
+              <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </button>
+
+            {/* PiP Button */}
+            {onTogglePiP && (
+              <button
+                type="button"
+                data-interactive="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePiP();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                }}
+                className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-black/40 sm:bg-transparent border border-white/10 sm:border-transparent hover:bg-white/20 text-white transition flex-shrink-0 cursor-pointer"
+                title="Picture-in-Picture"
+              >
+                <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </button>
+            )}
 
             {/* Fullscreen Button */}
             <button
@@ -572,6 +753,40 @@ export function PlayerOverlay({
           onSeasonChange={onSeasonChange}
           onEpisodeChange={onEpisodeChange}
         />
+      )}
+
+      {/* Sleep Timer Popover */}
+      {activePopover === 'sleep' && (
+        <div className="absolute bottom-[4.5rem] sm:bottom-20 right-4 sm:right-8 z-40 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 min-w-[160px] animate-fade-in flex flex-col pointer-events-auto">
+          <div className="px-3 py-2 border-b border-white/10 mb-1">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Timer Tidur</h3>
+          </div>
+          {[
+            { label: 'Off', value: 0 },
+            { label: '15 Menit', value: 15 },
+            { label: '30 Menit', value: 30 },
+            { label: '45 Menit', value: 45 },
+            { label: '60 Menit', value: 60 },
+            { label: 'Akhir Episode', value: -1 },
+          ].map((opt) => (
+            <button
+              key={opt.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSetSleepTimer(opt.value);
+              }}
+              className={`text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${
+                (opt.value === 0 && sleepTimerEnd === null) ||
+                (opt.value > 0 && sleepTimerMs === opt.value * 60000) ||
+                (opt.value === -1 && sleepTimerMs !== null && sleepTimerMs % 60000 !== 0) // rough heuristic for Akhir Episode
+                  ? 'bg-red-600/20 text-red-500'
+                  : 'text-zinc-300 hover:bg-white/10'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

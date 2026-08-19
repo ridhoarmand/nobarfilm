@@ -100,6 +100,37 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   // Speed persistence hook
   const { speed, setSpeed } = usePlaybackSpeed();
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedVol = localStorage.getItem('nobarfilm_pref_volume');
+      const savedMuted = localStorage.getItem('nobarfilm_pref_muted');
+      if (savedVol !== null) {
+        const v = parseFloat(savedVol);
+        setVolumeState(v);
+        if (videoRef.current) videoRef.current.volume = v;
+      }
+      if (savedMuted !== null) {
+        const m = savedMuted === 'true';
+        setIsMuted(m);
+        if (videoRef.current) videoRef.current.muted = m;
+      }
+    }
+  }, []);
+
+  const togglePictureInPicture = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled && video.requestPictureInPicture) {
+        await video.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.warn('PiP error:', err);
+    }
+  };
+
   // Normalize source URL
   const currentSrc = typeof src === 'string' ? src : (src as { src: string }).src;
 
@@ -490,6 +521,10 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     video.muted = clamped === 0;
     setVolumeState(clamped);
     setIsMuted(clamped === 0);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nobarfilm_pref_volume', clamped.toString());
+      localStorage.setItem('nobarfilm_pref_muted', (clamped === 0).toString());
+    }
   };
 
   const toggleMute = () => {
@@ -498,9 +533,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     if (isMuted) {
       video.muted = false;
       setIsMuted(false);
+      if (typeof window !== 'undefined') localStorage.setItem('nobarfilm_pref_muted', 'false');
     } else {
       video.muted = true;
       setIsMuted(true);
+      if (typeof window !== 'undefined') localStorage.setItem('nobarfilm_pref_muted', 'true');
     }
   };
 
@@ -522,7 +559,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         (container as any).msRequestFullscreen;
 
       if (requestFs) {
-        const promise = requestFs.call(container);
+        const promise = requestFs.call(container, { navigationUI: 'hide' } as any);
         if (promise && typeof promise.then === 'function') {
           promise
             .then(() => {
@@ -871,10 +908,12 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onEpisodeChange={onEpisodeChange}
         hasNextEpisode={hasNextEpisode}
         onNextEpisode={onNextEpisode}
+        onTogglePiP={togglePictureInPicture}
       />
     </div>
   );
 });
 
 MoviePlayer.displayName = 'MoviePlayer';
+
 

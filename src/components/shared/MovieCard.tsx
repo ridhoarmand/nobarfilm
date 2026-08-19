@@ -21,7 +21,6 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
         {/* POSTER IMAGE CONTAINER - Netflix Style Card */}
         <div 
           className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-[#181818] shadow-md border border-white/5 transition-all duration-300 ease-out group-hover/card:border-white/20 group-hover/card:shadow-2xl group-hover/card:shadow-black/90 group-hover/card:scale-[1.03]"
-          style={{ position: 'relative' }}
         >
           {/* Rank Badge - Netflix Top 10 Badge Style */}
           {rank && (
@@ -57,7 +56,7 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
 
           {/* Main Image */}
           <Image 
-            src={movie.cover.url}
+            src={movie.cover?.url || ''}
             alt={movie.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
