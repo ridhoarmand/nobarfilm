@@ -3,7 +3,7 @@ importScripts('https://cdn.jsdelivr.net/npm/web-streams-polyfill@2.0.2/dist/pony
 importScripts('https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/sw.js');
 
 // PWA Cache for offline support
-const CACHE_NAME = 'nobarfilm-v2';
+const CACHE_NAME = 'nobarfilm-v3';
 const urlsToCache = [
   '/',
   '/manifest.json',
