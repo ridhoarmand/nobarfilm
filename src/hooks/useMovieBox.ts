@@ -12,6 +12,7 @@ export const movieBoxQueryKeys = {
   detail: (subjectId: string) => ['moviebox', 'detail', subjectId] as const,
   sources: (subjectId: string, season: number | null, episode: number | null) => ['moviebox', 'sources', subjectId, season, episode] as const,
   playerMetadata: (subjectId: string, season: number | null, episode: number | null) => ['moviebox', 'player-metadata', subjectId, season, episode] as const,
+  rankingList: (id: string, page: number) => ['moviebox', 'ranking-list', id, page] as const,
 };
 
 export interface PlayerMetadataResponse {
@@ -264,4 +265,46 @@ export function useMovieBoxPlaybackUrl(
   });
 
   return queryResult;
+}
+
+/**
+ * Hook to fetch ranking / category list
+ */
+export function useMovieBoxRankingList(
+  categoryType: string,
+  page: number = 1,
+  options?: Omit<UseQueryOptions<SearchResponse, ApiError>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery<SearchResponse, ApiError>({
+    queryKey: movieBoxQueryKeys.rankingList(categoryType, page),
+    queryFn: () => fetchJson<SearchResponse>(`${API_BASE}/ranking-list?id=${encodeURIComponent(categoryType)}&page=${page}`),
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
+    placeholderData: keepPreviousData,
+    enabled: !!categoryType,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
+}
+
+/**
+ * Infinite hook to fetch ranking / category list with infinite scrolling
+ */
+export function useInfiniteMovieBoxRankingList(categoryType: string) {
+  return useInfiniteQuery<SearchResponse, ApiError>({
+    queryKey: ['moviebox', 'ranking-list-infinite', categoryType],
+    queryFn: ({ pageParam = 1 }) =>
+      fetchJson<SearchResponse>(`${API_BASE}/ranking-list?id=${encodeURIComponent(categoryType)}&page=${pageParam}`),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pager?.hasMore && lastPage.pager?.nextPage) {
+        return parseInt(lastPage.pager.nextPage, 10);
+      }
+      return undefined;
+    },
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
+    enabled: !!categoryType,
+    refetchOnWindowFocus: false,
+  });
 }

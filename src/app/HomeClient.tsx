@@ -142,6 +142,7 @@ export function HomeClient() {
                   title={section.title}
                   items={section.subjects?.slice(0, 20) || []}
                   isRanked={index < 2}
+                  categoryType={section.categoryType}
                 />
               ))}
 

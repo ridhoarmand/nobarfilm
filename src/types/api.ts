@@ -71,6 +71,17 @@ export interface Subject {
   recommendation_reason?: string;
   dubs?: DubInfo[];
   coverHorizontalUrl?: string;
+  restrictKid?: number;
+  resourceDetectors?: ResourceDetector[];
+}
+
+export interface ResourceDetector {
+  source: string;
+  resourceLink: string;
+  domain?: string;
+  uploadBy?: string;
+  totalEpisode?: number;
+  totalSize?: string;
 }
 
 export interface Staff {
@@ -132,6 +143,8 @@ export interface OperatingSection {
   liveList?: LiveMatch[];
   url?: string;
   path?: string;
+  categoryType?: string;
+  opId?: string;
 }
 
 export interface BannerSection {

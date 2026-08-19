@@ -4,12 +4,10 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { Search, Film, AlertCircle, Sparkles, TrendingUp } from 'lucide-react';
+import { Search, Film, AlertCircle, TrendingUp } from 'lucide-react';
 import { useMovieBoxSearch, useMovieBoxTrending } from '@/hooks/useMovieBox';
 import { UnifiedMediaCard } from '@/components/cards/UnifiedMediaCard';
 import { UnifiedMediaCardSkeleton } from '@/components/cards/UnifiedMediaCardSkeleton';
-
-const POPULAR_TAGS = ['Action', 'Anime', 'Horror', 'Drama Korea', 'Marvel', 'Romance', 'Sci-Fi'];
 
 function MovieSearchContent() {
   const searchParams = useSearchParams();
@@ -137,27 +135,6 @@ function MovieSearchContent() {
                 </button>
               </div>
             )}
-
-            {/* Quick Search Chips */}
-            <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-              <span className="text-xs text-zinc-500 font-semibold whitespace-nowrap flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-red-500" /> Populer:
-              </span>
-              {POPULAR_TAGS.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleChipClick(tag)}
-                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all whitespace-nowrap border ${
-                    query.toLowerCase() === tag.toLowerCase()
-                      ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
-                      : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-white'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Category Tabs */}

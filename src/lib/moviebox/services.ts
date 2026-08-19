@@ -159,7 +159,7 @@ export const movieBoxService = {
     if (cached) return cached;
 
     try {
-      console.log('[MovieBox SDK] Fetching homepage from Mobile App BFF API');
+      console.log('[MovieBox SDK] Fetching rich homepage from Mobile App BFF API (Tabs: 29, 1, 19, 18)');
       let activeToken = clientToken;
       if (!activeToken) {
         try {
@@ -169,67 +169,124 @@ export const movieBoxService = {
         }
       }
 
-      const response = await callMobileApi(
-        'GET',
-        '/wefeed-mobile-bff/tab-operating',
-        {
-          host: HOST,
-          tabId: '1',
-          page: '1',
-          pageSize: '30',
-          lang: 'id',
-          area: 'ID',
-        },
-        null,
-        true,
-        activeToken
+      // Fetch curated tabs: Tab 29 (Indonesia), Tab 1 (Trending), Tab 19 (Western), Tab 18 (Asian)
+      const tabRequests = ['29', '1', '19', '18'].map((tabId) =>
+        callMobileApi(
+          'GET',
+          '/wefeed-mobile-bff/tab-operating',
+          {
+            host: HOST,
+            tabId,
+            page: '1',
+            pageSize: '30',
+            lang: 'id',
+            area: 'ID',
+          },
+          null,
+          false,
+          activeToken
+        ).catch((err) => {
+          console.warn(`[MovieBox SDK] Failed to fetch tabId ${tabId}:`, err.message);
+          return { code: -1, data: { items: [] } };
+        })
       );
 
-      if (response.code !== 0 || !response.data) {
-        throw new Error(`Mobile Gateway homepage error: ${response.message || 'unknown error'}`);
+      const [resIndo, resTrend, resWest, resAsia] = await Promise.all(tabRequests);
+
+      // Separate curated sections from "Because U Watched" sections
+      const curatedRaw: any[] = [];
+      const becauseRaw: any[] = [];
+
+      // 1. Add Top Banner & Trending from Tab 1
+      for (const it of Array.isArray(resTrend.data?.items) ? resTrend.data.items : []) {
+        const title = (it.title || '').toLowerCase();
+        if (it.type === 'BANNER') {
+          curatedRaw.unshift(it);
+        } else if (title.startsWith('because')) {
+          becauseRaw.push(it);
+        } else {
+          curatedRaw.push(it);
+        }
       }
 
-      const items = Array.isArray(response.data?.items)
-        ? response.data.items
-        : Array.isArray(response.data?.operatingList)
-        ? response.data.operatingList
-        : Array.isArray(response.data)
-        ? response.data
-        : [];
+      // 2. Add Indonesia Curated Tab (Tab 29)
+      for (const it of Array.isArray(resIndo.data?.items) ? resIndo.data.items : []) {
+        const title = (it.title || '').toLowerCase();
+        if (title.startsWith('because')) {
+          becauseRaw.push(it);
+        } else {
+          curatedRaw.push(it);
+        }
+      }
+
+      // 3. Add Western / Hollywood Curated Tab (Tab 19)
+      for (const it of Array.isArray(resWest.data?.items) ? resWest.data.items : []) {
+        const title = (it.title || '').toLowerCase();
+        if (title.startsWith('because')) {
+          becauseRaw.push(it);
+        } else {
+          curatedRaw.push(it);
+        }
+      }
+
+      // 4. Add Asian / K-Drama Curated Tab (Tab 18)
+      for (const it of Array.isArray(resAsia.data?.items) ? resAsia.data.items : []) {
+        const title = (it.title || '').toLowerCase();
+        if (title.startsWith('because')) {
+          becauseRaw.push(it);
+        } else {
+          curatedRaw.push(it);
+        }
+      }
+
+      // Assemble all sections: Curated on top, Because U Watched at the bottom
+      const allRawSections = [...curatedRaw, ...becauseRaw];
 
       const isExcludedSection = (title: string) => {
         const lower = (title || '').toLowerCase();
         return (
+          lower.includes('user watch history') ||
+          lower.includes('dark desire') ||
+          lower.includes('bromance') ||
+          lower.includes('girls love') ||
+          lower.includes("girl's love") ||
+          lower.includes('boys love') ||
+          lower.includes("boy's love") ||
+          lower.includes('yuri') ||
+          lower.includes('yaoi') ||
           lower.includes('nollywood') ||
           lower.includes('made in africa') ||
           lower.includes('black show') ||
           lower.includes('black teen') ||
           lower.includes('adult') ||
           lower.includes('18+') ||
-          lower.includes('dewasa') ||
           lower.includes('erotic') ||
           lower.includes('hentai') ||
-          lower.includes('sensual')
+          lower.includes('dewasa') ||
+          lower.includes('violent&lustful') ||
+          lower.includes('late-night show')
         );
       };
 
       const operatingList: OperatingSection[] = [];
       const subjectsList: Subject[] = [];
       let bannerSection: BannerItem[] = [];
+      const seenTitles = new Set<string>();
 
       let pos = 0;
-      for (const item of items) {
+      for (const item of allRawSections) {
         const itemTitle = item.title || '';
         if (isExcludedSection(itemTitle)) {
           continue;
         }
 
         if (item.type === 'BANNER') {
+          if (seenTitles.has('__banner__')) continue;
           const rawBanners: any[] = Array.isArray(item.banner?.banners)
             ? item.banner.banners
             : Array.isArray(item.banner?.items)
-            ? item.banner.items
-            : [];
+              ? item.banner.items
+              : [];
 
           const bannerItems: BannerItem[] = rawBanners
             .map((bItem: any) => {
@@ -243,7 +300,7 @@ export const movieBoxService = {
               if (!subjectId) return null;
 
               const normSub = normalizeSubject(sub.subjectId ? sub : { ...sub, subjectId });
-              if (isAdultContent(normSub)) return null;
+              if (isAdultContent(normSub) || normSub.hasResource === false) return null;
 
               subjectsList.push(normSub);
               return {
@@ -259,6 +316,7 @@ export const movieBoxService = {
             .filter(Boolean) as BannerItem[];
 
           if (bannerItems.length > 0) {
+            seenTitles.add('__banner__');
             bannerSection = bannerItems;
             operatingList.push({
               type: 'BANNER',
@@ -273,18 +331,34 @@ export const movieBoxService = {
           item.type === 'SUBJECTS_DRAMA' ||
           (typeof item.type === 'string' && item.type.startsWith('SUBJECTS_'))
         ) {
+          if (!itemTitle || seenTitles.has(itemTitle.toLowerCase())) continue;
+
           const rawSubs = Array.isArray(item.subjects) ? item.subjects : [];
           const normSubs = rawSubs
             .map((sub: any) => normalizeSubject(sub))
-            .filter((sub: any) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub));
+            .filter((sub: any) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub) && sub.hasResource !== false);
 
           if (normSubs.length > 0) {
+            seenTitles.add(itemTitle.toLowerCase());
             subjectsList.push(...normSubs);
+
+            // Extract categoryType from deepLink (e.g. oneroom://...categoryType=5283462032510044280)
+            let categoryType = '';
+            if (typeof item.deepLink === 'string') {
+              const match = item.deepLink.match(/categoryType=(\d+)/);
+              if (match) categoryType = match[1];
+            }
+            if (!categoryType && item.opId) {
+              categoryType = String(item.opId);
+            }
+
             operatingList.push({
               type: 'SUBJECTS_MOVIE',
               position: pos++,
-              title: item.title || 'Rekomendasi Pilihan',
+              title: itemTitle,
               subjects: normSubs,
+              categoryType: categoryType || undefined,
+              opId: item.opId ? String(item.opId) : undefined,
             });
           }
         }
@@ -303,7 +377,7 @@ export const movieBoxService = {
         allPlatform: [],
         banner: bannerSection.length > 0 ? { items: bannerSection } : null,
         live: null,
-        platformList: response.data.platformList || [],
+        platformList: resTrend.data?.platformList || [],
         shareParam: null,
         operatingList,
       };
@@ -324,6 +398,58 @@ export const movieBoxService = {
       }
       throw mobileErr;
     }
+  },
+
+  async getRankingList(categoryType: string, page: number = 1, perPage: number = 20): Promise<SearchResponse> {
+    const BLOCKED_CATEGORY_IDS = new Set([
+      '562771270434276240', // Bromance
+      '638000603330921096', // Girls Love Story
+    ]);
+
+    if (BLOCKED_CATEGORY_IDS.has(String(categoryType))) {
+      throw new Error('Akses Terbatas: Kategori ini tidak tersedia.');
+    }
+
+    const safePerPage = Math.min(Math.max(1, perPage), 20);
+    const key = cacheKeys.apiResponse('ranking-list', `${categoryType}&p=${page}&pp=${safePerPage}`);
+    const cached = serverCache.get<SearchResponse>(key);
+    if (cached) return cached;
+
+    const response = await callMobileApi(
+      'POST',
+      '/wefeed-mobile-bff/subject-api/list',
+      { host: HOST, lang: 'id', area: 'ID' },
+      { page, perPage: safePerPage, categoryType },
+      false,
+      null
+    );
+
+    if (response.code !== 0) {
+      throw new Error(`Mobile Gateway ranking list error: ${response.message || 'unknown error'}`);
+    }
+
+    const rawList = Array.isArray(response.data?.items) ? response.data.items : [];
+    const parsed: Subject[] = rawList
+      .map((sub: any) => normalizeSubject(sub))
+      .filter((sub: Subject) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub) && sub.hasResource !== false);
+
+    const pagerData = response.data?.pager || {};
+    const data: SearchResponse = {
+      items: parsed,
+      pager: {
+        hasMore: pagerData.hasMore ?? parsed.length >= safePerPage,
+        nextPage: String(pagerData.nextPage || page + 1),
+        page: String(page),
+        perPage: safePerPage,
+        totalCount: typeof pagerData.totalCount === 'number' ? pagerData.totalCount : parsed.length,
+      },
+      counts: [],
+      url: `https://${HOST}/wefeed-mobile-bff/subject-api/list?categoryType=${categoryType}`,
+      referer: `https://${HOST}/`,
+    };
+
+    serverCache.set(key, data, cacheTTL.API_RESPONSE);
+    return data;
   },
 
   async getTrending(page: number = 0, clientToken?: string | null): Promise<TrendingResponse> {
@@ -381,7 +507,7 @@ export const movieBoxService = {
     const parsed: Subject[] = searchList
       .filter((item: any) => item.topicType === 'SUBJECT' && Array.isArray(item.subjects))
       .flatMap((item: any) => item.subjects.map((sub: any) => normalizeSubject(sub)))
-      .filter((sub: Subject) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub));
+      .filter((sub: Subject) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub) && sub.hasResource !== false);
 
     const data: SearchResponse = {
       items: parsed,
@@ -443,8 +569,8 @@ export const movieBoxService = {
       }
 
       const subject = normalizeSubject(rawSubject);
-      if (isAdultContent(subject)) {
-        throw new Error('Akses Terbatas: Konten ini tidak tersedia karena mengandung konten dewasa.');
+      if (isAdultContent(rawSubject) || isAdultContent(subject)) {
+        throw new Error('Akses Terbatas: Konten dari sumber ini tidak tersedia.');
       }
       let seasons: Season[] = [];
 
@@ -470,9 +596,9 @@ export const movieBoxService = {
               allEp: String(se.allEp || ''),
               resolutions: Array.isArray(se.resolutions)
                 ? se.resolutions.map((res: any) => ({
-                    resolution: typeof res.resolution === 'number' ? res.resolution : 480,
-                    epNum: typeof res.epNum === 'number' ? res.epNum : 1,
-                  }))
+                  resolution: typeof res.resolution === 'number' ? res.resolution : 480,
+                  epNum: typeof res.epNum === 'number' ? res.epNum : 1,
+                }))
                 : [],
             }));
           }
@@ -489,13 +615,26 @@ export const movieBoxService = {
         }
       }
 
+      // Extract real original source provider name from resourceDetectors
+      let detectedSource = '';
+      let detectedUploadBy = '';
+      if (Array.isArray(subject.resourceDetectors) && subject.resourceDetectors.length > 0) {
+        const first = subject.resourceDetectors[0];
+        detectedSource = first.domain || first.source || '';
+        detectedUploadBy = first.uploadBy || '';
+      } else if (Array.isArray(rawSubject.resourceDetectors) && rawSubject.resourceDetectors.length > 0) {
+        const first = rawSubject.resourceDetectors[0];
+        detectedSource = first.source || '';
+        detectedUploadBy = first.uploadBy || '';
+      }
+
       const data: DetailResponse = {
         subject,
         stars: subject.staffList || [],
         resource: {
           seasons,
-          source: 'aoneroom',
-          uploadBy: 'nobarfilm-gateway',
+          source: detectedSource || (subject.hasResource ? 'moviebox-stream' : ''),
+          uploadBy: detectedUploadBy || 'community',
         },
         metadata: {
           title: subject.title,
@@ -717,7 +856,7 @@ export const movieBoxService = {
       return data;
     } catch (err: any) {
       console.error(`[MovieBox SDK] getSources error for ${subjectId} se=${resolvedSeason} ep=${resolvedEpisode}:`, err.message);
-      
+
       if (!clientToken) {
         try {
           const masterToken = await getAccessToken();

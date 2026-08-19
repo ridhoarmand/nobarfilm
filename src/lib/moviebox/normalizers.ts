@@ -1,42 +1,49 @@
 import { Subject, SubjectType } from '@/types/api';
 import { ALLOWED_SUBJECT_TYPES } from './config';
 
-// Kategori genre pornografi/dewasa eksplisit dari database MovieBox
-const EXPLICIT_ADULT_GENRES = [
-  'adult',
-  'hentai',
-  'ecchi',
-  'erotica',
-  'porn',
-  'porno',
-];
+// Domain provider video dewasa / hentai pada stream sources yang diblokir
+const BLOCKED_SOURCE_DOMAINS_REGEX = /(watchhentai|xprimehub|hentai|pornhub|xvideos|spankbang|xhamster|redtube|youporn|eporner|tube8|beeg|extrahot)\b/i;
 
-// Regex kata kunci pornografi vulgar pada judul atau sinopsis yang membedakan bokep murni vs film bioskop dewasa
-const EXPLICIT_ADULT_KEYWORD_REGEX = /\b(xxx|hentai|porn|porno|jav|pussy|cock|milf|cum|blowjob|bukkake|gangbang|creampie|uncensored|dildo|生ハメ|おまんこ)\b/i;
+// Genre khusus konten dewasa / erotis pada daftar search (seperti konten xprimehub / watchhentai)
+const ADULT_GENRES = ['adult', 'hentai', 'ecchi', 'erotica', 'erotic', 'hot', 'porn', 'porno', 'sensual'];
 
-// Blacklist ID spesifik untuk film erotis jadul / khusus yang di database Moviebox menyamar sebagai "Drama" biasa
-const BLOCKED_ADULT_SUBJECT_IDS = new Set([
-  '2698913074815323160', // Shojo no Kiss-mark
-]);
+// Kata kunci pornografi vulgar pada judul / sinopsis
+const ADULT_KEYWORDS_REGEX = /\b(xxx|hentai|porn|porno|jav|pussy|cock|milf|cum|blowjob|bukkake|gangbang|creampie|uncensored|dildo|生ハメ|おまんこ|wife\s*sex|wife\s*sharing|\[18\+\]|\(18\+\))\b/i;
 
 export function isAdultContent(sub: any): boolean {
   if (!sub) return false;
 
-  const subjectId = String(sub.subjectId || sub.id || '');
-  if (BLOCKED_ADULT_SUBJECT_IDS.has(subjectId)) {
-    return true;
+  // 1. Blokir jika sumber stream berasal dari provider dewasa (watchhentai.net, xprimehub.top, dll.)
+  if (Array.isArray(sub.resourceDetectors)) {
+    for (const r of sub.resourceDetectors) {
+      const source = String(r?.source || '');
+      const link = String(r?.resourceLink || '');
+      const domain = String(r?.domain || '');
+      if (
+        BLOCKED_SOURCE_DOMAINS_REGEX.test(source) ||
+        BLOCKED_SOURCE_DOMAINS_REGEX.test(link) ||
+        BLOCKED_SOURCE_DOMAINS_REGEX.test(domain)
+      ) {
+        return true;
+      }
+    }
   }
 
-  // 1. Cek Genre Eksplisit (Bokep di MovieBox memakai genre 'Adult', 'Hentai', dsb.)
+  // 2. Blokir berdasarkan genre konten dewasa (misal web series 18+ KiwiTv/xprimehub)
   const genre = String(sub.genre || '').toLowerCase();
-  if (EXPLICIT_ADULT_GENRES.some((g) => genre.includes(g))) {
+  if (ADULT_GENRES.some((g) => genre.includes(g))) {
     return true;
   }
 
-  // 2. Cek Judul & Deskripsi terhadap frasa pornografi vulgar
+  // 3. Anime dengan restrictKid: 1 adalah anime hentai (e.g. Dark Blue, Wife With Wife)
+  if (genre.includes('anime') && sub.restrictKid === 1) {
+    return true;
+  }
+
+  // 4. Blokir judul / deskripsi dengan kata kunci pornografi vulgar eksplisit
   const title = String(sub.title || '');
   const desc = String(sub.description || '');
-  if (EXPLICIT_ADULT_KEYWORD_REGEX.test(title) || EXPLICIT_ADULT_KEYWORD_REGEX.test(desc)) {
+  if (ADULT_KEYWORDS_REGEX.test(title) || ADULT_KEYWORDS_REGEX.test(desc)) {
     return true;
   }
 
@@ -49,7 +56,9 @@ export function isAllowedSubjectType(subjectType?: number): boolean {
 
 export function filterSubjects(subjects: Subject[] | undefined): Subject[] {
   if (!Array.isArray(subjects)) return [];
-  return subjects.filter((item) => isAllowedSubjectType(item.subjectType) && !isAdultContent(item));
+  return subjects.filter(
+    (item) => isAllowedSubjectType(item.subjectType) && !isAdultContent(item) && item.hasResource !== false
+  );
 }
 
 export function normalizeCover(url?: string, targetWidth: number = 300) {
@@ -128,5 +137,27 @@ export function normalizeSubject(sub: any): Subject {
         }))
       : [],
     coverHorizontalUrl: sub.coverHorizontalUrl || sub.coverHorizontal || sub.horizontalCover || sub.highCover || '',
+    restrictKid: typeof sub.restrictKid === 'number' ? sub.restrictKid : 0,
+    resourceDetectors: Array.isArray(sub.resourceDetectors)
+      ? sub.resourceDetectors.map((r: any) => {
+          let domain = '';
+          try {
+            if (r.resourceLink && /^https?:\/\//i.test(r.resourceLink)) {
+              const u = new URL(r.resourceLink);
+              domain = u.hostname;
+            } else if (r.source) {
+              domain = r.source.split(' ')[0].replace(/[^a-zA-Z0-9.-]/g, '');
+            }
+          } catch {}
+          return {
+            source: String(r.source || domain || ''),
+            resourceLink: String(r.resourceLink || ''),
+            domain: domain || String(r.source || ''),
+            uploadBy: String(r.uploadBy || ''),
+            totalEpisode: typeof r.totalEpisode === 'number' ? r.totalEpisode : undefined,
+            totalSize: String(r.totalSize || ''),
+          };
+        })
+      : [],
   };
 }

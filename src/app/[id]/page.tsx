@@ -266,23 +266,23 @@ export default function DetailPage() {
                       <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                         <Link
                           href={watchUrl}
-                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base whitespace-nowrap shrink-0"
                         >
-                          <Play className="w-5 h-5 fill-current" />
-                          <span>Play Now</span>
+                          <Play className="w-5 h-5 fill-current shrink-0" />
+                          <span className="whitespace-nowrap">Play Now</span>
                         </Link>
 
                         <button
                           onClick={handleNobarClick}
-                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-7 py-3 border text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
+                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-7 py-3 border text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer whitespace-nowrap shrink-0 ${
                             activeRoomCode && isRoomHost
                               ? 'bg-red-950/60 hover:bg-red-900/80 border-red-500/60'
                               : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
                           }`}
                           title={activeRoomCode && isRoomHost ? `Putar film ini bersama Room ${activeRoomCode}` : 'Buat room nonton bareng teman'}
                         >
-                          <Users className="w-5 h-5 text-red-500" />
-                          <span>{activeRoomCode && isRoomHost ? `Room (${activeRoomCode})` : 'Party'}</span>
+                          <Users className="w-5 h-5 text-red-500 shrink-0" />
+                          <span className="whitespace-nowrap">{activeRoomCode && isRoomHost ? `Room (${activeRoomCode})` : 'Party'}</span>
                         </button>
                       </div>
 
@@ -290,32 +290,32 @@ export default function DetailPage() {
                       <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                         <button
                           onClick={() => openDownloadModal(isSeries ? 1 : 0, isSeries ? 1 : 0)}
-                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-6 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer whitespace-nowrap shrink-0"
                         >
-                          <Download className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300" />
-                          <span>Download</span>
+                          <Download className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 shrink-0" />
+                          <span className="whitespace-nowrap">Download</span>
                         </button>
 
                         <button
                           onClick={() => toggleWatchlist(subject)}
-                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-3 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
+                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-3 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer whitespace-nowrap shrink-0 ${
                             isBookmarked
                               ? 'bg-red-600/10 border-red-500/50 text-red-500'
                               : 'bg-zinc-800/90 hover:bg-zinc-700 border-zinc-700/80 text-white'
                           }`}
                           title={isBookmarked ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
                         >
-                          <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isBookmarked ? 'fill-current' : ''}`} />
-                          <span>Like</span>
+                          <Heart className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${isBookmarked ? 'fill-current' : ''}`} />
+                          <span className="whitespace-nowrap">Like</span>
                         </button>
 
                         <button
                           onClick={handleShare}
-                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer whitespace-nowrap shrink-0"
                           title="Bagikan Film"
                         >
-                          <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300" />
-                          <span>Share</span>
+                          <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 shrink-0" />
+                          <span className="whitespace-nowrap">Share</span>
                         </button>
                       </div>
                     </div>
@@ -402,10 +402,21 @@ export default function DetailPage() {
                 </div>
               )}
 
-              {resource?.source && (
+              {(resource?.source || (subject.resourceDetectors && subject.resourceDetectors.length > 0)) && (
                 <div>
                   <span className="text-gray-400">Source:</span>
-                  <span className="text-white ml-2">{resource.source}</span>
+                  <span className="text-white ml-2 font-mono">
+                    {resource?.source || subject.resourceDetectors?.[0]?.source || subject.resourceDetectors?.[0]?.domain}
+                  </span>
+                </div>
+              )}
+
+              {(resource?.uploadBy || subject.resourceDetectors?.[0]?.uploadBy) && (
+                <div>
+                  <span className="text-gray-400">Uploaded By:</span>
+                  <span className="text-white ml-2">
+                    {resource?.uploadBy || subject.resourceDetectors?.[0]?.uploadBy}
+                  </span>
                 </div>
               )}
 

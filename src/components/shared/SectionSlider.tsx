@@ -1,5 +1,6 @@
 'use client';
 import { useRef } from 'react';
+import Link from 'next/link';
 import { Subject } from '@/types/api';
 import { MovieCard } from './MovieCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -8,9 +9,10 @@ interface SectionSliderProps {
   title: string;
   items: Subject[];
   isRanked?: boolean;
+  categoryType?: string;
 }
 
-export function SectionSlider({ title, items, isRanked = false }: SectionSliderProps) {
+export function SectionSlider({ title, items, isRanked = false, categoryType }: SectionSliderProps) {
   const sliderRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -25,10 +27,24 @@ export function SectionSlider({ title, items, isRanked = false }: SectionSliderP
   return (
     <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-1.5 cursor-pointer group/title hover:text-zinc-300 transition-colors">
-          <span>{title}</span>
-          <span className="text-xs text-[#E50914] opacity-0 group-hover/title:opacity-100 transition-opacity font-bold">Lainnya ›</span>
-        </h2>
+        {categoryType ? (
+          <Link
+            href={`/ranking-list/${categoryType}?title=${encodeURIComponent(title)}`}
+            className="group/title flex items-center gap-2 hover:text-red-500 transition-colors"
+            title={`Lihat semua ${title}`}
+          >
+            <h2 className="text-lg sm:text-xl font-extrabold text-white group-hover/title:text-red-500 tracking-tight transition-colors">
+              {title}
+            </h2>
+            <span className="text-xs text-red-500 font-bold opacity-80 group-hover/title:opacity-100 group-hover/title:translate-x-0.5 transition-all">
+              Lainnya ›
+            </span>
+          </Link>
+        ) : (
+          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+            {title}
+          </h2>
+        )}
       </div>
 
       <div className="relative">
