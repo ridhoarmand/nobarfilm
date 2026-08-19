@@ -88,7 +88,26 @@ export default function DetailPage() {
     }
   };
 
-  const { data, isLoading, error } = useMovieBoxDetail(subjectId);
+  const isInvalidSubjectId = !subjectId || subjectId.includes('.') || subjectId === 'favicon.ico';
+  const { data, isLoading, error } = useMovieBoxDetail(isInvalidSubjectId ? '' : subjectId);
+
+  if (isInvalidSubjectId) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-black pt-16 flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <h1 className="text-4xl font-bold text-red-600 mb-4">404</h1>
+            <p className="text-gray-300 mb-6">Konten tidak ditemukan</p>
+            <button onClick={() => router.push('/')} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+              Kembali ke Beranda
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   if (isLoading) {
     return (
