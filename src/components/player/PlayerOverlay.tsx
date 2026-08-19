@@ -273,9 +273,10 @@ export function PlayerOverlay({
       onTouchStart={!isLocked ? handleTouchStart : undefined}
       onTouchMove={!isLocked ? handleTouchMove : undefined}
       onTouchEnd={!isLocked ? handleTouchEnd : undefined}
-      className="absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300 cursor-pointer"
+      className={`absolute inset-0 z-30 flex flex-col justify-between select-none overflow-hidden transition-opacity duration-300 ${
+        !isLocked && isPlaying && !isVisible ? 'cursor-none' : 'cursor-default'
+      }`}
     >
-      {/* Floating HUD Feedback for Volume & Brightness */}
       {hudFeedback && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fade-in">
           <div className="flex items-center gap-3 px-4 py-2 bg-black/75 border border-white/15 text-white rounded-2xl backdrop-blur-md shadow-2xl">

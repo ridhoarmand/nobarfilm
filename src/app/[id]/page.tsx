@@ -261,12 +261,12 @@ export default function DetailPage() {
 
                   // Show play button for released content
                   return (
-                    <div className="flex flex-col gap-2.5 sm:gap-3 w-full sm:w-auto max-w-md">
-                      {/* Baris 1: Play Now | Party */}
-                      <div className="flex items-center gap-2 sm:gap-3 w-full">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+                      {/* Baris 1 di Mobile / Sejajar di Desktop */}
+                      <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                         <Link
                           href={watchUrl}
-                          className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base"
                         >
                           <Play className="w-5 h-5 fill-current" />
                           <span>Play Now</span>
@@ -274,7 +274,7 @@ export default function DetailPage() {
 
                         <button
                           onClick={handleNobarClick}
-                          className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 border text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
+                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 sm:px-7 py-3 border text-white font-bold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
                             activeRoomCode && isRoomHost
                               ? 'bg-red-950/60 hover:bg-red-900/80 border-red-500/60'
                               : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
@@ -286,35 +286,35 @@ export default function DetailPage() {
                         </button>
                       </div>
 
-                      {/* Baris 2: Download | Like Share */}
-                      <div className="flex items-center gap-2 sm:gap-3 w-full">
+                      {/* Baris 2 di Mobile / Sejajar di Desktop */}
+                      <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                         <button
                           onClick={() => openDownloadModal(isSeries ? 1 : 0, isSeries ? 1 : 0)}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm cursor-pointer"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer"
                         >
-                          <Download className="w-4 h-4 text-zinc-300" />
+                          <Download className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300" />
                           <span>Download</span>
                         </button>
 
                         <button
                           onClick={() => toggleWatchlist(subject)}
-                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm cursor-pointer ${
+                          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-3 border font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer ${
                             isBookmarked
                               ? 'bg-red-600/10 border-red-500/50 text-red-500'
                               : 'bg-zinc-800/90 hover:bg-zinc-700 border-zinc-700/80 text-white'
                           }`}
                           title={isBookmarked ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
                         >
-                          <Heart className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+                          <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isBookmarked ? 'fill-current' : ''}`} />
                           <span>Like</span>
                         </button>
 
                         <button
                           onClick={handleShare}
-                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm cursor-pointer"
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 shadow-md text-sm sm:text-base cursor-pointer"
                           title="Bagikan Film"
                         >
-                          <Share2 className="w-4 h-4 text-zinc-300" />
+                          <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300" />
                           <span>Share</span>
                         </button>
                       </div>

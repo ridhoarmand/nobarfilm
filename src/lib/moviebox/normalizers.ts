@@ -1,13 +1,55 @@
 import { Subject, SubjectType } from '@/types/api';
 import { ALLOWED_SUBJECT_TYPES } from './config';
 
+// Kategori genre pornografi/dewasa eksplisit dari database MovieBox
+const EXPLICIT_ADULT_GENRES = [
+  'adult',
+  'hentai',
+  'ecchi',
+  'erotica',
+  'porn',
+  'porno',
+];
+
+// Regex kata kunci pornografi vulgar pada judul atau sinopsis yang membedakan bokep murni vs film bioskop dewasa
+const EXPLICIT_ADULT_KEYWORD_REGEX = /\b(xxx|hentai|porn|porno|jav|pussy|cock|milf|cum|blowjob|bukkake|gangbang|creampie|uncensored|dildo|生ハメ|おまんこ)\b/i;
+
+// Blacklist ID spesifik untuk film erotis jadul / khusus yang di database Moviebox menyamar sebagai "Drama" biasa
+const BLOCKED_ADULT_SUBJECT_IDS = new Set([
+  '2698913074815323160', // Shojo no Kiss-mark
+]);
+
+export function isAdultContent(sub: any): boolean {
+  if (!sub) return false;
+
+  const subjectId = String(sub.subjectId || sub.id || '');
+  if (BLOCKED_ADULT_SUBJECT_IDS.has(subjectId)) {
+    return true;
+  }
+
+  // 1. Cek Genre Eksplisit (Bokep di MovieBox memakai genre 'Adult', 'Hentai', dsb.)
+  const genre = String(sub.genre || '').toLowerCase();
+  if (EXPLICIT_ADULT_GENRES.some((g) => genre.includes(g))) {
+    return true;
+  }
+
+  // 2. Cek Judul & Deskripsi terhadap frasa pornografi vulgar
+  const title = String(sub.title || '');
+  const desc = String(sub.description || '');
+  if (EXPLICIT_ADULT_KEYWORD_REGEX.test(title) || EXPLICIT_ADULT_KEYWORD_REGEX.test(desc)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function isAllowedSubjectType(subjectType?: number): boolean {
   return typeof subjectType === 'number' && ALLOWED_SUBJECT_TYPES.has(subjectType);
 }
 
 export function filterSubjects(subjects: Subject[] | undefined): Subject[] {
   if (!Array.isArray(subjects)) return [];
-  return subjects.filter((item) => isAllowedSubjectType(item.subjectType));
+  return subjects.filter((item) => isAllowedSubjectType(item.subjectType) && !isAdultContent(item));
 }
 
 export function normalizeCover(url?: string, targetWidth: number = 300) {

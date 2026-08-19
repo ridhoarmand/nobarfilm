@@ -14,7 +14,7 @@ import {
   Caption,
 } from '@/types/api';
 import { HOST, ALLOWED_SUBJECT_TYPES } from './config';
-import { normalizeCover, normalizeSubject, filterSubjects } from './normalizers';
+import { normalizeCover, normalizeSubject, filterSubjects, isAdultContent } from './normalizers';
 import { callMobileApi, getAccessToken } from './client';
 
 function parseStreamResolution(item: any, parentTitle?: string): number {
@@ -203,7 +203,13 @@ export const movieBoxService = {
           lower.includes('nollywood') ||
           lower.includes('made in africa') ||
           lower.includes('black show') ||
-          lower.includes('black teen')
+          lower.includes('black teen') ||
+          lower.includes('adult') ||
+          lower.includes('18+') ||
+          lower.includes('dewasa') ||
+          lower.includes('erotic') ||
+          lower.includes('hentai') ||
+          lower.includes('sensual')
         );
       };
 
@@ -237,6 +243,8 @@ export const movieBoxService = {
               if (!subjectId) return null;
 
               const normSub = normalizeSubject(sub.subjectId ? sub : { ...sub, subjectId });
+              if (isAdultContent(normSub)) return null;
+
               subjectsList.push(normSub);
               return {
                 id: String(bItem.id || normSub.subjectId),
@@ -268,7 +276,7 @@ export const movieBoxService = {
           const rawSubs = Array.isArray(item.subjects) ? item.subjects : [];
           const normSubs = rawSubs
             .map((sub: any) => normalizeSubject(sub))
-            .filter((sub: any) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType));
+            .filter((sub: any) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub));
 
           if (normSubs.length > 0) {
             subjectsList.push(...normSubs);
@@ -373,7 +381,7 @@ export const movieBoxService = {
     const parsed: Subject[] = searchList
       .filter((item: any) => item.topicType === 'SUBJECT' && Array.isArray(item.subjects))
       .flatMap((item: any) => item.subjects.map((sub: any) => normalizeSubject(sub)))
-      .filter((sub: Subject) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType));
+      .filter((sub: Subject) => ALLOWED_SUBJECT_TYPES.has(sub.subjectType) && !isAdultContent(sub));
 
     const data: SearchResponse = {
       items: parsed,
@@ -435,6 +443,9 @@ export const movieBoxService = {
       }
 
       const subject = normalizeSubject(rawSubject);
+      if (isAdultContent(subject)) {
+        throw new Error('Akses Terbatas: Konten ini tidak tersedia karena mengandung konten dewasa.');
+      }
       let seasons: Season[] = [];
 
       if (subject.subjectType === SubjectType.Series) {
