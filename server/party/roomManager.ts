@@ -181,6 +181,10 @@ export function leaveRoom(socketId: string): {
   if (!room) return { room: null, leftParticipant: null, newHost: null, isEmpty: false };
 
   const leftParticipant = room.participants.get(socketId) || null;
+  if (bufferingTimers.has(socketId)) {
+    clearTimeout(bufferingTimers.get(socketId));
+    bufferingTimers.delete(socketId);
+  }
   room.participants.delete(socketId);
   socketToRoom.delete(socketId);
 
@@ -219,6 +223,9 @@ export function getRoomBySocket(socketId: string): Room | null {
   return rooms.get(code.toUpperCase()) || null;
 }
 
+const BUFFERING_TIMEOUT_MS = 8000; // 8s safety timeout to prevent deadlocks
+const bufferingTimers = new Map<string, NodeJS.Timeout>();
+
 export function updatePlaybackState(
   code: string,
   isPlaying: boolean,
@@ -230,13 +237,54 @@ export function updatePlaybackState(
   }
 }
 
-export function setParticipantBuffering(socketId: string, isBuffering: boolean): void {
+export function setParticipantBuffering(
+  socketId: string,
+  isBuffering: boolean,
+  onTimeout?: (roomCode: string, participant: Participant) => void,
+): void {
   const code = socketToRoom.get(socketId);
   if (!code) return;
   const room = rooms.get(code.toUpperCase());
   if (!room) return;
   const p = room.participants.get(socketId);
-  if (p) p.isBuffering = isBuffering;
+  if (!p) return;
+
+  p.isBuffering = isBuffering;
+
+  // Clear previous timer for this socket
+  if (bufferingTimers.has(socketId)) {
+    clearTimeout(bufferingTimers.get(socketId));
+    bufferingTimers.delete(socketId);
+  }
+
+  // Schedule auto-recovery timeout if buffering
+  if (isBuffering && onTimeout) {
+    const timer = setTimeout(() => {
+      bufferingTimers.delete(socketId);
+      const currentRoom = rooms.get(code.toUpperCase());
+      if (currentRoom) {
+        const currentP = currentRoom.participants.get(socketId);
+        if (currentP && currentP.isBuffering) {
+          currentP.isBuffering = false;
+          console.log(`[Party] Buffering safety timeout triggered for "${currentP.displayName}" (${socketId}) in room ${code}`);
+          onTimeout(code, currentP);
+        }
+      }
+    }, BUFFERING_TIMEOUT_MS);
+    bufferingTimers.set(socketId, timer);
+  }
+}
+
+export function clearRoomBuffering(code: string): void {
+  const room = rooms.get(code.toUpperCase());
+  if (!room) return;
+  for (const [sockId, p] of room.participants.entries()) {
+    p.isBuffering = false;
+    if (bufferingTimers.has(sockId)) {
+      clearTimeout(bufferingTimers.get(sockId));
+      bufferingTimers.delete(sockId);
+    }
+  }
 }
 
 export function kickParticipant(
@@ -248,6 +296,11 @@ export function kickParticipant(
   if (!room) return false;
   if (room.hostSocketId !== requestingSocketId) return false;
   if (targetSocketId === requestingSocketId) return false;
+
+  if (bufferingTimers.has(targetSocketId)) {
+    clearTimeout(bufferingTimers.get(targetSocketId));
+    bufferingTimers.delete(targetSocketId);
+  }
 
   room.participants.delete(targetSocketId);
   socketToRoom.delete(targetSocketId);
@@ -279,9 +332,7 @@ export function changeRoomMedia(
   room.episode = episode;
   room.streamPayload = null; // reset stream payload for new media
   room.playbackState = { isPlaying: false, currentTime: 0, lastUpdated: Date.now() };
-  for (const p of room.participants.values()) {
-    p.isBuffering = false;
-  }
+  clearRoomBuffering(code);
   return true;
 }
 

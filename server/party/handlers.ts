@@ -5,9 +5,11 @@ import {
   createRoom,
   joinRoom,
   leaveRoom,
+  getRoom,
   getRoomBySocket,
   updatePlaybackState,
   setParticipantBuffering,
+  clearRoomBuffering,
   kickParticipant,
   serializeParticipants,
   changeRoomMedia,
@@ -180,6 +182,7 @@ export function registerPartyHandlers(io: Server): void {
         socket.emit('party:control-denied', { message: 'Host mengaktifkan kontrol eksklusif. Hanya host yang bisa mengontrol video.' });
         return;
       }
+      clearRoomBuffering(room.code);
       updatePlaybackState(room.code, true, data.currentTime);
       socket.to(room.code).emit('party:play', { currentTime: data.currentTime });
 
@@ -222,6 +225,7 @@ export function registerPartyHandlers(io: Server): void {
         socket.emit('party:control-denied', { message: 'Host mengaktifkan kontrol eksklusif. Hanya host yang bisa mengontrol video.' });
         return;
       }
+      clearRoomBuffering(room.code);
       updatePlaybackState(room.code, room.playbackState.isPlaying, data.currentTime);
       socket.to(room.code).emit('party:seek', { currentTime: data.currentTime });
 
@@ -247,14 +251,45 @@ export function registerPartyHandlers(io: Server): void {
       });
     });
 
-    // === Smart Buffer Lock & Auto-Resume (Only when > 1 participants) ===
+    // === Smart Buffer Lock & Auto-Resume with Safety Timeout ===
 
     socket.on('party:buffering', () => {
       const room = getRoomBySocket(socket.id);
       if (!room || room.participants.size <= 1) return;
 
-      setParticipantBuffering(socket.id, true);
       const participant = room.participants.get(socket.id);
+
+      setParticipantBuffering(socket.id, true, (roomCode, timeoutParticipant) => {
+        const currentRoom = getRoom(roomCode);
+        if (!currentRoom) return;
+
+        // Auto-recover and resume if all other participants are ready
+        const allReady = areAllParticipantsReady(roomCode);
+        if (allReady) {
+          updatePlaybackState(roomCode, true, currentRoom.playbackState.currentTime);
+          io.to(roomCode).emit('party:all-resume', {
+            currentTime: currentRoom.playbackState.currentTime,
+            participants: serializeParticipants(currentRoom),
+          });
+
+          const timeoutMsg: ChatMessage = {
+            id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            type: 'system',
+            text: `⚠️ Menunggu ${timeoutParticipant.displayName} buffering melebihi batas waktu (8s). Pemutaran otomatis dilanjutkan.`,
+            timestamp: Date.now(),
+          };
+          addChatHistory(roomCode, timeoutMsg);
+          io.to(roomCode).emit('party:chat', timeoutMsg);
+        }
+
+        const targetSock = io.sockets.sockets.get(timeoutParticipant.socketId);
+        if (targetSock) {
+          targetSock.emit('party:buffering-timeout', {
+            message: 'Koneksi lambat terdeteksi. Pemutaran dilanjutkan agar peserta lain tidak menunggu.',
+          });
+        }
+      });
+
       // Pause playback state when buffering occurs
       updatePlaybackState(room.code, false, room.playbackState.currentTime);
 

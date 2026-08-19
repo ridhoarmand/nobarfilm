@@ -108,6 +108,49 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const [volume, setVolumeState] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hasVideoError, setHasVideoError] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [bufferPercent, setBufferPercent] = useState<number>(0);
+
+  // Debounce timer for stall detection & instant seeking
+  const waitingDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper to check if a specific playback timestamp is already in memory buffer (YouTube-grade instant seek)
+  const isPositionBuffered = useCallback((targetTime: number): boolean => {
+    const video = videoRef.current;
+    if (!video || !video.buffered || video.buffered.length === 0) return false;
+    for (let i = 0; i < video.buffered.length; i++) {
+      const start = video.buffered.start(i);
+      const end = video.buffered.end(i);
+      // If target time is within buffered range with a 0.25s margin
+      if (targetTime >= start - 0.1 && targetTime <= end - 0.25) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
+  // Helper to compute buffer ahead percentage accurately from video TimeRanges
+  const calculateBufferProgress = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return 0;
+    const curTime = video.currentTime;
+    let bufEnd = curTime;
+    if (video.buffered && video.buffered.length > 0) {
+      for (let i = 0; i < video.buffered.length; i++) {
+        const start = video.buffered.start(i);
+        const end = video.buffered.end(i);
+        if (start <= curTime + 0.5 && end >= curTime) {
+          bufEnd = end;
+          break;
+        }
+      }
+    }
+    const bufferedAhead = Math.max(0, bufEnd - curTime);
+    const targetBufferAhead = 3.0; // 3 seconds target for smooth play
+    const pct = Math.min(99, Math.round((bufferedAhead / targetBufferAhead) * 100));
+    return Math.max(15, pct);
+  }, []);
 
   // Client-side detection without SSR mismatch
   const isClient = useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -232,7 +275,16 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
-        backBufferLength: 90,
+        backBufferLength: 120, // Keep 2 minutes of played video in memory for instant rewind
+        maxBufferLength: 60,   // Buffer 60 seconds ahead for instant forward jump
+        maxMaxBufferLength: 300, // Max 5 minutes forward buffer
+        maxBufferSize: 128 * 1024 * 1024, // 128MB RAM buffer
+        maxBufferHole: 0.5,
+        highBufferWatchdogPeriod: 2,
+        nudgeOffset: 0.1,
+        nudgeMaxRetry: 5,
+        startFragPrefetch: true,
+        progressive: true,
         capLevelToPlayerSize: true, // YouTube-like optimization: don't load 4K on small screens
       });
 
@@ -246,10 +298,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           hls!.currentLevel = -1;
         }
         restoreTimeAndPlay();
-      });
-
-      hls.on(Hls.Events.FRAG_LOADING, () => {
-        setIsBuffering(true);
       });
 
       hls.on(Hls.Events.FRAG_LOADED, () => {
@@ -269,6 +317,17 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       });
 
       hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
+        if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+          const videoEl = videoRef.current;
+          if (videoEl && !videoEl.paused) {
+            const isBuffered = isPositionBuffered(videoEl.currentTime);
+            if (!isBuffered) {
+              setIsBuffering(true);
+              setBufferPercent(calculateBufferProgress());
+            }
+          }
+          return;
+        }
         if (data.fatal) {
           if (data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
             console.warn('[HLS] Stream is not HLS manifest, falling back to native src load');
@@ -526,10 +585,21 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const handleSeek = useCallback((targetTime: number) => {
     const video = videoRef.current;
     if (!video) return;
+
+    const isBuffered = isPositionBuffered(targetTime);
+    if (isBuffered) {
+      if (waitingDebounceTimerRef.current) {
+        clearTimeout(waitingDebounceTimerRef.current);
+        waitingDebounceTimerRef.current = null;
+      }
+      setIsBuffering(false);
+      setBufferPercent(100);
+    }
+
     video.currentTime = targetTime;
     setCurrentTime(targetTime);
     if (isInParty && onPartySeek) onPartySeek(targetTime);
-  }, [isInParty, onPartySeek]);
+  }, [isInParty, onPartySeek, isPositionBuffered]);
 
   const handleVolumeChange = useCallback((newVol: number) => {
     const video = videoRef.current;
@@ -640,33 +710,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     isActive: true,
   });
 
-  const [hasVideoError, setHasVideoError] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [bufferPercent, setBufferPercent] = useState<number>(0);
-
-  // Helper to compute buffer ahead percentage
-  const calculateBufferProgress = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return 0;
-    const curTime = video.currentTime;
-    let bufEnd = curTime;
-    if (video.buffered && video.buffered.length > 0) {
-      for (let i = 0; i < video.buffered.length; i++) {
-        const start = video.buffered.start(i);
-        const end = video.buffered.end(i);
-        if (start <= curTime + 0.5 && end >= curTime) {
-          bufEnd = end;
-          break;
-        }
-      }
-    }
-    const bufferedAhead = Math.max(0, bufEnd - curTime);
-    const targetBufferAhead = 3.5; // seconds target for smooth play
-    const pct = Math.min(99, Math.round((bufferedAhead / targetBufferAhead) * 100));
-    return pct;
-  }, []);
-
-  // Update buffer percentage smoothly while buffering
+  // Update buffer percentage smoothly while genuinely buffering
   const simulatedProgressRef = useRef<number>(15);
 
   useEffect(() => {
@@ -676,7 +720,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
 
     setBufferPercent((prev) => {
-      const start = prev > 0 ? prev : 15;
+      const start = prev > 0 && prev < 90 ? prev : 15;
       simulatedProgressRef.current = start;
       return start;
     });
@@ -735,31 +779,93 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         }}
         className="w-full h-full object-contain bg-black block"
         onPlay={() => {
+          if (waitingDebounceTimerRef.current) {
+            clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = null;
+          }
           setIsPlaying(true);
           setIsBuffering(false);
           setBufferPercent(100);
           setHasVideoError(false);
         }}
-        onPause={() => setIsPlaying(false)}
+        onPause={() => {
+          if (waitingDebounceTimerRef.current) {
+            clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = null;
+          }
+          setIsPlaying(false);
+          setIsBuffering(false);
+          if (isInParty && onPartyBuffering) onPartyBuffering(false);
+        }}
         onWaiting={() => {
-          setIsBuffering(true);
-          setBufferPercent((prev) => (prev > 0 ? prev : 20));
-          if (isInParty && onPartyBuffering) onPartyBuffering(true);
+          const video = videoRef.current;
+          if (!video) return;
+          const isBuffered = isPositionBuffered(video.currentTime);
+          if (isBuffered) {
+            // Already in buffer (instant micro-decode), do NOT show spinner or broadcast buffering
+            return;
+          }
+
+          if (waitingDebounceTimerRef.current) clearTimeout(waitingDebounceTimerRef.current);
+          waitingDebounceTimerRef.current = setTimeout(() => {
+            const v = videoRef.current;
+            if (v && !isPositionBuffered(v.currentTime) && !v.paused) {
+              setIsBuffering(true);
+              const real = calculateBufferProgress();
+              setBufferPercent(real > 0 ? real : 20);
+              if (isInParty && onPartyBuffering) onPartyBuffering(true);
+            }
+          }, 250);
         }}
         onSeeking={() => {
-          setIsBuffering(true);
-          setBufferPercent(20);
+          const video = videoRef.current;
+          const isBuffered = isPositionBuffered(video ? video.currentTime : 0);
+          if (isBuffered) {
+            // Instant seek: chunk is already in buffer! Never show loading spinner
+            if (waitingDebounceTimerRef.current) {
+              clearTimeout(waitingDebounceTimerRef.current);
+              waitingDebounceTimerRef.current = null;
+            }
+            setIsBuffering(false);
+            setBufferPercent(100);
+          } else {
+            // Outside of buffered range: debounce before showing spinner
+            if (waitingDebounceTimerRef.current) clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = setTimeout(() => {
+              const v = videoRef.current;
+              if (v && !isPositionBuffered(v.currentTime)) {
+                setIsBuffering(true);
+                setBufferPercent((prev) => (prev > 0 && prev < 90 ? prev : 20));
+              }
+            }, 250);
+          }
         }}
         onSeeked={() => {
-          setIsBuffering(false);
-          setBufferPercent(100);
+          if (waitingDebounceTimerRef.current) {
+            clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = null;
+          }
+          const video = videoRef.current;
+          if (video && (video.readyState >= 2 || isPositionBuffered(video.currentTime))) {
+            setIsBuffering(false);
+            setBufferPercent(100);
+            if (isInParty && onPartyBuffering) onPartyBuffering(false);
+          }
         }}
         onCanPlay={() => {
+          if (waitingDebounceTimerRef.current) {
+            clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = null;
+          }
           setIsBuffering(false);
           setBufferPercent(100);
           if (isInParty && onPartyBuffering) onPartyBuffering(false);
         }}
         onPlaying={() => {
+          if (waitingDebounceTimerRef.current) {
+            clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = null;
+          }
           setIsPlaying(true);
           setIsBuffering(false);
           setBufferPercent(100);

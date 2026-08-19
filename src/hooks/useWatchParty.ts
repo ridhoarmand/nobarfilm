@@ -42,6 +42,9 @@ export function useWatchParty(
 
   const socketRef = useRef<Socket | null>(null);
   const isSyncRef = useRef(false);
+  const bufferingDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isBufferingReportedRef = useRef(false);
+  const resumeGracePeriodUntilRef = useRef<number>(0);
 
   // Initialize socket connection only when in party or partyCode in URL
   const shouldConnect = !!options.partyCode || !!roomCode;
@@ -141,15 +144,26 @@ export function useWatchParty(
     socket.on('party:all-resume', (data: { currentTime: number; participants: PartyParticipant[] }) => {
       useWatchPartyStore.getState().setParticipants(data.participants);
       toast.dismiss('party-buffering-lock');
+      resumeGracePeriodUntilRef.current = Date.now() + 2000; // 2s grace period to prevent immediate re-stall lock
       const video = videoRef.current;
       if (video) {
         isSyncRef.current = true;
-        video.currentTime = data.currentTime;
+        if (Math.abs(video.currentTime - data.currentTime) > 1.2) {
+          video.currentTime = data.currentTime;
+        }
         safePlayVideo(video);
       }
       toast.success('Semua siap! Video dilanjutkan 🎉', {
         id: 'party-resume-toast',
         duration: 2500,
+      });
+    });
+
+    socket.on('party:buffering-timeout', (data: { message?: string }) => {
+      toast(data.message || 'Koneksi lambat terdeteksi. Video dilanjutkan.', {
+        id: 'buffering-timeout-toast',
+        icon: '⚠️',
+        duration: 4000,
       });
     });
 
@@ -484,11 +498,42 @@ export function useWatchParty(
     }
   }, []);
 
-  // Notify buffering state (Smart buffer lock)
+  // Notify buffering state (Smart buffer lock with debounce & micro-stall suppression)
   const notifyBuffering = useCallback((isBuffering: boolean) => {
     if (!socketRef.current || !useWatchPartyStore.getState().roomCode) return;
-    socketRef.current.emit(isBuffering ? 'party:buffering' : 'party:buffered');
-  }, []);
+
+    if (bufferingDebounceTimerRef.current) {
+      clearTimeout(bufferingDebounceTimerRef.current);
+      bufferingDebounceTimerRef.current = null;
+    }
+
+    if (isBuffering) {
+      // Ignore if within resume grace period (prevent immediate re-stall loop)
+      if (Date.now() < resumeGracePeriodUntilRef.current) {
+        return;
+      }
+      // Ignore if video is locally paused
+      const video = videoRef.current;
+      if (video && video.paused) {
+        return;
+      }
+
+      // Debounce 350ms to swallow micro-stalls
+      bufferingDebounceTimerRef.current = setTimeout(() => {
+        if (!socketRef.current || !useWatchPartyStore.getState().roomCode) return;
+        const v = videoRef.current;
+        if (v && !v.paused) {
+          isBufferingReportedRef.current = true;
+          socketRef.current.emit('party:buffering');
+        }
+      }, 350);
+    } else {
+      if (isBufferingReportedRef.current) {
+        isBufferingReportedRef.current = false;
+        socketRef.current.emit('party:buffered');
+      }
+    }
+  }, [videoRef]);
 
   return {
     // Actions
