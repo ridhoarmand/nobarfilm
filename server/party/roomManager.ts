@@ -2,6 +2,7 @@
 
 const MAX_PARTICIPANTS = 4;
 const CLEANUP_DELAY = 5 * 60 * 1000; // 5 minutes
+const MAX_CHAT_HISTORY = 30;
 
 interface Participant {
   socketId: string;
@@ -32,6 +33,15 @@ export interface StreamPayload {
   duration?: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'system';
+  senderName?: string;
+  senderColor?: string;
+  text: string;
+  timestamp: number;
+}
+
 interface Room {
   code: string;
   hostSocketId: string;
@@ -46,6 +56,8 @@ interface Room {
   };
   streamPayload: StreamPayload | null;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
+  hostOnlyControls: boolean;
+  chatHistory: ChatMessage[];
 }
 
 const rooms = new Map<string, Room>();
@@ -92,7 +104,22 @@ export function createRoom(
     playbackState: { isPlaying: false, currentTime: 0, lastUpdated: Date.now() },
     streamPayload: null,
     cleanupTimer: null,
+    hostOnlyControls: false,
+    chatHistory: [],
   };
+
+  // Schedule cleanup for API-created rooms (placeholder socketId)
+  // so orphaned rooms don't leak memory forever
+  if (hostSocketId.startsWith('init-')) {
+    room.cleanupTimer = setTimeout(() => {
+      const existing = rooms.get(code);
+      if (existing && existing.hostSocketId.startsWith('init-')) {
+        rooms.delete(code);
+        socketToRoom.delete(hostSocketId);
+        console.log(`[Party] Orphaned API room ${code} cleaned up`);
+      }
+    }, CLEANUP_DELAY);
+  }
 
   rooms.set(code, room);
   socketToRoom.set(hostSocketId, code);
@@ -278,3 +305,26 @@ export function serializeParticipants(
 }> {
   return Array.from(room.participants.values());
 }
+
+export function toggleHostOnlyControls(code: string, requestingSocketId: string): boolean | null {
+  const room = rooms.get(code.toUpperCase());
+  if (!room) return null;
+  if (room.hostSocketId !== requestingSocketId) return null;
+  room.hostOnlyControls = !room.hostOnlyControls;
+  return room.hostOnlyControls;
+}
+
+export function addChatHistory(code: string, message: ChatMessage): void {
+  const room = rooms.get(code.toUpperCase());
+  if (!room) return;
+  room.chatHistory.push(message);
+  if (room.chatHistory.length > MAX_CHAT_HISTORY) {
+    room.chatHistory = room.chatHistory.slice(-MAX_CHAT_HISTORY);
+  }
+}
+
+export function getChatHistory(code: string): ChatMessage[] {
+  const room = rooms.get(code.toUpperCase());
+  return room?.chatHistory || [];
+}
+

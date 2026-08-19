@@ -13,6 +13,37 @@ interface WatchPartyPanelProps {
   onSendReaction: (emoji: string) => void;
   onLeaveRoom: () => void;
   onKickUser?: (socketId: string) => void;
+  onToggleHostControls?: () => void;
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Clipboard] navigator.clipboard failed, using fallback:', e);
+  }
+
+  try {
+    if (typeof document !== 'undefined') {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-999999px';
+      textarea.style.top = '-999999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return ok;
+    }
+  } catch (err) {
+    console.error('[Clipboard] Fallback execCommand failed:', err);
+  }
+  return false;
 }
 
 export function WatchPartyPanel({
@@ -20,6 +51,7 @@ export function WatchPartyPanel({
   onSendReaction,
   onLeaveRoom,
   onKickUser,
+  onToggleHostControls,
 }: WatchPartyPanelProps) {
   const roomCode = useWatchPartyStore((s) => s.roomCode);
   const isHost = useWatchPartyStore((s) => s.isHost);
@@ -29,17 +61,33 @@ export function WatchPartyPanel({
   const setActiveTab = useWatchPartyStore((s) => s.setActiveTab);
   const participants = useWatchPartyStore((s) => s.participants);
 
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   if (!isPanelOpen || !roomCode) return null;
 
-  const handleShareLink = async () => {
-    if (typeof window === 'undefined') return;
+  const getFullShareUrl = () => {
+    if (typeof window === 'undefined') return '';
     const url = new URL(window.location.href);
     url.searchParams.set('party', roomCode);
-    const fullUrl = url.toString();
+    return url.toString();
+  };
 
-    if (navigator.share) {
+  const handleCopyLink = async () => {
+    const fullUrl = getFullShareUrl();
+    const ok = await copyToClipboard(fullUrl);
+    if (ok) {
+      setCopiedLink(true);
+      toast.success('Link nobar disalin ke clipboard! 🎉');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } else {
+      toast.error('Gagal menyalin link');
+    }
+  };
+
+  const handleShare = async () => {
+    const fullUrl = getFullShareUrl();
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
           title: 'Nobar Bareng di NobarFilm 🎉',
@@ -47,22 +95,21 @@ export function WatchPartyPanel({
           url: fullUrl,
         });
         return;
-      } catch {
-        // Fallback to clipboard
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
       }
     }
-
-    navigator.clipboard.writeText(fullUrl);
-    setCopied(true);
-    toast.success('Link nobar disalin ke clipboard! 🎉');
-    setTimeout(() => setCopied(false), 2000);
+    // Fallback to copy link
+    handleCopyLink();
   };
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(roomCode);
-    setCopied(true);
-    toast.success(`Kode room ${roomCode} disalin!`);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyCode = async () => {
+    const ok = await copyToClipboard(roomCode);
+    if (ok) {
+      setCopiedCode(true);
+      toast.success(`Kode room ${roomCode} disalin!`);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
   };
 
   return (
@@ -77,20 +124,31 @@ export function WatchPartyPanel({
               <button
                 onClick={handleCopyCode}
                 className="text-xs font-mono font-bold text-white tracking-wider bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded border border-zinc-700 transition-colors flex items-center gap-1"
-                title="Klik untuk salin kode"
+                title="Klik untuk salin kode room"
               >
                 <span>{roomCode}</span>
-                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-zinc-400" />}
+                {copiedCode ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-zinc-400" />}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Copy Full Link */}
           <button
-            onClick={handleShareLink}
+            onClick={handleCopyLink}
+            title="Salin Tautan Nobar"
+            className="p-1.5 sm:px-2 sm:py-1.5 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold"
+          >
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
+            <span className="hidden sm:inline">{copiedLink ? 'Tersalin' : 'Salin Link'}</span>
+          </button>
+
+          {/* Native Share */}
+          <button
+            onClick={handleShare}
             title="Bagikan Tautan Nobar"
-            className="p-1.5 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold"
+            className="p-1.5 sm:px-2 sm:py-1.5 text-zinc-300 hover:text-white bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold text-red-300 hover:text-red-200"
           >
             <Share2 className="w-3.5 h-3.5 text-red-400" />
             <span className="hidden sm:inline">Bagikan</span>
@@ -125,8 +183,8 @@ export function WatchPartyPanel({
             <p className="text-[11px] text-zinc-400 truncate">Bagikan link ke teman untuk nobar</p>
           </div>
           <button
-            onClick={handleShareLink}
-            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 shadow-md"
+            onClick={handleShare}
+            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 shadow-md cursor-pointer"
           >
             <Share2 className="w-3 h-3" />
             <span>Undang</span>
@@ -166,7 +224,7 @@ export function WatchPartyPanel({
         {activeTab === 'chat' ? (
           <WatchPartyChat onSendChat={onSendChat} />
         ) : (
-          <WatchPartyParticipants onKickUser={onKickUser} />
+          <WatchPartyParticipants onKickUser={onKickUser} onToggleHostControls={onToggleHostControls} />
         )}
       </div>
 

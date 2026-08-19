@@ -38,6 +38,7 @@ export function useWatchParty(
   const isConnected = useWatchPartyStore((s) => s.isConnected);
   const mySocketId = useWatchPartyStore((s) => s.mySocketId);
   const streamPayload = useWatchPartyStore((s) => s.streamPayload);
+  const hostOnlyControls = useWatchPartyStore((s) => s.hostOnlyControls);
 
   const socketRef = useRef<Socket | null>(null);
   const isSyncRef = useRef(false);
@@ -78,7 +79,6 @@ export function useWatchParty(
       const video = videoRef.current;
       if (!video) return;
       isSyncRef.current = true;
-      useWatchPartyStore.getState().setSyncAction(true);
       if (Math.abs(video.currentTime - data.currentTime) > 1.5) {
         video.currentTime = data.currentTime;
       }
@@ -89,7 +89,6 @@ export function useWatchParty(
       const video = videoRef.current;
       if (!video) return;
       isSyncRef.current = true;
-      useWatchPartyStore.getState().setSyncAction(true);
       video.currentTime = data.currentTime;
       video.pause();
     });
@@ -98,7 +97,6 @@ export function useWatchParty(
       const video = videoRef.current;
       if (!video) return;
       isSyncRef.current = true;
-      useWatchPartyStore.getState().setSyncAction(true);
       video.currentTime = data.currentTime;
     });
 
@@ -110,14 +108,12 @@ export function useWatchParty(
       const drift = Math.abs(video.currentTime - data.currentTime);
       if (drift > 2) {
         isSyncRef.current = true;
-        useWatchPartyStore.getState().setSyncAction(true);
         video.currentTime = data.currentTime;
       }
 
       const localPlaying = !video.paused;
       if (data.isPlaying !== localPlaying) {
         isSyncRef.current = true;
-        useWatchPartyStore.getState().setSyncAction(true);
         if (data.isPlaying) safePlayVideo(video);
         else video.pause();
       }
@@ -133,7 +129,6 @@ export function useWatchParty(
       const video = videoRef.current;
       if (video && !video.paused) {
         isSyncRef.current = true;
-        useWatchPartyStore.getState().setSyncAction(true);
         video.pause();
       }
       toast(`⏳ Menunggu ${data.displayName} buffering...`, {
@@ -149,7 +144,6 @@ export function useWatchParty(
       const video = videoRef.current;
       if (video) {
         isSyncRef.current = true;
-        useWatchPartyStore.getState().setSyncAction(true);
         video.currentTime = data.currentTime;
         safePlayVideo(video);
       }
@@ -182,6 +176,24 @@ export function useWatchParty(
       useWatchPartyStore.getState().setStreamPayload(null);
       if (options.onRemoteMediaChange) {
         options.onRemoteMediaChange(data);
+      }
+    });
+
+    // === Host-Only Controls ===
+
+    socket.on('party:host-controls-changed', (data: { hostOnlyControls: boolean }) => {
+      useWatchPartyStore.getState().setHostOnlyControls(data.hostOnlyControls);
+    });
+
+    socket.on('party:control-denied', (data: { message: string }) => {
+      toast.error(data.message || 'Hanya host yang bisa mengontrol video', {
+        id: 'control-denied-toast',
+        duration: 2500,
+      });
+      // Revert local video state to match server state (undo the local action)
+      const video = videoRef.current;
+      if (video) {
+        isSyncRef.current = true;
       }
     });
 
@@ -297,12 +309,14 @@ export function useWatchParty(
             success: boolean;
             roomCode?: string;
             participants?: PartyParticipant[];
+            hostOnlyControls?: boolean;
             error?: string;
           }) => {
             if (response.success && response.roomCode) {
               useWatchPartyStore.getState().setRoomCode(response.roomCode);
               useWatchPartyStore.getState().setIsHost(true);
               if (response.participants) useWatchPartyStore.getState().setParticipants(response.participants);
+              useWatchPartyStore.getState().setHostOnlyControls(response.hostOnlyControls ?? false);
               useWatchPartyStore.getState().setPanelOpen(true);
               useWatchPartyStore.getState().setGuestName(displayName);
               resolve(response.roomCode);
@@ -335,6 +349,8 @@ export function useWatchParty(
             playbackState?: { isPlaying: boolean; currentTime: number };
             participants?: PartyParticipant[];
             streamPayload?: PartyStreamPayload;
+            hostOnlyControls?: boolean;
+            recentMessages?: PartyChatMessage[];
             error?: string;
           }) => {
             if (response.success) {
@@ -342,6 +358,14 @@ export function useWatchParty(
               useWatchPartyStore.getState().setIsHost(response.playbackState ? false : true);
               if (response.participants) useWatchPartyStore.getState().setParticipants(response.participants);
               useWatchPartyStore.getState().setGuestName(displayName);
+              useWatchPartyStore.getState().setHostOnlyControls(response.hostOnlyControls ?? false);
+
+              // Load recent chat history for late joiners
+              if (response.recentMessages && response.recentMessages.length > 0) {
+                for (const msg of response.recentMessages) {
+                  useWatchPartyStore.getState().addMessage(msg);
+                }
+              }
 
               if (response.streamPayload) {
                 useWatchPartyStore.getState().setStreamPayload(response.streamPayload);
@@ -351,7 +375,6 @@ export function useWatchParty(
               const video = videoRef.current;
               if (video && response.playbackState) {
                 isSyncRef.current = true;
-                useWatchPartyStore.getState().setSyncAction(true);
                 video.currentTime = response.playbackState.currentTime;
                 if (response.playbackState.isPlaying) {
                   safePlayVideo(video);
@@ -422,11 +445,16 @@ export function useWatchParty(
     [],
   );
 
+  // Host toggles host-only playback controls
+  const toggleHostControls = useCallback(() => {
+    if (!socketRef.current || !useWatchPartyStore.getState().roomCode) return;
+    socketRef.current.emit('party:toggle-host-controls');
+  }, []);
+
   // Party-aware callbacks for MoviePlayer
   const onPartyPlay = useCallback(() => {
     if (isSyncRef.current) {
       isSyncRef.current = false;
-      useWatchPartyStore.getState().setSyncAction(false);
       return;
     }
     const video = videoRef.current;
@@ -438,7 +466,6 @@ export function useWatchParty(
   const onPartyPause = useCallback(() => {
     if (isSyncRef.current) {
       isSyncRef.current = false;
-      useWatchPartyStore.getState().setSyncAction(false);
       return;
     }
     const video = videoRef.current;
@@ -450,7 +477,6 @@ export function useWatchParty(
   const onPartySeek = useCallback((time: number) => {
     if (isSyncRef.current) {
       isSyncRef.current = false;
-      useWatchPartyStore.getState().setSyncAction(false);
       return;
     }
     if (socketRef.current && useWatchPartyStore.getState().roomCode) {
@@ -475,6 +501,7 @@ export function useWatchParty(
     notifyBuffering,
     changeMedia,
     uploadStreamPayload,
+    toggleHostControls,
 
     // Party-aware player callbacks
     onPartyPlay,
@@ -490,5 +517,6 @@ export function useWatchParty(
     isConnected,
     mySocketId,
     streamPayload,
+    hostOnlyControls,
   };
 }

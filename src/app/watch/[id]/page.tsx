@@ -83,6 +83,7 @@ function WatchContent() {
     notifyBuffering,
     changeMedia,
     uploadStreamPayload,
+    toggleHostControls,
     streamPayload,
     isHost,
     onPartyPlay,
@@ -680,6 +681,7 @@ function WatchContent() {
           onSendReaction={sendReaction}
           onLeaveRoom={handleLeaveParty}
           onKickUser={kickUser}
+          onToggleHostControls={toggleHostControls}
         />
       </div>
 

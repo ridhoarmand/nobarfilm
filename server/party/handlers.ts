@@ -14,7 +14,11 @@ import {
   areAllParticipantsReady,
   setRoomStreamPayload,
   getRoomStreamPayload,
+  toggleHostOnlyControls,
+  addChatHistory,
+  getChatHistory,
   StreamPayload,
+  ChatMessage,
 } from './roomManager';
 
 // In-memory sliding-window rate limiter per socket
@@ -89,6 +93,7 @@ export function registerPartyHandlers(io: Server): void {
           participants: serializeParticipants(room),
           playbackState: room.playbackState,
           streamPayload: room.streamPayload,
+          hostOnlyControls: room.hostOnlyControls,
         });
         console.log(`[Party] Room ${room.code} created by "${displayName}"`);
       } catch (err) {
@@ -128,6 +133,8 @@ export function registerPartyHandlers(io: Server): void {
           subjectId: result.room.subjectId,
           season: result.room.season,
           episode: result.room.episode,
+          hostOnlyControls: result.room.hostOnlyControls,
+          recentMessages: getChatHistory(result.room.code),
         });
 
         console.log(`[Party] "${displayName}" joined room ${result.room.code}`);
@@ -169,46 +176,64 @@ export function registerPartyHandlers(io: Server): void {
     socket.on('party:play', (data) => {
       const room = getRoomBySocket(socket.id);
       if (!room) return;
+      if (room.hostOnlyControls && room.hostSocketId !== socket.id) {
+        socket.emit('party:control-denied', { message: 'Host mengaktifkan kontrol eksklusif. Hanya host yang bisa mengontrol video.' });
+        return;
+      }
       updatePlaybackState(room.code, true, data.currentTime);
       socket.to(room.code).emit('party:play', { currentTime: data.currentTime });
 
       const participant = room.participants.get(socket.id);
-      io.to(room.code).emit('party:chat', {
+      const activityMsg: ChatMessage = {
         id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         type: 'system',
         text: `▶️ ${participant?.displayName || 'Seseorang'} melanjutkan video`,
         timestamp: Date.now(),
-      });
+      };
+      addChatHistory(room.code, activityMsg);
+      io.to(room.code).emit('party:chat', activityMsg);
     });
 
     socket.on('party:pause', (data) => {
       const room = getRoomBySocket(socket.id);
       if (!room) return;
+      if (room.hostOnlyControls && room.hostSocketId !== socket.id) {
+        socket.emit('party:control-denied', { message: 'Host mengaktifkan kontrol eksklusif. Hanya host yang bisa mengontrol video.' });
+        return;
+      }
       updatePlaybackState(room.code, false, data.currentTime);
       socket.to(room.code).emit('party:pause', { currentTime: data.currentTime });
 
       const participant = room.participants.get(socket.id);
-      io.to(room.code).emit('party:chat', {
+      const activityMsg: ChatMessage = {
         id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         type: 'system',
         text: `⏸️ ${participant?.displayName || 'Seseorang'} menjeda video di ${formatTime(data.currentTime)}`,
         timestamp: Date.now(),
-      });
+      };
+      addChatHistory(room.code, activityMsg);
+      io.to(room.code).emit('party:chat', activityMsg);
     });
 
     socket.on('party:seek', (data) => {
       const room = getRoomBySocket(socket.id);
       if (!room) return;
+      if (room.hostOnlyControls && room.hostSocketId !== socket.id) {
+        socket.emit('party:control-denied', { message: 'Host mengaktifkan kontrol eksklusif. Hanya host yang bisa mengontrol video.' });
+        return;
+      }
       updatePlaybackState(room.code, room.playbackState.isPlaying, data.currentTime);
       socket.to(room.code).emit('party:seek', { currentTime: data.currentTime });
 
       const participant = room.participants.get(socket.id);
-      io.to(room.code).emit('party:chat', {
+      const activityMsg: ChatMessage = {
         id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         type: 'system',
         text: `⏩ ${participant?.displayName || 'Seseorang'} melompat ke ${formatTime(data.currentTime)}`,
         timestamp: Date.now(),
-      });
+      };
+      addChatHistory(room.code, activityMsg);
+      io.to(room.code).emit('party:chat', activityMsg);
     });
 
     // Heartbeat from host (every 5s) for drift correction
@@ -303,7 +328,7 @@ export function registerPartyHandlers(io: Server): void {
       const rawText = String(data.text || '').trim();
       if (!rawText) return;
 
-      const message = {
+      const message: ChatMessage = {
         id: `${socket.id}-${Date.now()}`,
         type: 'user' as const,
         senderName: participant.displayName,
@@ -312,6 +337,7 @@ export function registerPartyHandlers(io: Server): void {
         timestamp: Date.now(),
       };
 
+      addChatHistory(room.code, message);
       io.to(room.code).emit('party:chat', message);
     });
 
@@ -344,18 +370,53 @@ export function registerPartyHandlers(io: Server): void {
       if (!room) return;
 
       const targetParticipant = room.participants.get(data.targetSocketId);
+      if (!targetParticipant) return;
+
+      // Disconnect target from room FIRST, then remove from state
+      // to prevent race condition where kicked user can still send events
+      const targetSocket = io.sockets.sockets.get(data.targetSocketId);
+      if (targetSocket) {
+        targetSocket.emit('party:kicked');
+        targetSocket.leave(room.code);
+      }
+
       const success = kickParticipant(room.code, data.targetSocketId, socket.id);
       if (success) {
-        const targetSocket = io.sockets.sockets.get(data.targetSocketId);
-        if (targetSocket) {
-          targetSocket.emit('party:kicked');
-          targetSocket.leave(room.code);
-        }
         io.to(room.code).emit('party:user-left', {
-          displayName: targetParticipant?.displayName || 'Unknown',
+          displayName: targetParticipant.displayName,
           participants: serializeParticipants(room),
           kicked: true,
         });
+      }
+    });
+
+    // === Host-Only Controls Toggle ===
+
+    socket.on('party:toggle-host-controls', (callback) => {
+      const room = getRoomBySocket(socket.id);
+      if (!room) return;
+
+      const result = toggleHostOnlyControls(room.code, socket.id);
+      if (result === null) return;
+
+      io.to(room.code).emit('party:host-controls-changed', {
+        hostOnlyControls: result,
+      });
+
+      const participant = room.participants.get(socket.id);
+      const activityMsg: ChatMessage = {
+        id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: 'system',
+        text: result
+          ? `🔒 ${participant?.displayName || 'Host'} mengaktifkan kontrol eksklusif`
+          : `🔓 ${participant?.displayName || 'Host'} membuka kontrol untuk semua`,
+        timestamp: Date.now(),
+      };
+      addChatHistory(room.code, activityMsg);
+      io.to(room.code).emit('party:chat', activityMsg);
+
+      if (typeof callback === 'function') {
+        callback({ success: true, hostOnlyControls: result });
       }
     });
   });
@@ -368,6 +429,19 @@ function handleLeave(socket: Socket, io: Server): void {
   socket.leave(room.code);
 
   if (!isEmpty) {
+    // Fix buffering deadlock: if the leaving user was buffering,
+    // check if all remaining participants are now ready to auto-resume
+    if (leftParticipant.isBuffering && room.participants.size >= 1) {
+      const allReady = areAllParticipantsReady(room.code);
+      if (allReady) {
+        updatePlaybackState(room.code, true, room.playbackState.currentTime);
+        io.to(room.code).emit('party:all-resume', {
+          currentTime: room.playbackState.currentTime,
+          participants: serializeParticipants(room),
+        });
+      }
+    }
+
     socket.to(room.code).emit('party:user-left', {
       displayName: leftParticipant.displayName,
       participants: serializeParticipants(room),

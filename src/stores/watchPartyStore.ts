@@ -33,9 +33,7 @@ interface WatchPartyState {
   isHost: boolean;
   participants: PartyParticipant[];
   streamPayload: PartyStreamPayload | null;
-
-  // Sync flag (anti-feedback loop)
-  isSyncAction: boolean;
+  hostOnlyControls: boolean;
 
   // Chat
   messages: PartyChatMessage[];
@@ -59,7 +57,7 @@ interface WatchPartyState {
   setIsHost: (isHost: boolean) => void;
   setParticipants: (participants: PartyParticipant[]) => void;
   setStreamPayload: (payload: PartyStreamPayload | null) => void;
-  setSyncAction: (v: boolean) => void;
+  setHostOnlyControls: (v: boolean) => void;
   addMessage: (msg: PartyChatMessage) => void;
   addSystemMessage: (text: string) => void;
   addReaction: (reaction: PartyReaction) => void;
@@ -82,13 +80,13 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => {
     roomCode: null,
     isHost: false,
     participants: [],
-    isSyncAction: false,
     messages: [],
     reactions: [],
     isPanelOpen: false,
     activeTab: 'chat',
     unreadCount: 0,
     streamPayload: null,
+    hostOnlyControls: false,
     guestName: guest.name,
     guestColor: guest.color,
 
@@ -98,7 +96,7 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => {
     setIsHost: (isHost) => set({ isHost }),
     setParticipants: (participants) => set({ participants }),
     setStreamPayload: (payload) => set({ streamPayload: payload }),
-    setSyncAction: (v) => set({ isSyncAction: v }),
+    setHostOnlyControls: (v) => set({ hostOnlyControls: v }),
 
     addMessage: (msg) =>
       set((state) => ({
@@ -166,9 +164,9 @@ export const useWatchPartyStore = create<WatchPartyState>((set, get) => {
         messages: [],
         reactions: [],
         streamPayload: null,
+        hostOnlyControls: false,
         isPanelOpen: false,
         unreadCount: 0,
-        isSyncAction: false,
       }),
   };
 });

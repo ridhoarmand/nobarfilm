@@ -37,6 +37,7 @@ export interface PartyRoomInfo {
   episode: number;
   participants: PartyParticipant[];
   playbackState: PartyPlaybackState;
+  hostOnlyControls: boolean;
 }
 
 export interface PartySubtitleItem {
