@@ -183,7 +183,7 @@ export function registerPartyHandlers(io: Server): void {
         return;
       }
       clearRoomBuffering(room.code);
-      updatePlaybackState(room.code, true, data.currentTime);
+      updatePlaybackState(room.code, true, data.currentTime, socket.id);
       socket.to(room.code).emit('party:play', { currentTime: data.currentTime });
 
       const participant = room.participants.get(socket.id);
@@ -204,7 +204,8 @@ export function registerPartyHandlers(io: Server): void {
         socket.emit('party:control-denied', { message: 'Host mengaktifkan kontrol eksklusif. Hanya host yang bisa mengontrol video.' });
         return;
       }
-      updatePlaybackState(room.code, false, data.currentTime);
+      clearRoomBuffering(room.code);
+      updatePlaybackState(room.code, false, data.currentTime, socket.id);
       socket.to(room.code).emit('party:pause', { currentTime: data.currentTime });
 
       const participant = room.participants.get(socket.id);
@@ -226,7 +227,7 @@ export function registerPartyHandlers(io: Server): void {
         return;
       }
       clearRoomBuffering(room.code);
-      updatePlaybackState(room.code, room.playbackState.isPlaying, data.currentTime);
+      updatePlaybackState(room.code, room.playbackState.isPlaying, data.currentTime, socket.id);
       socket.to(room.code).emit('party:seek', { currentTime: data.currentTime });
 
       const participant = room.participants.get(socket.id);
@@ -240,11 +241,31 @@ export function registerPartyHandlers(io: Server): void {
       io.to(room.code).emit('party:chat', activityMsg);
     });
 
-    // Heartbeat from host (every 5s) for drift correction
+    // Heartbeat from host (every 5s) for drift correction — with collaborative protection
     socket.on('party:heartbeat', (data) => {
       const room = getRoomBySocket(socket.id);
       if (!room || room.hostSocketId !== socket.id) return;
-      updatePlaybackState(room.code, data.isPlaying, data.currentTime);
+
+      const now = Date.now();
+      const timeSinceLastAction = now - room.playbackState.lastUpdated;
+
+      // If another participant recently (< 4s) played, paused, or seeked in collaborative mode:
+      if (
+        !room.hostOnlyControls &&
+        room.playbackState.lastControllerSocketId &&
+        room.playbackState.lastControllerSocketId !== socket.id &&
+        timeSinceLastAction < 4000
+      ) {
+        // Host's heartbeat is stale compared to the recent participant action.
+        // Send the authoritative server state back to Host so Host catches up without overwriting!
+        socket.emit('party:sync', {
+          currentTime: room.playbackState.currentTime,
+          isPlaying: room.playbackState.isPlaying,
+        });
+        return;
+      }
+
+      updatePlaybackState(room.code, data.isPlaying, data.currentTime, socket.id);
       socket.to(room.code).emit('party:sync', {
         currentTime: data.currentTime,
         isPlaying: data.isPlaying,

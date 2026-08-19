@@ -45,6 +45,8 @@ export function useWatchParty(
   const bufferingDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isBufferingReportedRef = useRef(false);
   const resumeGracePeriodUntilRef = useRef<number>(0);
+  const localActionCooldownRef = useRef<number>(0);
+  const suppressHeartbeatUntilRef = useRef<number>(0);
 
   // Initialize socket connection only when in party or partyCode in URL
   const shouldConnect = !!options.partyCode || !!roomCode;
@@ -82,6 +84,7 @@ export function useWatchParty(
       const video = videoRef.current;
       if (!video) return;
       isSyncRef.current = true;
+      suppressHeartbeatUntilRef.current = Date.now() + 3000;
       if (Math.abs(video.currentTime - data.currentTime) > 1.5) {
         video.currentTime = data.currentTime;
       }
@@ -92,6 +95,7 @@ export function useWatchParty(
       const video = videoRef.current;
       if (!video) return;
       isSyncRef.current = true;
+      suppressHeartbeatUntilRef.current = Date.now() + 3000;
       video.currentTime = data.currentTime;
       video.pause();
     });
@@ -100,16 +104,20 @@ export function useWatchParty(
       const video = videoRef.current;
       if (!video) return;
       isSyncRef.current = true;
+      suppressHeartbeatUntilRef.current = Date.now() + 3000;
       video.currentTime = data.currentTime;
     });
 
     // Periodic heartbeat sync from host — correct drift > 2s
     socket.on('party:sync', (data: { currentTime: number; isPlaying: boolean }) => {
+      // If this client recently performed a play/pause/seek (< 2.5s), don't let stale echoes override local state
+      if (Date.now() < localActionCooldownRef.current) return;
+
       const video = videoRef.current;
       if (!video) return;
 
       const drift = Math.abs(video.currentTime - data.currentTime);
-      if (drift > 2) {
+      if (drift > 2.0) {
         isSyncRef.current = true;
         video.currentTime = data.currentTime;
       }
@@ -283,7 +291,7 @@ export function useWatchParty(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldConnect]);
 
-  // Heartbeat: host sends current position every 5s
+  // Heartbeat: host sends current position every 5s (suppressed when syncing to recent participant action)
   useEffect(() => {
     if (!isHost || !roomCode) return;
 
@@ -292,6 +300,9 @@ export function useWatchParty(
       const socket = socketRef.current;
       const currentState = useWatchPartyStore.getState();
       if (video && socket && currentState.roomCode && currentState.isHost) {
+        if (Date.now() < suppressHeartbeatUntilRef.current) {
+          return; // Do not send heartbeat while adapting to another participant's recent seek/pause/play
+        }
         socket.emit('party:heartbeat', {
           currentTime: video.currentTime,
           isPlaying: !video.paused,
@@ -465,35 +476,29 @@ export function useWatchParty(
     socketRef.current.emit('party:toggle-host-controls');
   }, []);
 
-  // Party-aware callbacks for MoviePlayer
+  // Party-aware callbacks for MoviePlayer (directly dispatched on user interaction)
   const onPartyPlay = useCallback(() => {
-    if (isSyncRef.current) {
-      isSyncRef.current = false;
-      return;
-    }
     const video = videoRef.current;
     if (video && socketRef.current && useWatchPartyStore.getState().roomCode) {
+      localActionCooldownRef.current = Date.now() + 2500;
+      suppressHeartbeatUntilRef.current = Date.now() + 3000;
       socketRef.current.emit('party:play', { currentTime: video.currentTime });
     }
   }, [videoRef]);
 
   const onPartyPause = useCallback(() => {
-    if (isSyncRef.current) {
-      isSyncRef.current = false;
-      return;
-    }
     const video = videoRef.current;
     if (video && socketRef.current && useWatchPartyStore.getState().roomCode) {
+      localActionCooldownRef.current = Date.now() + 2500;
+      suppressHeartbeatUntilRef.current = Date.now() + 3000;
       socketRef.current.emit('party:pause', { currentTime: video.currentTime });
     }
   }, [videoRef]);
 
   const onPartySeek = useCallback((time: number) => {
-    if (isSyncRef.current) {
-      isSyncRef.current = false;
-      return;
-    }
     if (socketRef.current && useWatchPartyStore.getState().roomCode) {
+      localActionCooldownRef.current = Date.now() + 2500;
+      suppressHeartbeatUntilRef.current = Date.now() + 3000;
       socketRef.current.emit('party:seek', { currentTime: time });
     }
   }, []);

@@ -53,6 +53,7 @@ interface Room {
     isPlaying: boolean;
     currentTime: number;
     lastUpdated: number;
+    lastControllerSocketId: string | null;
   };
   streamPayload: StreamPayload | null;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
@@ -101,7 +102,7 @@ export function createRoom(
     season,
     episode,
     participants: new Map([[hostSocketId, host]]),
-    playbackState: { isPlaying: false, currentTime: 0, lastUpdated: Date.now() },
+    playbackState: { isPlaying: false, currentTime: 0, lastUpdated: Date.now(), lastControllerSocketId: hostSocketId },
     streamPayload: null,
     cleanupTimer: null,
     hostOnlyControls: false,
@@ -230,10 +231,16 @@ export function updatePlaybackState(
   code: string,
   isPlaying: boolean,
   currentTime: number,
+  controllerSocketId?: string | null,
 ): void {
   const room = rooms.get(code.toUpperCase());
   if (room) {
-    room.playbackState = { isPlaying, currentTime, lastUpdated: Date.now() };
+    room.playbackState = {
+      isPlaying,
+      currentTime,
+      lastUpdated: Date.now(),
+      lastControllerSocketId: controllerSocketId !== undefined ? controllerSocketId : room.playbackState.lastControllerSocketId,
+    };
   }
 }
 
@@ -331,7 +338,7 @@ export function changeRoomMedia(
   room.season = season;
   room.episode = episode;
   room.streamPayload = null; // reset stream payload for new media
-  room.playbackState = { isPlaying: false, currentTime: 0, lastUpdated: Date.now() };
+  room.playbackState = { isPlaying: false, currentTime: 0, lastUpdated: Date.now(), lastControllerSocketId: room.hostSocketId };
   clearRoomBuffering(code);
   return true;
 }
