@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Film, Check } from 'lucide-react';
+import { Film, Check, X } from 'lucide-react';
 
 interface QualityPopoverProps {
   isOpen: boolean;
@@ -28,14 +28,17 @@ export function QualityPopover({
     <div
       data-interactive="true"
       data-popover="true"
+      role="dialog"
+      aria-label="Kualitas video"
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-40 w-64 max-w-[calc(100vw-1rem)] bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-xs"
+      className="absolute inset-y-3 right-3 z-50 w-80 max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-sm"
     >
       {/* Header */}
       <div className="flex items-center gap-2 pb-3 border-b border-zinc-800/80 mb-3">
         <Film className="w-4 h-4 text-red-500" />
         <span className="font-bold uppercase tracking-wider text-zinc-200">Kualitas Resolusi</span>
+        <button type="button" onClick={onClose} aria-label="Tutup kualitas video" className="ml-auto rounded-lg hover:bg-white/10 flex items-center justify-center"><X className="w-4 h-4" /></button>
       </div>
 
       {/* Quality List */}
@@ -43,6 +46,7 @@ export function QualityPopover({
         {/* Auto (Dinamis) Option */}
         <button
           type="button"
+          aria-pressed={activeIndex === -1}
           onClick={() => {
             onSelectQuality(-1);
             onClose();
@@ -69,6 +73,7 @@ export function QualityPopover({
               <button
                 key={item || idx}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => {
                   onSelectQuality(idx);
                   onClose();
@@ -87,7 +92,7 @@ export function QualityPopover({
             );
           })
         ) : (
-          <p className="text-zinc-500 italic py-1 text-center">Auto Mode Only</p>
+          <p className="text-zinc-500 italic py-1 text-center">Hanya kualitas otomatis tersedia</p>
         )}
       </div>
     </div>

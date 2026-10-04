@@ -496,7 +496,7 @@ function WatchContent() {
 
   if (isInitialLoading) {
     return (
-      <div className="h-screen w-full bg-zinc-950 flex flex-col items-center justify-center">
+      <div className="min-h-dvh w-full bg-zinc-950 flex flex-col items-center justify-center" role="status" aria-label="Memuat pemutar">
         <div className="relative flex items-center justify-center p-4 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-sm shadow-2xl">
           <svg
             className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-white/80"
@@ -527,12 +527,12 @@ function WatchContent() {
 
   if (isDetailError) {
     return (
-      <div className="h-screen bg-black flex flex-col items-center justify-center px-6 text-center gap-4">
+      <div className="min-h-dvh bg-black flex flex-col items-center justify-center px-6 text-center gap-4">
         <AlertCircle className="w-14 h-14 text-red-600" />
         <h1 className="text-xl text-white font-bold">Tidak dapat memutar konten</h1>
         <p className="text-zinc-400 max-w-md text-sm">{detailError?.message || 'Konten tidak ditemukan atau sumber tidak tersedia.'}</p>
         <div className="flex gap-3 mt-2">
-          <button onClick={() => router.back()} className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition">
+          <button onClick={() => router.back()} className="min-h-11 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition">
             Kembali
           </button>
         </div>
@@ -568,11 +568,11 @@ function WatchContent() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-zinc-950 text-white flex flex-col overflow-x-hidden">
+    <main id="main-content" tabIndex={-1} className="min-h-dvh w-full bg-zinc-950 text-white flex flex-col overflow-x-hidden">
       {/* Video & Watch Party Container */}
       <div className="w-full bg-black relative flex flex-col lg:flex-row items-stretch justify-center shrink-0 shadow-2xl z-20">
-        {/* Video Player Box: 16:9 fixed aspect ratio on mobile, Theater height on desktop */}
-        <div className="w-full aspect-video lg:aspect-auto lg:flex-1 lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex items-center justify-center overflow-hidden">
+        {/* Enough room for touch controls in portrait; use the safe viewport in landscape. */}
+        <div className="w-full min-w-0 h-[clamp(300px,56.25vw,540px)] lg:flex-1 lg:h-[88dvh] 2xl:h-[92dvh] max-h-dvh [@media(orientation:landscape)_and_(max-height:500px)]:h-dvh bg-black relative flex items-center justify-center overflow-hidden">
           {!effectiveStreamUrl && !isInParty && !isLoadingPlayback ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <AlertCircle className="w-14 h-14 text-red-600" />
@@ -582,7 +582,7 @@ function WatchContent() {
               </p>
               <button
                 onClick={() => router.back()}
-                className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition"
+                className="min-h-11 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition"
               >
                 Kembali
               </button>
@@ -743,7 +743,7 @@ function WatchContent() {
         {/* Synopsis & Translation */}
         {subject?.description && (
           <div className="bg-zinc-900/50 border border-zinc-850 rounded-2xl p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-bold text-sm text-zinc-200 uppercase tracking-wider">
                 Sinopsis
               </h2>
@@ -772,7 +772,7 @@ function WatchContent() {
                   }
                 }}
                 disabled={isTranslating}
-                className="text-xs font-semibold px-3 py-1 rounded-lg border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+                className="min-h-11 text-sm font-semibold px-3 py-2 rounded-lg border border-red-500/40 bg-red-950/40 text-red-400 hover:bg-red-900/60 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <Globe className="w-3.5 h-3.5" />
                 {isTranslating ? 'Menerjemahkan...' : translatedSynopsis ? 'Teks Asli' : 'Terjemahkan'}
@@ -787,8 +787,8 @@ function WatchContent() {
 
       {/* Floating Resume Toast Notification */}
       {showResumeToast && resumeTime > 5 && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-zinc-900/95 border border-red-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-xl animate-fade-in">
-          <div className="flex items-center gap-2">
+        <div className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 bg-zinc-900/95 border border-red-500/50 text-white px-3 py-2 rounded-2xl shadow-2xl backdrop-blur-xl animate-fade-in sm:inset-x-auto sm:bottom-6 sm:left-6 sm:gap-3 sm:px-4 sm:py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
             <span className="text-xs font-semibold">
               Melanjutkan dari {Math.floor(resumeTime / 60)}:{String(Math.floor(resumeTime % 60)).padStart(2, '0')}
@@ -800,20 +800,20 @@ function WatchContent() {
               if (video) video.currentTime = 0;
               setShowResumeToast(false);
             }}
-            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md"
+            className="min-h-11 shrink-0 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md"
           >
             Putar Awal
           </button>
           <button
             onClick={() => setShowResumeToast(false)}
-            className="text-zinc-400 hover:text-white p-0.5"
-            title="Tutup Notifikasi"
+            className="flex size-11 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white"
+            aria-label="Tutup notifikasi melanjutkan"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
-    </div>
+    </main>
   );
 }
 

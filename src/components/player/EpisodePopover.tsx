@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tv, Check } from 'lucide-react';
+import { Tv, Check, X } from 'lucide-react';
 
 interface EpisodePopoverProps {
   isOpen: boolean;
@@ -30,27 +30,31 @@ export function EpisodePopover({
     <div
       data-interactive="true"
       data-popover="true"
+      role="dialog"
+      aria-label="Pilihan episode dan musim"
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-40 w-80 max-w-[calc(100vw-1rem)] bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-xs"
+      className="absolute inset-y-3 right-3 z-50 w-80 max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-sm"
     >
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80 mb-3">
         <div className="flex items-center gap-2">
           <Tv className="w-4 h-4 text-red-500" />
-          <span className="font-bold uppercase tracking-wider text-zinc-200">Episode & Season</span>
+          <span className="font-bold uppercase tracking-wider text-zinc-200">Episode & Musim</span>
         </div>
 
+        <button type="button" onClick={onClose} aria-label="Tutup pilihan episode" className="ml-auto rounded-lg hover:bg-white/10 flex items-center justify-center"><X className="w-4 h-4" /></button>
         {/* Season Selector Dropdown */}
         {seasons.length > 1 && (
           <select
             value={activeSeason}
+            aria-label="Musim"
             onChange={(e) => onSeasonChange(parseInt(e.target.value, 10))}
-            className="bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-red-600 font-semibold"
+            className="min-h-11 bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 font-semibold"
           >
             {seasons.map((s) => (
               <option key={s} value={s}>
-                Season {s}
+                Musim {s}
               </option>
             ))}
           </select>
@@ -67,6 +71,8 @@ export function EpisodePopover({
               <button
                 key={ep}
                 type="button"
+                aria-label={`Episode ${ep}`}
+                aria-pressed={isSelected}
                 onClick={() => {
                   onEpisodeChange(ep);
                   onClose();

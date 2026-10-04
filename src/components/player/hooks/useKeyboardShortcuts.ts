@@ -53,17 +53,13 @@ export function useKeyboardShortcuts({
     if (!isActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture keyboard shortcuts if user is typing in an input/textarea/select/contentEditable
-      const target = e.target as HTMLElement;
+      if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      // Native controls and dialogs own their keys, including remote activation.
       if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+        target?.closest('input, textarea, select, button, a, [role="button"], [role="slider"], [role="dialog"], [contenteditable="true"]') ||
+        document.querySelector('[role="dialog"]:not([aria-hidden="true"])')
+      ) return;
 
       const callbacks = callbacksRef.current;
 

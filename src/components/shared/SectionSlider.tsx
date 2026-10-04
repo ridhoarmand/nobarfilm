@@ -1,5 +1,6 @@
 'use client';
-import { useRef } from 'react';
+
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Subject } from '@/types/api';
 import { MovieCard } from './MovieCard';
@@ -14,66 +15,58 @@ interface SectionSliderProps {
 
 export function SectionSlider({ title, items, isRanked = false, categoryType }: SectionSliderProps) {
   const sliderRef = useRef<HTMLDivElement>(null);
+  const sliderId = useId();
+  const headingId = useId();
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    const slider = sliderRef.current;
+    if (!slider) return;
+    const updateScroll = () => {
+      setCanScrollLeft(slider.scrollLeft > 1);
+      setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 1);
+    };
+    updateScroll();
+    const observer = new ResizeObserver(updateScroll);
+    observer.observe(slider);
+    slider.addEventListener('scroll', updateScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      slider.removeEventListener('scroll', updateScroll);
+    };
+  }, [items.length]);
 
   const scroll = (direction: 'left' | 'right') => {
-    if (sliderRef.current) {
-      const scrollAmount = direction === 'left' ? -800 : 800;
-      sliderRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
+    const slider = sliderRef.current;
+    if (!slider) return;
+    slider.scrollBy({
+      left: slider.clientWidth * 0.9 * (direction === 'left' ? -1 : 1),
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
   };
 
   if (items.length === 0) return null;
 
   return (
-    <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        {categoryType ? (
-          <Link
-            href={`/ranking-list/${categoryType}?title=${encodeURIComponent(title)}`}
-            className="group/title flex items-center gap-2 hover:text-red-500 transition-colors"
-            title={`Lihat semua ${title}`}
-          >
-            <h2 className="text-lg sm:text-xl font-extrabold text-white group-hover/title:text-red-500 tracking-tight transition-colors">
-              {title}
-            </h2>
-            <span className="text-xs text-red-500 font-bold opacity-80 group-hover/title:opacity-100 group-hover/title:translate-x-0.5 transition-all">
-              Lainnya ›
-            </span>
-          </Link>
-        ) : (
-          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
-            {title}
-          </h2>
-        )}
-      </div>
-
-      <div className="relative">
-        {/* Prev Button */}
-        <button
-          onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
-          aria-label={`Previous ${title}`}
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-
-        {/* Slider */}
-        <div ref={sliderRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
-          {items.map((movie, index) => (
-            <div key={`${movie.subjectId}-${movie.title}-${index}`} className="flex-none w-40 sm:w-48 md:w-56 snap-start">
-              <MovieCard movie={movie} rank={isRanked ? index + 1 : undefined} />
-            </div>
-          ))}
+    <section className="content-container relative z-10 min-w-0" aria-labelledby={headingId}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id={headingId} className="break-words text-xl font-bold tracking-tight text-white sm:text-2xl 2xl:text-3xl">{title}</h2>
+          <p className="mt-1 text-sm text-zinc-400 2xl:text-base">{items.length} judul{isRanked ? ' · Paling populer' : ''}</p>
         </div>
-
-        {/* Next Button */}
-        <button
-          onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
-          aria-label={`Next ${title}`}
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {categoryType && <Link href={`/ranking-list/${categoryType}?title=${encodeURIComponent(title)}`} className="mr-1 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-red-400 hover:text-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 2xl:text-base">Lihat semua <span className="sr-only">{title}</span></Link>}
+          <button type="button" onClick={() => scroll('left')} disabled={!canScrollLeft} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-35" aria-label={`Geser ${title} ke kiri`} aria-controls={sliderId}><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+          <button type="button" onClick={() => scroll('right')} disabled={!canScrollRight} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-35" aria-label={`Geser ${title} ke kanan`} aria-controls={sliderId}><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+        </div>
+      </div>
+      <div id={sliderId} ref={sliderRef} className="flex gap-3 overflow-x-auto p-2 pb-4 scrollbar-hide snap-x snap-mandatory sm:gap-4">
+        {items.map((movie, index) => (
+          <div key={`${movie.subjectId}-${movie.title}-${index}`} className="w-40 flex-none snap-start sm:w-44 lg:w-48 xl:w-52 2xl:w-60">
+            <MovieCard movie={movie} rank={isRanked ? index + 1 : undefined} />
+          </div>
+        ))}
       </div>
     </section>
   );

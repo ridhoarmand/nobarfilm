@@ -104,6 +104,21 @@ Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara set
 
 ---
 
+## UI Responsif dan Navigasi Keyboard
+
+- Header dan footer memakai ikon brand yang sudah tersedia di `public/icon-192.png`.
+- HP: navigasi bawah **Beranda / Cari / Favorit**, tombol sentuh minimal 44px, hero ringkas, hasil pencarian dua kolom, dan tata letak detail tanpa potongan horizontal. Favorit tersimpan lokal; menu Favorit menuju bagian `/#favorit`.
+- Laptop: pencarian cepat di header, kontrol carousel yang terlihat, judul kartu terbaca tanpa hover, serta tombol favorit terpisah dari tautan detail. Carousel berhenti saat interaksi/fokus dan menghormati preferensi reduced motion.
+- Layar besar/TV: tipografi lebih besar dan fokus putih-merah. Tombol arah memindahkan fokus antar tautan/tombol dan menggulir kartu ke tampilan; Enter mengaktifkan kontrol yang dipilih.
+- Pemutar: Enter saat belum memfokuskan kontrol menampilkan kontrol dan memfokuskan tombol Putar/Jeda. Fokus keyboard/remote dan panel pengaturan tetap terlihat; interaksi pointer kembali memakai auto-hide.
+- Seek/volume memakai slider native: kiri/kanan mengubah nilai, atas/bawah memindahkan fokus keluar slider. Input teks dan pilihan native tidak diambil alih oleh navigasi arah.
+- **Opsi** memuat kualitas, episode (jika tersedia), PiP, kunci layar, timer tidur, dan tips pada layar sempit. Panel dibatasi area pemutar dan dapat digulir; Escape menutup panel dan mengembalikan fokus ke pembukanya.
+- Episode detail memakai musim aktif yang benar, termasuk ketika musim pertama yang tersedia bukan musim 1.
+
+Verifikasi lokal: jalankan `npm run dev`; periksa beranda, pencarian, favorit, detail, dan pemutar pada 390×844, 844×390, 1365×768, serta 1920×1080. Uji Tab/tombol arah/Enter, seek, pilihan subtitle, dan Escape. Dukungan fullscreen/PiP bergantung pada browser; viewport TV bukan pengujian perangkat TV fisik.
+
+---
+
 ## ⚠️ Educational & Non-Commercial Disclaimer
 
 Proyek ini dikembangkan **murni untuk tujuan edukasi, riset teknologi web, dan pemeliharaan SDK internal mandiri**.

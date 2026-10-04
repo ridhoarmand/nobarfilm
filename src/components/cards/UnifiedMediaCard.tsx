@@ -20,11 +20,7 @@ export interface UnifiedMediaCardProps {
 }
 
 export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadge, topRightBadge, index = 0 }: UnifiedMediaCardProps) {
-  // SHARED STYLES
-  // Responsive: Mobile (Default) -> smaller | Desktop (md:) -> regular 10px
-  // Using text-[8px] for mobile and text-[10px] for desktop
-  // Note: Removed absolute positioning from BASE, moving it to container
-  const BADGE_BASE = 'px-1.5 py-0.5 md:px-2 rounded font-bold text-white shadow-sm leading-none tracking-wide flex items-center justify-center font-sans text-[10px] md:text-xs';
+  const BADGE_BASE = 'px-2 py-1 rounded font-semibold text-white shadow-sm leading-none flex items-center justify-center font-sans text-xs 2xl:text-sm';
 
   const BADGE_FONT = {
     lineHeight: '1',
@@ -32,15 +28,16 @@ export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadg
   };
 
   return (
-    <Link href={link} className="group relative block" style={{ animationDelay: `${index * 50}ms` }}>
+    <Link href={link} className="group relative block min-w-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500" style={{ animationDelay: `${index * 50}ms` }}>
       {/* Visual Container */}
       <div className="aspect-[2/3] relative overflow-hidden rounded-xl bg-muted/20" style={{ position: 'relative' }}>
-        <Image unoptimized
+        {cover ? <Image unoptimized
           src={cover}
-          alt={title}
+          alt=""
           fill
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
-        />
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 240px"
+          className="object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
+        /> : <div className="flex h-full items-center justify-center p-4 text-center text-sm text-zinc-500">Poster belum tersedia</div>}
         {/* Gradient Overlay */}
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
@@ -81,15 +78,15 @@ export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadg
 
         {/* Episode Count */}
         {episodes > 0 && (
-          <div className="absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 flex items-center gap-1 text-[9px] md:text-xs text-white font-medium pointer-events-none">
-            <Play className="w-2.5 h-2.5 md:w-3 md:h-3 fill-white" />
-            <span>{episodes} Ep</span>
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 text-xs 2xl:text-sm text-white font-medium pointer-events-none">
+            <Play className="w-3.5 h-3.5 fill-white" aria-hidden="true" />
+            <span>{episodes} episode</span>
           </div>
         )}
 
         {/* Center Play Button */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-300">
+          <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
             <Play className="w-4 h-4 md:w-5 md:h-5 text-white fill-white ml-0.5" />
           </div>
         </div>
@@ -97,7 +94,7 @@ export function UnifiedMediaCard({ title, cover, link, episodes = 0, topLeftBadg
 
       {/* Title */}
       <div className="pt-2 md:pt-3 pb-1">
-        <h3 className="font-display font-semibold text-xs md:text-sm leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors">{title}</h3>
+        <h3 className="font-display font-semibold text-sm 2xl:text-base leading-snug line-clamp-2 min-h-10 2xl:min-h-12 text-foreground group-hover:text-primary group-focus-visible:text-primary transition-colors">{title}</h3>
       </div>
     </Link>
   );

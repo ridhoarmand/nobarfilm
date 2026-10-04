@@ -12,19 +12,19 @@ interface ContinueWatchingCardProps {
 
 function formatTime(seconds: number): string {
   if (!seconds || seconds <= 0 || !isFinite(seconds)) {
-    return 'Resume';
+    return 'Lanjutkan menonton';
   }
 
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m left`;
+    return `${hours} jam ${minutes} menit tersisa`;
   }
   if (minutes > 0) {
-    return `${minutes}m left`;
+    return `${minutes} menit tersisa`;
   }
-  return 'Almost done';
+  return 'Hampir selesai';
 }
 
 export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardProps) {
@@ -76,20 +76,20 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
   };
 
   return (
-    <div className="flex-none w-40 sm:w-48 md:w-56 snap-start relative group/card">
-      <Link href={watchUrl} className="block">
-        <div className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 shadow-lg transition-transform duration-300 group-hover/card:scale-[1.02]" style={{ position: 'relative' }}>
+    <div className="flex-none w-64 sm:w-72 2xl:w-80 snap-start relative group/card">
+      <Link href={watchUrl} aria-label={`Lanjutkan menonton ${item.title}`} className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">
+        <div className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 shadow-lg">
           {item.cover_url ? (
             <Image unoptimized src={item.cover_url} alt={item.title} fill className="object-cover transition-opacity duration-300 group-hover/card:opacity-80" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
-              <span className="text-zinc-600 text-xs">No Image</span>
+              <span className="text-zinc-500 text-sm">Poster belum tersedia</span>
             </div>
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
+          <div className="absolute inset-0 flex items-center justify-center opacity-100 transition-opacity duration-300 group-hover/card:bg-black/20 group-focus-within/card:bg-black/20">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
               <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
             </div>
@@ -101,21 +101,23 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
         </div>
 
         <div className="mt-2 px-1">
-          <h3 className="text-white font-medium text-sm truncate">{item.title}</h3>
-          <div className="flex items-center justify-between text-xs text-zinc-400 mt-1">
-            <span>{item.subject_type === 2 ? `S${season} E${item.current_episode}` : timeLeft}</span>
+          <h3 className="text-white font-semibold text-sm leading-5 line-clamp-2 2xl:text-base">{item.title}</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 mt-1.5 2xl:text-sm">
+            <span>{item.subject_type === 2 ? `Musim ${season} · Episode ${item.current_episode}` : timeLeft}</span>
             <span className="text-red-500">{item.progress_percent}%</span>
           </div>
         </div>
       </Link>
 
       <button
+        type="button"
         onClick={handleRemove}
         disabled={isRemoving}
-        className="absolute top-2 right-2 z-10 p-1.5 bg-black/70 hover:bg-red-600 rounded-full text-white opacity-80 sm:opacity-0 sm:group-hover/card:opacity-100 transition-all duration-200 disabled:opacity-50"
-        title="Remove from Continue Watching"
+        className="absolute top-2 right-2 z-10 flex h-11 w-11 items-center justify-center bg-black/80 hover:bg-red-600 rounded-full text-white border border-white/20 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50"
+        title="Hapus dari Lanjutkan Menonton"
+        aria-label={`Hapus ${item.title} dari Lanjutkan Menonton`}
       >
-        <X className="w-4 h-4" />
+        <X className="w-5 h-5" aria-hidden="true" />
       </button>
     </div>
   );

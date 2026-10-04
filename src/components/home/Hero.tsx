@@ -1,17 +1,18 @@
-'use client';import Image from 'next/image';
-import Link from 'next/link';
-import { Play, Info, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+'use client';
 
-// Export interface for usage in parent component
+import Image from 'next/image';
+import Link from 'next/link';
+import { Play, Info, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
+import { useState, useEffect, useRef, useId } from 'react';
+
 export interface HeroSlide {
   id: string;
   title: string;
   description: string;
-  coverUrl: string; // Landscape Banner (Desktop)
-  posterUrl: string; // Portrait Poster (Mobile)
+  coverUrl: string;
+  posterUrl: string;
   subjectId: string;
-  subjectType: number; // 1: Movie, 2: Series
+  subjectType: number;
   recommendationReason?: string;
   imdbRating?: string;
   releaseDate?: string;
@@ -23,207 +24,111 @@ interface HeroProps {
 }
 
 export function Hero({ slides }: HeroProps) {
-  const safeSlides = slides || [];
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  // Remove unused isMobile effect
-
-  // Touch state for Swipe support
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-
-  const nextSlide = useCallback(() => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % safeSlides.length);
-      setIsTransitioning(false);
-    }, 500);
-  }, [isTransitioning, safeSlides.length]);
-
-  const prevSlide = useCallback(() => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev - 1 + safeSlides.length) % safeSlides.length);
-      setIsTransitioning(false);
-    }, 500);
-  }, [isTransitioning, safeSlides.length]);
-
-  const handleManualSlide = (direction: 'next' | 'prev') => {
-    setIsPaused(true);
-    if (direction === 'next') nextSlide();
-    else prevSlide();
-    setTimeout(() => setIsPaused(false), 10000);
-  };
-
-  // Swipe Handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.targetTouches[0].clientX;
-    touchEndX.current = e.targetTouches[0].clientX;
-    setIsPaused(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStartX.current) return;
-
-    const distance = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 40;
-
-    if (distance > minSwipeDistance) {
-      // Swiped Left -> Next
-      nextSlide();
-    } else if (distance < -minSwipeDistance) {
-      // Swiped Right -> Prev
-      prevSlide();
-    }
-
-    // Reset
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-    setTimeout(() => setIsPaused(false), 10000);
-  };
-
-  const handleDotClick = (index: number) => {
-    if (index === currentIndex || isTransitioning) return;
-    setIsPaused(true);
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentIndex(index);
-      setIsTransitioning(false);
-    }, 500);
-    setTimeout(() => setIsPaused(false), 10000);
-  };
+  const [isInteracting, setIsInteracting] = useState(false);
+  const [hasFocus, setHasFocus] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(true);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const slideId = useId();
+  const slideCount = slides.length;
+  const activeIndex = slideCount > 0 ? currentIndex % slideCount : 0;
 
   useEffect(() => {
-    if (safeSlides.length <= 1 || isPaused) return;
-    const interval = setInterval(nextSlide, 6000);
-    return () => clearInterval(interval);
-  }, [safeSlides.length, isPaused, nextSlide]);
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotion = () => setReducedMotion(media.matches);
+    updateMotion();
+    media.addEventListener('change', updateMotion);
+    return () => media.removeEventListener('change', updateMotion);
+  }, []);
 
+  useEffect(() => {
+    if (slideCount <= 1 || isPaused || isInteracting || hasFocus || reducedMotion) return;
+    const interval = window.setInterval(() => {
+      setCurrentIndex((index) => (index + 1) % slideCount);
+    }, 6000);
+    return () => window.clearInterval(interval);
+  }, [slideCount, isPaused, isInteracting, hasFocus, reducedMotion]);
 
+  const showSlide = (index: number) => {
+    setIsPaused(true);
+    setCurrentIndex((index + slideCount) % slideCount);
+  };
 
-  const currentSlide = safeSlides[currentIndex];
+  const currentSlide = slides[activeIndex];
   if (!currentSlide) return null;
-
-  const isMovie = currentSlide.subjectType === 1;
-
-  // Watch URL logic
-  const watchUrl = isMovie ? `/watch/${currentSlide.subjectId}?season=0&episode=0` : `/watch/${currentSlide.subjectId}?season=1&episode=1`;
-
-  // Determine images
-  const mobileImage = currentSlide.posterUrl || currentSlide.coverUrl;
-  const desktopImage = currentSlide.coverUrl || currentSlide.posterUrl;
+  const watchUrl = currentSlide.subjectType === 1
+    ? `/watch/${currentSlide.subjectId}?season=0&episode=0`
+    : `/watch/${currentSlide.subjectId}?season=1&episode=1`;
+  const image = currentSlide.coverUrl || currentSlide.posterUrl;
+  const controlClass = 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/20 bg-zinc-900/80 text-white hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500';
 
   return (
-    <div
-      className="group relative h-[65vh] sm:h-[75vh] md:h-[85vh] lg:h-[85vh] w-full overflow-hidden bg-black"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+    <section
+      aria-label="Pilihan utama"
+      aria-roledescription="karusel"
+      className="relative isolate w-full bg-[#141414]"
+      onMouseEnter={() => setIsInteracting(true)}
+      onMouseLeave={() => setIsInteracting(false)}
+      onFocusCapture={() => setHasFocus(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setHasFocus(false);
+      }}
+      onTouchStart={(event) => {
+        touchStartX.current = event.touches[0]?.clientX ?? null;
+        touchEndX.current = touchStartX.current;
+        setIsPaused(true);
+      }}
+      onTouchMove={(event) => { touchEndX.current = event.touches[0]?.clientX ?? null; }}
+      onTouchEnd={() => {
+        if (touchStartX.current !== null && touchEndX.current !== null) {
+          const distance = touchStartX.current - touchEndX.current;
+          if (Math.abs(distance) > 40) showSlide(activeIndex + (distance > 0 ? 1 : -1));
+        }
+        touchStartX.current = null;
+        touchEndX.current = null;
+      }}
     >
-      {/* Background Image Container */}
-      <div className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        <div className="relative w-full h-full" style={{ position: 'relative' }}>
-          {/* Hero Banner Image */}
-          <Image
-            src={desktopImage || mobileImage}
-            alt={currentSlide.title}
-            fill
-            className="object-cover object-center"
-            priority
-            sizes="100vw"
-          />
-        </div>
-
-        {/* Gradient Overlays (Netflix Vignette) */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/30 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/60 to-transparent" />
+      <div className="relative aspect-video w-full overflow-hidden sm:absolute sm:inset-0 sm:aspect-auto">
+        {image && <Image src={image} alt="" fill className="object-cover object-center" priority sizes="100vw" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/10 to-transparent" />
+        <div className="absolute inset-0 hidden bg-gradient-to-r from-[#141414] via-[#141414]/75 to-transparent sm:block" />
       </div>
 
-      {/* Content */}
-      <div className="absolute inset-0 flex items-end sm:items-center pb-16 sm:pb-0 pointer-events-none">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 w-full z-10 pointer-events-auto">
-          <div className={`max-w-xl md:max-w-2xl lg:max-w-3xl transition-all duration-1000 transform ${isTransitioning ? 'translate-y-6 opacity-0' : 'translate-y-0 opacity-100'}`}>
-            <h1 className="text-2xl sm:text-5xl md:text-6xl font-extrabold text-white mb-2 sm:mb-4 tracking-tight drop-shadow-md leading-tight line-clamp-2">{currentSlide.title}</h1>
-
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-zinc-300 mb-3 sm:mb-5 font-medium">
-              <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-                {currentSlide.recommendationReason || 'Trending Sekarang'}
-              </span>
-
-              {currentSlide.imdbRating && (
-                <span className="px-1.5 py-0.5 border border-zinc-700 bg-black/60 rounded text-xs font-semibold text-zinc-200">
-                  IMDb {currentSlide.imdbRating}
-                </span>
-              )}
-
-              {currentSlide.releaseDate && <span>{new Date(currentSlide.releaseDate).getFullYear()}</span>}
-
-              {currentSlide.duration && currentSlide.duration > 0 && <span>{Math.floor(currentSlide.duration / 60)}m</span>}
-            </div>
-
-            <p className="hidden sm:block text-zinc-300 text-sm sm:text-base mb-6 line-clamp-3 max-w-xl leading-relaxed">{currentSlide.description}</p>
-
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <Link
-                href={watchUrl}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-white hover:bg-white/80 text-black font-bold rounded-md text-sm sm:text-base transition-all shadow-md active:scale-95"
-              >
-                <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-black" />
-                <span>Putar</span>
-              </Link>
-              <Link
-                href={`/${currentSlide.subjectId}`}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-zinc-500/40 hover:bg-zinc-500/30 text-white font-bold rounded-md text-sm sm:text-base backdrop-blur-md transition-all active:scale-95"
-              >
-                <Info className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="inline sm:hidden">Detail</span>
-                <span className="hidden sm:inline">Informasi Selengkapnya</span>
-              </Link>
-            </div>
+      <div className="content-container relative z-10 pb-6 sm:flex sm:min-h-[580px] sm:flex-col sm:justify-end sm:pb-10 sm:pt-24 lg:min-h-[660px] lg:pb-12 2xl:min-h-[760px]">
+        <div id={slideId} aria-live={isPaused || reducedMotion ? 'polite' : 'off'} aria-atomic="true" className="max-w-2xl 2xl:max-w-3xl">
+          <p className="mb-3 text-sm font-semibold text-red-400 sm:text-base">{currentSlide.recommendationReason || 'Pilihan untuk Anda'}</p>
+          <h1 className="mb-4 break-words text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl 2xl:text-7xl">{currentSlide.title}</h1>
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-zinc-300 2xl:text-lg">
+            <span>{currentSlide.subjectType === 1 ? 'Film' : 'Series'}</span>
+            {currentSlide.imdbRating && <span>IMDb {currentSlide.imdbRating}</span>}
+            {currentSlide.releaseDate && <span>{new Date(currentSlide.releaseDate).getFullYear()}</span>}
+            {!!currentSlide.duration && currentSlide.duration > 0 && <span>{Math.floor(currentSlide.duration / 60)} menit</span>}
+          </div>
+          {currentSlide.description && <p className="mb-6 line-clamp-3 max-w-xl text-sm leading-relaxed text-zinc-300 sm:text-base 2xl:max-w-2xl 2xl:text-lg">{currentSlide.description}</p>}
+          <div className="flex flex-wrap gap-3">
+            <Link href={watchUrl} aria-label="Tonton sekarang" className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-base font-bold text-white transition-colors hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:flex-none 2xl:text-lg">
+              <Play className="h-5 w-5 fill-current" aria-hidden="true" /> Tonton
+            </Link>
+            <Link href={`/${currentSlide.subjectId}`} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:flex-none 2xl:text-lg">
+              <Info className="h-5 w-5" aria-hidden="true" /> Lihat Detail
+            </Link>
           </div>
         </div>
+
+        {slideCount > 1 && (
+          <div className="mt-6 flex flex-wrap items-center gap-2 sm:mt-8">
+            <button type="button" onClick={() => showSlide(activeIndex - 1)} className={controlClass} aria-label="Tayangan sebelumnya" aria-controls={slideId}><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+            <button type="button" onClick={() => showSlide(activeIndex + 1)} className={controlClass} aria-label="Tayangan berikutnya" aria-controls={slideId}><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+            <span className="px-2 text-sm tabular-nums text-zinc-300">{activeIndex + 1} / {slideCount}</span>
+            {!reducedMotion && <button type="button" onClick={() => setIsPaused((paused) => !paused)} className={controlClass} aria-label={isPaused ? 'Lanjutkan pergantian otomatis' : 'Jeda pergantian otomatis'}>{isPaused ? <Play className="h-4 w-4" aria-hidden="true" /> : <Pause className="h-4 w-4" aria-hidden="true" />}</button>}
+            <div className="hidden flex-wrap gap-1 sm:flex" aria-label="Pilih tayangan">
+              {slides.map((slide, index) => <button key={`${slide.id}-${index}`} type="button" onClick={() => showSlide(index)} className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label={`Tayangan ${index + 1}: ${slide.title}`} aria-current={index === activeIndex ? 'true' : undefined} aria-controls={slideId}><span className={`h-2.5 rounded-full ${index === activeIndex ? 'w-6 bg-red-500' : 'w-2.5 bg-zinc-500'}`} /></button>)}
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Navigation Arrows (Desktop Only) */}
-      {safeSlides.length > 1 && (
-        <>
-          <button
-            onClick={() => handleManualSlide('prev')}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/30 hover:bg-black/60 rounded-full text-white transition-all duration-300 hover:scale-110 hidden sm:block"
-            aria-label="Previous slide"
-          >
-            <ChevronLeft className="w-8 h-8 md:w-10 md:h-10" />
-          </button>
-          <button
-            onClick={() => handleManualSlide('next')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/30 hover:bg-black/60 rounded-full text-white transition-all duration-300 hover:scale-110 hidden sm:block"
-            aria-label="Next slide"
-          >
-            <ChevronRight className="w-8 h-8 md:w-10 md:h-10" />
-          </button>
-        </>
-      )}
-
-      {/* Indicators (Visible on all, clean bottom spacing) */}
-      {safeSlides.length > 1 && (
-        <div className="absolute bottom-3 sm:bottom-8 right-4 sm:right-12 flex gap-1.5 sm:gap-2 z-20 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm border border-white/10">
-          {safeSlides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handleDotClick(index)}
-              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${index === currentIndex ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/70'}`}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
