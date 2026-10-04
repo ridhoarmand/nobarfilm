@@ -107,6 +107,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const [buffered, setBuffered] = useState(0);
   const [volume, setVolumeState] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const lastAudibleVolumeRef = useRef(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasVideoError, setHasVideoError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -163,7 +164,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       const savedVol = localStorage.getItem('nobarfilm_pref_volume');
       const savedMuted = localStorage.getItem('nobarfilm_pref_muted');
       if (savedVol !== null) {
-        const v = parseFloat(savedVol);
+        const parsedVolume = parseFloat(savedVol);
+        const v = Number.isFinite(parsedVolume) ? Math.max(0, Math.min(1, parsedVolume)) : 1;
+        if (v > 0) lastAudibleVolumeRef.current = v;
         setVolumeState(v);
         if (videoRef.current) videoRef.current.volume = v;
       }
@@ -625,16 +628,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (isMuted) {
+    if (video.muted || video.volume === 0) {
+      if (video.volume === 0) video.volume = lastAudibleVolumeRef.current;
       video.muted = false;
-      setIsMuted(false);
-      if (typeof window !== 'undefined') localStorage.setItem('nobarfilm_pref_muted', 'false');
     } else {
       video.muted = true;
-      setIsMuted(true);
-      if (typeof window !== 'undefined') localStorage.setItem('nobarfilm_pref_muted', 'true');
     }
-  }, [isMuted]);
+  }, []);
 
   const [brightness, setBrightness] = useState(1.0);
 
@@ -785,6 +785,15 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           filter: brightness !== 1.0 ? `brightness(${brightness})` : undefined,
         }}
         className="w-full h-full object-contain bg-black block"
+        onVolumeChange={(e) => {
+          const video = e.currentTarget;
+          const muted = video.muted || video.volume === 0;
+          if (video.volume > 0) lastAudibleVolumeRef.current = video.volume;
+          setVolumeState(video.volume);
+          setIsMuted(muted);
+          localStorage.setItem('nobarfilm_pref_volume', String(video.volume));
+          localStorage.setItem('nobarfilm_pref_muted', String(muted));
+        }}
         onPlay={() => {
           if (waitingDebounceTimerRef.current) {
             clearTimeout(waitingDebounceTimerRef.current);

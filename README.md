@@ -93,6 +93,17 @@ Konfigurasi host API H5 via environment variable (lihat `src/lib/moviebox/config
 
 ---
 
+## Playback H5: Suara dan Subtitle
+
+- Sumber video diambil melalui `/subject/play`; subtitle terpisah diambil melalui `/subject/caption` dengan `format`, ID stream, `subjectId`, dan `detailPath`. Kedua request tidak menggunakan login, Bearer, atau HMAC.
+- Subtitle SRT melewati `/api/subtitle` untuk dikonversi menjadi WebVTT. Referer mengikuti `MOVIEBOX_WEB_REFERER_ORIGIN`; ketersediaan bahasa bergantung pada judul dan episode.
+- Cache playback browser menggunakan versi payload agar data lama tanpa subtitle tidak digunakan kembali.
+- Tombol **Nyalakan Suara** memulihkan volume terakhir yang terdengar ketika volume nol. Perubahan mute/volume native juga disinkronkan dengan kontrol dan preferensi browser.
+
+Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara setelah volume nol, lalu pilih subtitle Indonesia melalui **Pengaturan Audio & Subtitle**.
+
+---
+
 ## ⚠️ Educational & Non-Commercial Disclaimer
 
 Proyek ini dikembangkan **murni untuk tujuan edukasi, riset teknologi web, dan pemeliharaan SDK internal mandiri**.
