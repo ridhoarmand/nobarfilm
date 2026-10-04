@@ -66,7 +66,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`}>
+    <html lang="id" className={`dark ${inter.variable}`}>
       <head>
         <link rel="preconnect" href="https://wsrv.nl" />
         <link rel="preconnect" href="https://images.weserv.nl" />

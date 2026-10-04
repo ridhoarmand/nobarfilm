@@ -297,6 +297,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         if (activeQualityIndex === -1) {
           hls!.currentLevel = -1;
         }
+        // Prefer Indonesian subtitle track (EXT-X-MEDIA via proxy) when present.
+        const tracks = hls!.subtitleTracks || [];
+        if (tracks.length > 0) {
+          const isId = (t: { name?: string; lang?: string; assocLang?: string }) => /indonesia|bahasa|\bid\b|\bin\b/i.test(`${t.name || ''} ${t.lang || ''} ${t.assocLang || ''}`);
+          const idx = tracks.findIndex(isId);
+          if (idx >= 0) hls!.subtitleTrack = idx;
+        }
         restoreTimeAndPlay();
       });
 

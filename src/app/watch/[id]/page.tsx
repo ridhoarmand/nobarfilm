@@ -573,6 +573,29 @@ function WatchContent() {
       <div className="w-full bg-black relative flex flex-col lg:flex-row items-stretch justify-center shrink-0 shadow-2xl z-20">
         {/* Video Player Box: 16:9 fixed aspect ratio on mobile, Theater height on desktop */}
         <div className="w-full aspect-video lg:aspect-auto lg:flex-1 lg:h-[88vh] 2xl:h-[92vh] max-h-[92vh] bg-black relative flex items-center justify-center overflow-hidden">
+          {!effectiveStreamUrl && !isInParty && !isLoadingPlayback ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
+              <AlertCircle className="w-14 h-14 text-red-600" />
+              <h2 className="text-lg font-bold text-white">Sumber film sedang tidak tersedia</h2>
+              <p className="text-sm text-zinc-400 max-w-md">
+                Provider stream belum menyediakan video untuk judul ini saat ini. Coba kembali beberapa saat lagi.
+              </p>
+              <button
+                onClick={() => router.back()}
+                className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition"
+              >
+                Kembali
+              </button>
+            </div>
+          ) : !effectiveStreamUrl && !isInParty ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
+              <svg className="w-10 h-10 animate-spin text-white/80" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="19" stroke="currentColor" strokeWidth="2.5" className="opacity-15" />
+                <path d="M24 5C13.5066 5 5 13.5066 5 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="opacity-90" />
+              </svg>
+              <p className="text-sm text-zinc-400">Memuat sumber video…</p>
+            </div>
+          ) : (
           <MoviePlayer
             ref={videoRef}
             src={effectiveStreamUrl}
@@ -674,6 +697,7 @@ function WatchContent() {
           >
             <WatchPartyReactions />
           </MoviePlayer>
+          )}
         </div>
 
         {/* Watch Party Side Panel */}

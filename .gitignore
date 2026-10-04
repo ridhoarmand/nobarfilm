@@ -44,6 +44,7 @@ yarn-error.log*
 .vercel
 
 # sensitive docs & specs
+.omo/ 
 API.md
 API-FOR-BOT.md
 GEMINI.md

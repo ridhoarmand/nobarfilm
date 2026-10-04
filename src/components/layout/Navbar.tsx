@@ -122,6 +122,7 @@ export function Navbar() {
                     <Search className={`absolute left-3.5 w-4 h-4 transition-colors duration-300 ${isSearchFocused ? 'text-[#E50914]' : 'text-zinc-400'}`} />
                     <input
                       type="text"
+                      name="search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onFocus={() => {

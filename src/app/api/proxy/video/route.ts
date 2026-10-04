@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { WEB_CLIENT_UA } from '@/lib/moviebox/config';
 
 export const dynamic = 'force-dynamic'; // Prevent static optimization
 
@@ -29,6 +30,12 @@ function isValidProxyTargetUrl(urlString: string): boolean {
   }
 }
 
+// Header logic is per-host, host-agnostic: any external host is proxy-eligible
+// (PROXY_ALL_STREAMS), only header *defaults* differ by known host shapes.
+function isProviderHost(hostname: string): boolean {
+  return /aoneroom|moviebox|hakunaymatata/.test(hostname);
+}
+
 export async function GET(req: NextRequest) {
   const rateLimit = checkRateLimit(req, 20, 10000);
   if (!rateLimit.success && rateLimit.response) {
@@ -44,21 +51,33 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Missing URL parameter', { status: 400 });
   }
 
+  // SSRF guard: private/loopback IPs blocked. Host-agnostic rule: ANY external
+  // https/http host is proxy-eligible — EXCEPT our own origin (loop prevention).
   if (!isValidProxyTargetUrl(url)) {
     return new NextResponse('Forbidden target URL', { status: 403 });
+  }
+  const selfHost = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(',')[0].trim().toLowerCase().split(':')[0];
+  const targetHost = new URL(url).hostname.toLowerCase();
+  if (selfHost && targetHost === selfHost) {
+    return new NextResponse('Forbidden: self-referential proxy loop', { status: 403 });
   }
 
   try {
     const range = req.headers.get('range');
-    const isMobileCdn = url.includes('/bt/') || url.includes('hcdn3.') || url.includes('hcdn');
+    const isBtCdn = url.includes('/bt/');
+    const provider = isProviderHost(targetHost);
     const headers: Record<string, string> = {
-      'User-Agent': isMobileCdn
-        ? 'okhttp/4.9.0'
-        : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+      'User-Agent': isBtCdn ? 'okhttp/4.9.0' : WEB_CLIENT_UA,
       Accept: '*/*',
     };
 
-    if (!isMobileCdn) {
+    // Provider stream hosts (aoneroom|moviebox|hakunaymatata, verified via
+    // .omo/evidence/host-referer-matrix.md) require the officialmoviebox referer.
+    // Unknown/rotated hosts get the generic default — zero code change on rotation.
+    if (provider) {
+      headers['Referer'] = 'https://officialmoviebox.com/';
+      headers['Origin'] = 'https://officialmoviebox.com';
+    } else {
       headers['Referer'] = refererParam || 'https://lok-lok.cc/';
       headers['Origin'] = 'https://lok-lok.cc';
     }

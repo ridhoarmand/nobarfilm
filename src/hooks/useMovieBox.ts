@@ -233,7 +233,7 @@ export function useMovieBoxPlaybackUrl(
 
       // Construct stream URLs using direct CDN URLs (prevents 429 rate limiting & proxy bottlenecks)
       const allDownloads: StreamDownloadItem[] = sortedDownloads.map((item) => {
-        const isMobileCdn = item.url.includes('/bt/') || item.url.includes('hcdn');
+        const isMobileCdn = item.url.includes('/bt/') || item.url.includes('hcdn') || item.url.includes('macdn') || item.url.includes('/other/') || item.url.includes('hakunaymatata');
         const proxiedUrl = `/api/proxy/video?url=${encodeURIComponent(item.url)}&referer=${encodeURIComponent('https://lok-lok.cc/')}`;
         return {
           resolution: item.resolution || 0,

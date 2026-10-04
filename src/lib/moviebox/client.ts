@@ -1,12 +1,52 @@
 import crypto from 'crypto';
 import { serverCache } from '../cache';
-import { HOST } from './config';
+import { HOST, APP_VERSION, CLIENT_USER_AGENT, PACKAGE_NAME } from './config';
 import { generateClientToken, generateSignature } from './crypto';
 
 export const MASTER_TOKEN_KEY = 'auth:master_jwt';
 export const GUEST_TOKEN_KEY = 'auth:guest_device_token';
 
 
+
+export async function getGuestToken(): Promise<string> {
+  const cachedGuest = serverCache.get<string>(GUEST_TOKEN_KEY);
+  if (cachedGuest) {
+    return cachedGuest;
+  }
+
+  const payload = {
+    client_info: {
+      timezone: 'Asia/Jakarta',
+      lang: 'id',
+      area: 'ID',
+      mcc: '510',
+    },
+  };
+
+  try {
+    const data = await callMobileApi(
+      'POST',
+      '/wefeed-mobile-bff/user-api/device-sessions',
+      {},
+      payload,
+      false,
+      null
+    );
+
+    if (data && data.code === 0 && data.data?.token) {
+      const guestToken = data.data.token;
+      // Cache guest token selama 1 hari
+      serverCache.set(GUEST_TOKEN_KEY, guestToken, 24 * 3600);
+      console.log('[MovieBox SDK] Guest device session established successfully.');
+      return guestToken;
+    }
+  } catch (err: any) {
+    console.warn('[MovieBox SDK] Guest device-session request failed:', err.message);
+  }
+
+  // Konten berjalan tanpa token; kembalikan '' bila device-session gagal (master creds opsional).
+  return '';
+}
 
 export async function getAccessToken(retry = 0): Promise<string> {
   const cachedFromStore = serverCache.get<string>(MASTER_TOKEN_KEY);
@@ -18,7 +58,7 @@ export async function getAccessToken(retry = 0): Promise<string> {
   const rawPassword = process.env.MOVIEBOX_MASTER_PASSWORD;
 
   if (!email || !rawPassword) {
-    throw new Error('MOVIEBOX_MASTER_EMAIL and MOVIEBOX_MASTER_PASSWORD environment variables are required.');
+    return '';
   }
   const md5Password = /^[a-f0-9]{32}$/i.test(rawPassword)
     ? rawPassword
@@ -27,7 +67,7 @@ export async function getAccessToken(retry = 0): Promise<string> {
     authType: 1,
     mail: email,
     password: md5Password,
-    package_name: 'com.moviebox.android',
+    package_name: PACKAGE_NAME,
   };
 
   const bodyStr = JSON.stringify(payload);
@@ -44,14 +84,14 @@ export async function getAccessToken(retry = 0): Promise<string> {
       method: 'POST',
       headers: {
         'Host': HOST,
-        'User-Agent': 'okhttp/4.12.0',
+        'User-Agent': CLIENT_USER_AGENT,
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
         'lang': 'id',
         'locale': 'id_ID',
         'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id' }),
         'X-Client-Type': 'android',
-        'X-App-Version': '3.0.15',
+        'X-App-Version': APP_VERSION,
         'X-Client-Token': clientToken,
         'x-tr-signature': signature,
         'x-tr-signature-method': 'HmacMD5',
@@ -77,10 +117,10 @@ export async function getAccessToken(retry = 0): Promise<string> {
     const ttlSeconds = expireTime > nowSec ? expireTime - nowSec - 600 : 7 * 24 * 3600;
 
     serverCache.set(MASTER_TOKEN_KEY, token, Math.max(600, ttlSeconds));
-    console.log(`[MovieBox SDK] Authentication successful. Token cached with TTL ${ttlSeconds}s.`);
+    console.log(`[MovieBox SDK] Master authentication successful. Token cached with TTL ${ttlSeconds}s.`);
     return token;
   } catch (err: any) {
-    console.error(`[MovieBox SDK] Login attempt failed:`, err.message);
+    console.error(`[MovieBox SDK] Master Login attempt failed:`, err.message);
     if (retry < 2) {
       console.log(`[MovieBox SDK] Retrying login in 2 seconds... (attempt ${retry + 1})`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -136,15 +176,15 @@ export async function callMobileApi(
     token = clientToken;
   } else if (!noAuthPaths.includes(path)) {
     try {
-      token = await getAccessToken();
+      token = await getGuestToken();
     } catch (err: any) {
-      console.warn(`[MovieBox SDK] Master token retrieval failed for ${path}:`, err.message);
+      console.warn(`[MovieBox SDK] Guest token retrieval failed for ${path}:`, err.message);
     }
   }
 
   const headers: Record<string, string> = {
     'Host': HOST,
-    'User-Agent': 'okhttp/4.12.0',
+    'User-Agent': CLIENT_USER_AGENT,
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
     'lang': 'id',
@@ -152,7 +192,7 @@ export async function callMobileApi(
     'x-client-info': JSON.stringify({ timezone: 'Asia/Jakarta', lang: 'id', area: 'ID', mcc: '510' }),
     'x-vip-restrict': '1',
     'X-Client-Type': 'android',
-    'X-App-Version': '3.0.15',
+    'X-App-Version': APP_VERSION,
     'X-Client-Token': trClientToken,
     'x-tr-signature': signature,
     'x-tr-signature-method': 'HmacMD5',
@@ -182,6 +222,12 @@ export async function callMobileApi(
 
     if ((res.status === 401 || res.status === 441) && retryOn401) {
       if (clientToken) {
+        throw new Error(`Unauthorized (HTTP ${res.status})`);
+      }
+      const hasMasterCreds = Boolean(
+        process.env.MOVIEBOX_MASTER_EMAIL && process.env.MOVIEBOX_MASTER_PASSWORD
+      );
+      if (!hasMasterCreds) {
         throw new Error(`Unauthorized (HTTP ${res.status})`);
       }
       console.log(`[MovieBox SDK] Request returned ${res.status}, retrying with Master Account token: ${path}`);
