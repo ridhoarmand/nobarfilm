@@ -30,16 +30,16 @@ function RankingListContent() {
   const allItems = data?.pages.flatMap((page) => page.items) || [];
 
   return (
-    <main className="bg-[#141414] min-h-screen pt-24 px-4 sm:px-6 lg:px-8 pb-16">
-      <div className="max-w-7xl mx-auto">
+    <main id="main-content" className="page-content bg-[#141414] min-h-screen [&_button]:min-h-11 [&_button]:min-w-11">
+      <div className="content-container py-6 sm:py-10">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between border-b border-zinc-800 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/30">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/30">
               <Film className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <div className="min-w-0">
+              <h1 className="break-words text-2xl sm:text-3xl 2xl:text-4xl font-extrabold text-white tracking-tight">
                 {title}
               </h1>
               <p className="text-zinc-400 text-sm mt-0.5">
@@ -48,8 +48,8 @@ function RankingListContent() {
             </div>
           </div>
           {allItems.length > 0 && (
-            <span className="hidden sm:inline-block px-3 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-full text-xs font-semibold">
-              {allItems.length} Judul Tersedia
+            <span className="inline-block px-3 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-full text-sm font-medium">
+              {allItems.length} judul dimuat
             </span>
           )}
         </div>
@@ -91,7 +91,7 @@ function RankingListContent() {
                   cover={movie.cover.url}
                   link={`/${movie.subjectId}`}
                   topLeftBadge={{
-                    text: movie.subjectType === 1 ? 'Movie' : 'Series',
+                    text: movie.subjectType === 1 ? 'Film' : 'Series',
                     color: movie.subjectType === 1 ? '#E52E2E' : '#2E7DE5',
                   }}
                   topRightBadge={
@@ -147,8 +147,8 @@ export default function RankingListPage() {
       <Navbar />
       <Suspense
         fallback={
-          <main className="bg-[#141414] min-h-screen pt-24 px-4 sm:px-6 lg:px-8 pb-16">
-            <div className="max-w-7xl mx-auto">
+          <main id="main-content" className="page-content bg-[#141414] min-h-screen">
+            <div className="content-container py-10">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {[...Array(18)].map((_, index) => (
                   <UnifiedMediaCardSkeleton key={index} />

@@ -773,7 +773,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-black overflow-hidden group/player flex items-center justify-center"
+      data-player-shortcuts
+      className="relative w-full h-full min-w-0 bg-black overflow-hidden group/player flex items-center justify-center [&_button]:min-h-11 [&_button]:min-w-11 [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-red-400 [&_input:focus-visible]:outline-2 [&_input:focus-visible]:outline-red-400 [&_select:focus-visible]:outline-2 [&_select:focus-visible]:outline-red-400"
     >
       <video
         ref={videoRef}

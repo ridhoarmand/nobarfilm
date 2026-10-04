@@ -1,4 +1,5 @@
 'use client';
+
 import { Subject } from '@/types/api';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,7 +9,7 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 interface MovieCardProps {
   movie: Subject;
   priority?: boolean;
-  rank?: number; // Ranking badge (1-10)
+  rank?: number;
 }
 
 export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
@@ -16,85 +17,25 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
   const isBookmarked = isInWatchlist(movie.subjectId);
 
   return (
-    <div className="w-full">
-      <Link href={`/${movie.subjectId}`} className="group/card block w-full relative">
-        {/* POSTER IMAGE CONTAINER - Netflix Style Card */}
-        <div 
-          className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-[#181818] shadow-md border border-white/5 transition-all duration-300 ease-out group-hover/card:border-white/20 group-hover/card:shadow-2xl group-hover/card:shadow-black/90 group-hover/card:scale-[1.03]"
-        >
-          {/* Rank Badge - Netflix Top 10 Badge Style */}
-          {rank && (
-            <div className="absolute top-0 left-0 z-30 bg-[#E50914] text-white flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-br-md shadow-md">
-              <span className="text-xs sm:text-sm font-black tracking-tighter">#{rank}</span>
-            </div>
-          )}
-
-          {/* Bookmark Heart Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleWatchlist(movie);
-            }}
-            title={isBookmarked ? 'Hapus dari Favorit' : 'Simpan ke Favorit'}
-            className={`absolute ${rank ? 'top-9 left-2' : 'top-2 left-2'} z-30 p-1.5 rounded-full backdrop-blur-md transition-all duration-200 ${
-              isBookmarked
-                ? 'bg-[#E50914] text-white shadow-lg scale-105'
-                : 'bg-black/60 text-zinc-300 hover:text-white hover:bg-black/90 hover:scale-105'
-            }`}
-          >
-            <Heart className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-white' : ''}`} />
-          </button>
-
-          {/* Quality & Type Badges */}
-          <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
-            <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-wide bg-black/80 text-zinc-200 rounded backdrop-blur-md border border-white/10">
-              {movie.subjectType === 1 ? '1080p' : 'HD'}
-            </span>
-          </div>
-
-          {/* Main Image */}
-          <Image 
-            src={movie.cover?.url || ''}
-            alt={movie.title}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition-transform duration-500 ease-out group-hover/card:scale-105"
-            priority={priority}
-            loading={priority ? 'eager' : 'lazy'}
-          />
-
-          {/* Desktop Hover Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#E50914] flex items-center justify-center shadow-xl transform scale-90 group-hover/card:scale-100 transition-transform duration-300">
-              <Play className="w-4 h-4 sm:w-5 sm:h-5 text-white ml-0.5" fill="white" />
-            </div>
+    <div className="group/card relative min-w-0 w-full">
+      <Link href={`/${movie.subjectId}`} className="block rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">
+        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border border-white/10 bg-zinc-900 shadow-md transition-colors group-hover/card:border-white/30 group-focus-within/card:border-white/30">
+          {rank && <div className="absolute left-2 top-2 z-20 flex h-8 min-w-8 items-center justify-center rounded-md bg-red-600 px-1.5 text-sm font-black text-white">#{rank}</div>}
+          {movie.cover?.url ? <Image src={movie.cover.url} alt="" fill sizes="(max-width: 640px) 160px, (max-width: 1280px) 200px, 240px" className="object-cover transition-transform duration-300 motion-reduce:transition-none group-hover/card:scale-105" priority={priority} loading={priority ? 'eager' : 'lazy'} /> : <div className="flex h-full items-center justify-center p-4 text-center text-sm text-zinc-500">Poster belum tersedia</div>}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/75 via-black/10 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-600 text-white"><Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden="true" /></span>
           </div>
         </div>
-
-        {/* INFO DETAILS */}
-        <div className="mt-2.5 px-0.5">
-          <h3 className="text-xs sm:text-sm font-bold text-zinc-200 line-clamp-1 group-hover/card:text-white transition-colors" title={movie.title}>
-            {movie.title}
-          </h3>
-
-          <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
-            <div className="flex items-center gap-3">
-              {/* Year */}
-              {movie.releaseDate && <span>{new Date(movie.releaseDate).getFullYear()}</span>}
-
-              {/* Rating */}
-              {movie.imdbRatingValue && (
-                <div className="flex items-center gap-1 text-yellow-500/90">
-                  <Star className="w-3 h-3 fill-current" />
-                  <span className="font-medium text-gray-300">{movie.imdbRatingValue}</span>
-                </div>
-              )}
-            </div>
+        <div className="mt-3 px-0.5">
+          <h3 className="min-h-10 line-clamp-2 text-sm font-semibold leading-5 text-zinc-100 group-hover/card:text-white 2xl:min-h-12 2xl:text-base 2xl:leading-6" title={movie.title}>{movie.title}</h3>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400 2xl:text-sm">
+            <span>{movie.subjectType === 1 ? 'Film' : 'Series'}</span>
+            {movie.releaseDate && <span>{new Date(movie.releaseDate).getFullYear()}</span>}
+            {movie.imdbRatingValue && <span className="inline-flex items-center gap-1 text-zinc-300"><Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" aria-hidden="true" /><span className="sr-only">IMDb </span>{movie.imdbRatingValue}</span>}
           </div>
         </div>
       </Link>
+      <button type="button" onClick={() => toggleWatchlist(movie)} aria-pressed={isBookmarked} aria-label={`${isBookmarked ? 'Hapus dari' : 'Simpan ke'} favorit: ${movie.title}`} title={isBookmarked ? 'Hapus dari Favorit' : 'Simpan ke Favorit'} className={`absolute right-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 shadow-lg backdrop-blur-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${isBookmarked ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-black/75 text-white hover:bg-zinc-800'}`}><Heart className={`h-5 w-5 ${isBookmarked ? 'fill-current' : ''}`} aria-hidden="true" /></button>
     </div>
   );
 }

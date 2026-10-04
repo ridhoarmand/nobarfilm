@@ -47,6 +47,7 @@ export function AudioSubtitlePopover({
 }: AudioSubtitlePopoverProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -79,9 +80,11 @@ export function AudioSubtitlePopover({
     <div
       data-interactive="true"
       data-popover="true"
+      role="dialog"
+      aria-label="Pengaturan audio dan subtitle"
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className="absolute bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-50 w-[calc(100vw-1rem)] sm:w-[460px] max-h-[82vh] overflow-y-auto bg-zinc-950/95 border border-zinc-800/90 text-white rounded-2xl shadow-2xl backdrop-blur-2xl p-3.5 sm:p-5 animate-fade-in scrollbar-thin"
+      className="absolute inset-y-3 left-1/2 -translate-x-1/2 sm:left-auto sm:right-3 sm:translate-x-0 z-50 w-[460px] max-w-[calc(100%-1.5rem)] overflow-y-auto overflow-x-hidden overscroll-contain bg-zinc-950/95 border border-zinc-800/90 text-white rounded-2xl shadow-2xl backdrop-blur-2xl p-3 sm:p-5 animate-fade-in scrollbar-thin"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-4">
@@ -118,13 +121,14 @@ export function AudioSubtitlePopover({
                     key={opt.code}
                     type="button"
                     onClick={() => onSelectAudio?.(opt.code)}
+                    aria-pressed={isActive}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                       isActive
                         ? 'bg-red-600 text-white shadow-md'
                         : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
                     }`}
                   >
-                    <span className="truncate">{opt.label}</span>
+                    <span className="min-w-0 text-left break-words">{opt.label}</span>
                     {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
                   </button>
                 );
@@ -135,7 +139,7 @@ export function AudioSubtitlePopover({
 
         {/* SUBTITLE SELECTION SECTION */}
         <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850">
-          <div className="flex items-center justify-between mb-2.5 text-red-400 font-bold text-xs uppercase tracking-wider">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 text-red-400 font-bold text-xs uppercase tracking-wider">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               <span>Teks Terjemahan (Subtitle)</span>
@@ -143,6 +147,7 @@ export function AudioSubtitlePopover({
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
+              aria-expanded={showAdvanced}
               className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 font-semibold normal-case"
             >
               <Sliders className="w-3.5 h-3.5 text-red-500" />
@@ -155,6 +160,7 @@ export function AudioSubtitlePopover({
             <button
               type="button"
               onClick={() => onSelectSubtitle?.(null)}
+              aria-pressed={activeSubtitleIndex === null}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
                 activeSubtitleIndex === null
                   ? 'bg-red-600 text-white shadow-md'
@@ -173,13 +179,14 @@ export function AudioSubtitlePopover({
                   key={originalIdx}
                   type="button"
                   onClick={() => onSelectSubtitle?.(originalIdx)}
+                  aria-pressed={isActive}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
                     isActive
                       ? 'bg-red-600 text-white shadow-md'
                       : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
                   }`}
                 >
-                  <span className="truncate">{sub.label}</span>
+                  <span className="min-w-0 text-left break-words">{sub.label}</span>
                   {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
                 </button>
               );
@@ -187,11 +194,11 @@ export function AudioSubtitlePopover({
           </div>
 
           {/* Manual File Upload (.srt / .vtt) */}
-          <label className="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 rounded-lg text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer transition">
-            <Upload className="w-3.5 h-3.5 text-red-500" />
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 rounded-lg text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer transition">
+            <Upload className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
             <span>Unggah File Subtitle (.srt / .vtt)</span>
-            <input type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" />
-          </label>
+          </button>
+          <input ref={fileInputRef} type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" aria-label="File subtitle" />
         </div>
 
         {/* ADVANCED SUBTITLE CONTROLS (Font Size, Delay, Position) */}
@@ -211,6 +218,7 @@ export function AudioSubtitlePopover({
                     key={size}
                     type="button"
                     onClick={() => onFontSizeChange?.(size)}
+                    aria-pressed={subtitleFontSize === size}
                     className={`py-1.5 rounded-lg text-xs font-bold transition-all ${
                       subtitleFontSize === size
                         ? 'bg-red-600 text-white shadow-md'
@@ -241,12 +249,14 @@ export function AudioSubtitlePopover({
                 </button>
                 <input
                   type="range"
+                  aria-label="Penyesuaian waktu subtitle"
+                  aria-valuetext={`${subtitleDelay} detik`}
                   min="-5"
                   max="5"
                   step="0.5"
                   value={subtitleDelay}
                   onChange={(e) => onDelayChange?.(parseFloat(e.target.value))}
-                  className="flex-1 accent-red-600 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                  className="min-w-0 flex-1 accent-red-600 cursor-pointer h-6 bg-zinc-800 rounded-lg"
                 />
                 <button
                   type="button"
@@ -266,12 +276,14 @@ export function AudioSubtitlePopover({
               </div>
               <input
                 type="range"
+                aria-label="Posisi tinggi subtitle"
+                aria-valuetext={`${subtitlePosition} persen dari tinggi layar`}
                 min="20"
                 max="95"
                 step="5"
                 value={subtitlePosition}
                 onChange={(e) => onPositionChange?.(parseInt(e.target.value, 10))}
-                className="w-full accent-red-600 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                className="w-full accent-red-600 cursor-pointer h-6 bg-zinc-800 rounded-lg"
               />
             </div>
           </div>

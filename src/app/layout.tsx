@@ -6,6 +6,7 @@ import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ServiceWorkerRegistration } from '@/components/providers/ServiceWorkerRegistration';
 
 import { ClientToaster } from '@/components/layout/ClientToaster';
+import { SpatialNavigation } from '@/components/layout/SpatialNavigation';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -91,6 +92,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased text-white selection:bg-red-500/30">
         <ServiceWorkerRegistration />
+        <SpatialNavigation />
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
         </QueryProvider>

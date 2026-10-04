@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef } from 'react';
+import Link from 'next/link';
+import { ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { useMovieBoxHomepage } from '@/hooks/useMovieBox';
 import { useContinueWatching } from '@/hooks/useContinueWatching';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,6 +27,15 @@ export function HomeClient() {
   // These will now use the prefetched data from HydrationBoundary
   const { data: homeData, isLoading: isHomeLoading, error: homeError, refetch } = useMovieBoxHomepage();
 
+  const scrollContinueWatching = (direction: 'left' | 'right') => {
+    const slider = continueWatchingRef.current;
+    if (!slider) return;
+    slider.scrollBy({
+      left: slider.clientWidth * 0.9 * (direction === 'left' ? -1 : 1),
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
+  };
+
   // Handle Initial Loading state - SEAMLESS HYDRATION
   // We NEVER return a full-page loading skeleton if we have homeData (from hydration)
   // This prevents the "2x loading" or "flicker" effect.
@@ -34,9 +45,9 @@ export function HomeClient() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center px-4">
-          <ErrorDisplay message={homeError.message || 'Failed to load content'} onRetry={() => refetch()} />
-        </div>
+        <main id="main-content" className="page-content min-h-screen bg-[#141414] flex items-center justify-center px-4">
+          <ErrorDisplay message={homeError.message || 'Gagal memuat katalog'} onRetry={() => refetch()} />
+        </main>
         <Footer />
       </>
     );
@@ -87,7 +98,7 @@ export function HomeClient() {
   return (
     <>
       <Navbar />
-      <main className="bg-[#141414] min-h-screen">
+      <main id="main-content" className="page-content bg-[#141414] min-h-screen">
         {isInitialLoading ? (
           <LoadingPage />
         ) : (
@@ -98,40 +109,24 @@ export function HomeClient() {
               </div>
             )}
 
-            <div className="relative -mt-12 sm:-mt-20 lg:-mt-24 pb-20 space-y-10 sm:space-y-12">
-              {/* Favorit Saya (Watchlist - No Login Required) */}
-              {watchlist && watchlist.length > 0 && (
-                <div className="relative z-10">
-                  <SectionSlider
-                    title="Daftar Favorit Saya"
-                    items={watchlist}
-                  />
-                </div>
-              )}
+            <div className="relative py-8 space-y-10 sm:py-12 sm:space-y-12">
 
               {continueWatchingData && continueWatchingData.length > 0 && (
-                <section className="group relative z-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                  <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight mb-3 sm:mb-4">Lanjutkan Menonton</h2>
-                  <div className="relative">
-                    <button
-                      onClick={() => continueWatchingRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}
-                      className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
-                      aria-label="Scroll left"
-                    >
-                      <span className="block w-6 h-6 text-2xl leading-none">&lt;</span>
-                    </button>
-                    <div ref={continueWatchingRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
-                      {continueWatchingData.map((item) => (
-                        <ContinueWatchingCard key={item.id} item={item} onRemove={() => queryClient.invalidateQueries({ queryKey: ['continue-watching'] })} />
-                      ))}
+                <section className="content-container relative z-10 min-w-0" aria-labelledby="continue-heading">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 id="continue-heading" className="text-xl font-bold text-white sm:text-2xl 2xl:text-3xl">Lanjutkan Menonton</h2>
+                      <p className="mt-1 text-sm text-zinc-400 2xl:text-base">{continueWatchingData.length} tayangan · Lanjutkan dari posisi terakhir</p>
                     </div>
-                    <button
-                      onClick={() => continueWatchingRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all duration-300 hover:scale-110 hidden md:block"
-                      aria-label="Scroll right"
-                    >
-                      <span className="block w-6 h-6 text-2xl leading-none">&gt;</span>
-                    </button>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => scrollContinueWatching('left')} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kiri" aria-controls="continue-watching-row"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+                      <button type="button" onClick={() => scrollContinueWatching('right')} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kanan" aria-controls="continue-watching-row"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+                    </div>
+                  </div>
+                  <div id="continue-watching-row" ref={continueWatchingRef} className="flex gap-4 overflow-x-auto p-2 pb-4 scrollbar-hide snap-x snap-mandatory">
+                    {continueWatchingData.map((item) => (
+                      <ContinueWatchingCard key={item.id} item={item} onRemove={() => queryClient.invalidateQueries({ queryKey: ['continue-watching'] })} />
+                    ))}
                   </div>
                 </section>
               )}
@@ -145,6 +140,23 @@ export function HomeClient() {
                   categoryType={section.categoryType}
                 />
               ))}
+              <div id="favorit" className="relative z-10 scroll-mt-4">
+                {watchlist.length > 0 ? (
+                  <SectionSlider title="Favorit Saya" items={watchlist} />
+                ) : (
+                  <section className="content-container" aria-labelledby="favorite-heading">
+                    <h2 id="favorite-heading" className="mb-4 text-xl font-bold text-white sm:text-2xl 2xl:text-3xl">Favorit Saya</h2>
+                    <div className="flex flex-col items-start gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:flex-row sm:items-center sm:p-6">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-600/10 text-red-400"><Heart className="h-6 w-6" aria-hidden="true" /></span>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-white 2xl:text-lg">Belum ada judul favorit</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-zinc-400 2xl:text-base">Tekan ikon hati pada film atau series untuk menyimpannya di sini. Favorit tersimpan di perangkat ini, tanpa perlu akun.</p>
+                      </div>
+                      <Link href="/search" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500">Cari Tayangan</Link>
+                    </div>
+                  </section>
+                )}
+              </div>
 
             </div>
           </>
