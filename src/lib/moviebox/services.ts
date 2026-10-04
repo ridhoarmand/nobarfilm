@@ -487,8 +487,40 @@ export const movieBoxService = {
       format: String(item.format || 'mp4').toLowerCase(),
     }));
 
-    // H5 play has no captions (evidence captions-auth.md); subs come from m3u8 EXT-X-MEDIA via proxy (todo 8).
     const captions: Caption[] = [];
+    const captionStream = downloads[0];
+    if (captionStream?.id) {
+      const stream: unknown = streams.find((value: unknown) =>
+        value !== null && typeof value === 'object' && 'id' in value && String(value.id) === captionStream.id);
+      const streamFormat = stream !== null && typeof stream === 'object' && 'format' in stream && typeof stream.format === 'string'
+        ? stream.format : 'MP4';
+      const captionJson = await h5Fetch('/subject/caption', {
+        query: { format: String(streamFormat).toUpperCase(), id: captionStream.id, subjectId, detailPath },
+        referer: movieReferer(subjectId, detailPath),
+      });
+      if (!captionJson || typeof captionJson !== 'object' || !('code' in captionJson) || captionJson.code !== 0) {
+        const message = captionJson && typeof captionJson === 'object' && 'message' in captionJson && typeof captionJson.message === 'string'
+          ? captionJson.message : 'invalid response';
+        throw new Error(`H5 caption error: ${message}`);
+      }
+      const captionData = 'data' in captionJson ? captionJson.data : undefined;
+      if (captionData && typeof captionData === 'object' && 'captions' in captionData && Array.isArray(captionData.captions)) {
+        for (const value of captionData.captions) {
+          const caption: unknown = value;
+          if (!caption || typeof caption !== 'object' ||
+            !('url' in caption) || typeof caption.url !== 'string' || !caption.url ||
+            !('lan' in caption) || typeof caption.lan !== 'string' || !caption.lan) continue;
+          captions.push({
+            id: 'id' in caption && typeof caption.id === 'string' ? caption.id : '',
+            lan: caption.lan,
+            lanName: 'lanName' in caption && typeof caption.lanName === 'string' ? caption.lanName : caption.lan,
+            url: caption.url,
+            size: 'size' in caption && typeof caption.size === 'string' ? caption.size : '0',
+            delay: 'delay' in caption && typeof caption.delay === 'number' ? caption.delay : 0,
+          });
+        }
+      }
+    }
 
     const data: SourcesResponse = {
       downloads,

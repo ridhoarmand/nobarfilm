@@ -140,6 +140,7 @@ export function useMovieBoxPlayerMetadata(subjectId: string, season?: number, ep
 
 // Cache key generator for stream URLs
 const getStreamCacheKey = (subjectId: string, season?: number, episode?: number) => `nobar-stream-${subjectId}-${season ?? 'na'}-${episode ?? 'na'}`;
+const STREAM_CACHE_VERSION = 2;
 
 export interface StreamDownloadItem {
   resolution: number;
@@ -162,7 +163,7 @@ function getCachedStreamData(cacheKey: string): (PlaybackData & { expiry: number
     if (cached) {
       const data = JSON.parse(cached);
       // Check if not expired and contains valid streams
-      if (data.expiry && data.expiry > Date.now()) {
+      if (data.version === STREAM_CACHE_VERSION && data.expiry && data.expiry > Date.now()) {
         if (Array.isArray(data.allDownloads) && data.allDownloads.length > 0 && Boolean(data.streamUrl)) {
           return data;
         }
@@ -183,6 +184,7 @@ function cacheStreamData(cacheKey: string, data: PlaybackData, expiryMinutes = 1
       cacheKey,
       JSON.stringify({
         ...data,
+        version: STREAM_CACHE_VERSION,
         expiry: Date.now() + expiryMinutes * 60 * 1000,
       }),
     );

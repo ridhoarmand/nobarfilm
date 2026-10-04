@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { WEB_CLIENT_UA, WEB_REFERER_ORIGIN } from '@/lib/moviebox/config';
 
 // Helper function to convert SRT to VTT
 function srtToVtt(srtContent: string): string {
@@ -44,9 +45,9 @@ export async function GET(request: NextRequest) {
     // Fetch subtitle content from external server with referer header
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://lok-lok.cc/',
-        'Origin': 'https://lok-lok.cc',
+        'User-Agent': WEB_CLIENT_UA,
+        'Referer': `${WEB_REFERER_ORIGIN}/`,
+        'Origin': WEB_REFERER_ORIGIN,
       },
       redirect: 'follow',
     });
