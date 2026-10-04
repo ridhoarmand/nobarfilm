@@ -57,6 +57,8 @@ npm run dev
 
 Buka browser di `http://localhost:3000`.
 
+Letakkan skrip percobaan di `scratch/`. Cache `.codegraph/`, cache compiler TypeScript, dan berkas `.env` lokal tidak ikut Git atau konteks build container; `.env.example` tetap disertakan.
+
 ---
 
 ## 🧪 Script Diagnostik & Health-Check Service
