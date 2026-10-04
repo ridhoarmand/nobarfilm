@@ -44,7 +44,7 @@ yarn-error.log*
 .vercel
 
 # sensitive docs & specs
-.omo/ 
+.omo/
 API.md
 API-FOR-BOT.md
 GEMINI.md
@@ -56,4 +56,16 @@ repack-moviebox/
 next-env.d.ts
 dist/
 
+# local analysis, caches, and scratch scripts
+/.codegraph/
+/.cache/
+/src/test-search.ts
 
+# logs and editor temporary files
+*.log
+*.log.*
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
