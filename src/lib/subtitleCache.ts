@@ -38,6 +38,15 @@ if (typeof window !== 'undefined') {
   setInterval(cleanSubtitleCache, 10 * 60 * 1000);
 }
 
+export function toWebVtt(text: string): string {
+  const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trim();
+  if (normalized.startsWith('WEBVTT')) return normalized;
+  const cues = normalized
+    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+    .replace(/(\d{2}:\d{2}),(\d{3})/g, '00:$1.$2');
+  return `WEBVTT\n\n${cues}`;
+}
+
 /**
  * Fetch subtitle VTT content via API proxy and cache in temporary browser Blob URL.
  * Includes in-flight deduplication: if a fetch for `subtitleUrl` is already running,
@@ -71,16 +80,7 @@ export async function getCachedSubtitleBlobUrl(subtitleUrl: string): Promise<str
         throw new Error(`Failed to fetch subtitle: ${response.statusText}`);
       }
 
-      let text = await response.text();
-
-      // Ensure proper WebVTT header formatting
-      text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trim();
-      if (!text.startsWith('WEBVTT')) {
-        const vttContent = text
-          .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
-          .replace(/(\d{2}:\d{2}),(\d{3})/g, '00:$1.$2');
-        text = `WEBVTT\n\n${vttContent}`;
-      }
+      const text = toWebVtt(await response.text());
 
       const blob = new Blob([text], { type: 'text/vtt;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tv, Check, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 interface EpisodePopoverProps {
   isOpen: boolean;
@@ -34,23 +34,20 @@ export function EpisodePopover({
       aria-label="Pilihan episode dan musim"
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className="absolute inset-y-3 right-3 z-50 w-80 max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 sm:p-4 animate-fade-in text-white text-sm"
+      className="player-panel text-white text-sm"
     >
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80 mb-3">
-        <div className="flex items-center gap-2">
-          <Tv className="w-4 h-4 text-red-500" />
-          <span className="font-bold uppercase tracking-wider text-zinc-200">Episode & Musim</span>
-        </div>
+      <div className="player-panel-header">
+        <h2 className="font-semibold">Episode dan musim</h2>
+        <button type="button" onClick={onClose} aria-label="Tutup pilihan episode" className="ml-auto min-h-11 min-w-11 rounded-lg hover:bg-white/10 flex items-center justify-center"><X className="w-4 h-4" aria-hidden="true" /></button>
+      </div>
 
-        <button type="button" onClick={onClose} aria-label="Tutup pilihan episode" className="ml-auto rounded-lg hover:bg-white/10 flex items-center justify-center"><X className="w-4 h-4" /></button>
-        {/* Season Selector Dropdown */}
+      <div className="space-y-3">
         {seasons.length > 1 && (
           <select
             value={activeSeason}
             aria-label="Musim"
             onChange={(e) => onSeasonChange(parseInt(e.target.value, 10))}
-            className="min-h-11 bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 font-semibold"
+            className="min-h-11 w-full bg-zinc-950 border border-zinc-500 text-white rounded-lg px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {seasons.map((s) => (
               <option key={s} value={s}>
@@ -59,12 +56,9 @@ export function EpisodePopover({
             ))}
           </select>
         )}
-      </div>
-
-      {/* Episode Grid */}
-      <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1 scrollbar-hide">
-        <p className="text-[11px] font-semibold text-zinc-400 mb-2">Musim {activeSeason} — Daftar Episode</p>
-        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+        <p className="text-xs text-zinc-400">Musim {activeSeason} · Daftar episode</p>
+        {episodes.length === 0 && <p className="text-zinc-400">Episode untuk musim ini tidak tersedia.</p>}
+        <div className="player-episode-grid">
           {episodes.map((ep) => {
             const isSelected = ep === activeEpisode;
             return (
@@ -77,13 +71,10 @@ export function EpisodePopover({
                   onEpisodeChange(ep);
                   onClose();
                 }}
-                className={`py-2 px-1 rounded-xl text-center font-bold text-xs transition-all flex flex-col items-center justify-center ${
-                  isSelected
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-                    : 'bg-zinc-900/80 border border-zinc-800/80 text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                }`}
+                className="player-option min-h-11 px-1 text-center flex flex-col items-center justify-center gap-1"
               >
                 <span>Ep {ep}</span>
+                {isSelected && <Check className="w-4 h-4" aria-hidden="true" />}
               </button>
             );
           })}

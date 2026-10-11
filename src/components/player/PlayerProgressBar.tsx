@@ -36,18 +36,15 @@ export function PlayerProgressBar({
   return (
     <div
       data-interactive="true"
-      className="w-full min-w-0 flex items-center gap-2 sm:gap-3 select-none"
+      className="w-full min-w-0 select-none"
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
     >
-      <span className="shrink-0 text-xs font-semibold text-zinc-200 tabular-nums font-mono" aria-hidden="true">
-        {formatTime(displayedPosition)}
-      </span>
-      <div className="relative flex-1 min-w-0 h-11 flex items-center">
-        <div className="absolute inset-x-0 h-1.5 rounded-full bg-zinc-700 pointer-events-none overflow-hidden" aria-hidden="true">
-          <div className="absolute h-full bg-zinc-400/60" style={{ width: `${bufferedProgress}%` }} />
+      <div className="relative w-full min-w-0 h-11 flex items-center">
+        <div className="absolute inset-x-0 h-1.5 rounded-full bg-zinc-500 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div className="absolute h-full bg-zinc-300" style={{ width: `${bufferedProgress}%` }} />
           <div className="absolute h-full bg-red-600" style={{ width: `${progress}%` }} />
         </div>
         <input
@@ -93,13 +90,13 @@ export function PlayerProgressBar({
           className="relative z-10 w-full min-w-0 h-11 appearance-none bg-transparent cursor-pointer accent-red-600 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-red-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-red-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white disabled:cursor-default"
         />
         {previewTime !== null && (
-          <span className="absolute bottom-full left-1/2 -translate-x-1/2 pointer-events-none rounded-md bg-zinc-900 px-2 py-1 text-xs font-mono text-white border border-white/20" aria-hidden="true">
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 pointer-events-none rounded-md bg-zinc-950 px-2 py-1 text-xs tabular-nums text-white border border-zinc-700" aria-hidden="true">
             {formatTime(previewTime)}
           </span>
         )}
       </div>
-      <span className="shrink-0 text-xs font-semibold text-zinc-400 tabular-nums font-mono" aria-hidden="true">
-        {formatTime(total)}
+      <span className="block text-xs text-zinc-300 tabular-nums" aria-hidden="true">
+        {formatTime(displayedPosition)} / {formatTime(total)}
       </span>
     </div>
   );

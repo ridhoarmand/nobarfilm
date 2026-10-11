@@ -101,8 +101,11 @@ Konfigurasi host API H5 via environment variable (lihat `src/lib/moviebox/config
 - Subtitle SRT melewati `/api/subtitle` untuk dikonversi menjadi WebVTT. Referer mengikuti `MOVIEBOX_WEB_REFERER_ORIGIN`; ketersediaan bahasa bergantung pada judul dan episode.
 - Cache playback browser menggunakan versi payload agar data lama tanpa subtitle tidak digunakan kembali.
 - Tombol **Nyalakan Suara** memulihkan volume terakhir yang terdengar ketika volume nol. Perubahan mute/volume native juga disinkronkan dengan kontrol dan preferensi browser.
+- **Audio & Subtitle** menerima unggahan `.srt` atau `.vtt`. SRT dikonversi ke WebVTT di browser; URL Blob tetap tersedia selama halaman watch terbuka dan dibersihkan saat keluar. Ukuran, delay, dan posisi diterapkan kembali setelah cue selesai dimuat.
+- Buffering memakai indikator tanpa persentase; kegagalan video menampilkan pesan terpisah dengan tombol **Coba putar lagi**.
+- **Batal** pada banner episode berikutnya menonaktifkan auto-next untuk episode aktif, bukan sekadar menutup banner. Pilihan **Sampai video selesai** menghentikan playback pada event `ended` dan mengalahkan auto-next; timer 15/30/45/60 menit tetap berdasarkan waktu nyata.
 
-Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara setelah volume nol, lalu pilih subtitle Indonesia melalui **Pengaturan Audio & Subtitle**.
+Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara setelah volume nol, lalu pilih subtitle Indonesia atau unggah SRT melalui **Audio & Subtitle**. Uji **Batal** dan **Sampai video selesai** menjelang akhir episode.
 
 ---
 
@@ -112,9 +115,9 @@ Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara set
 - HP: navigasi bawah **Beranda / Cari / Favorit**, tombol sentuh minimal 44px, hero ringkas, hasil pencarian dua kolom, dan tata letak detail tanpa potongan horizontal. Favorit tersimpan lokal; menu Favorit menuju bagian `/#favorit`.
 - Laptop: pencarian cepat di header, kontrol carousel yang terlihat, judul kartu terbaca tanpa hover, serta tombol favorit terpisah dari tautan detail. Carousel berhenti saat interaksi/fokus dan menghormati preferensi reduced motion.
 - Layar besar/TV: tipografi lebih besar dan fokus putih-merah. Tombol arah memindahkan fokus antar tautan/tombol dan menggulir kartu ke tampilan; Enter mengaktifkan kontrol yang dipilih.
-- Pemutar: Enter saat belum memfokuskan kontrol menampilkan kontrol dan memfokuskan tombol Putar/Jeda. Fokus keyboard/remote dan panel pengaturan tetap terlihat; interaksi pointer kembali memakai auto-hide.
+- Pemutar: header berisi kembali, judul, dan kontrol nobar; footer berisi satu timeline dan satu baris Putar/Jeda, mute, **Audio & Subtitle**, **Pengaturan pemutar**, dan fullscreen. Layout mengikuti lebar pemutar, termasuk ketika panel nobar terbuka. Enter saat belum memfokuskan kontrol memfokuskan tombol Putar/Jeda; kontrol tetap terlihat saat dijeda, fokus keyboard/remote aktif, atau panel terbuka.
 - Seek/volume memakai slider native: kiri/kanan mengubah nilai, atas/bawah memindahkan fokus keluar slider. Input teks dan pilihan native tidak diambil alih oleh navigasi arah.
-- **Opsi** memuat kualitas, episode (jika tersedia), PiP, kunci layar, timer tidur, dan tips pada layar sempit. Panel dibatasi area pemutar dan dapat digulir; Escape menutup panel dan mengembalikan fokus ke pembukanya.
+- **Pengaturan pemutar** memuat kualitas, episode (jika tersedia), PiP (jika didukung), kunci layar, timer tidur, dan tips. Panel kualitas, episode, serta audio/subtitle memakai satu pola panel dengan header tetap dan konten bergulir; Escape menutup panel dan mengembalikan fokus ke pembukanya. **Otomatis** hanya menampilkan resolusi aktif jika diketahui dari HLS.
 - Episode detail memakai musim aktif yang benar, termasuk ketika musim pertama yang tersedia bukan musim 1.
 
 Verifikasi lokal: jalankan `npm run dev`; periksa beranda, pencarian, favorit, detail, dan pemutar pada 390×844, 844×390, 1365×768, serta 1920×1080. Uji Tab/tombol arah/Enter, seek, pilihan subtitle, dan Escape. Dukungan fullscreen/PiP bergantung pada browser; viewport TV bukan pengujian perangkat TV fisik.

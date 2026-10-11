@@ -2,11 +2,13 @@
 
 import React, { useEffect, useRef, forwardRef, useSyncExternalStore, useState, useCallback } from 'react';
 import Hls from 'hls.js';
+import toast from 'react-hot-toast';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { PlayerOverlay } from './PlayerOverlay';
 
 interface MoviePlayerProps {
+  mediaId: string;
   src: string;
   title?: string;
   subtitles?: Array<{
@@ -22,7 +24,7 @@ interface MoviePlayerProps {
   onSubtitleDelayChange?: (delay: number) => void;
   subtitlePosition?: number;
   onSubtitlePositionChange?: (pos: number) => void;
-  onCustomSubtitleUpload?: (sub: { label: string; src: string }) => void;
+  onCustomSubtitleUpload?: (file: File) => Promise<void>;
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
@@ -58,6 +60,7 @@ interface MoviePlayerProps {
 }
 
 export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
+  mediaId,
   src,
   title,
   subtitles = [],
@@ -111,7 +114,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasVideoError, setHasVideoError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [bufferPercent, setBufferPercent] = useState<number>(0);
+  const [autoNextEnabled, setAutoNextEnabled] = useState(true);
+  const [stopAtEnd, setStopAtEnd] = useState(false);
+
+  useEffect(() => {
+    setAutoNextEnabled(true);
+    setStopAtEnd(false);
+  }, [mediaId, activeSeason, activeEpisode]);
 
   // Debounce timer for stall detection & instant seeking
   const waitingDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -131,27 +140,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     return false;
   }, []);
 
-  // Helper to compute buffer ahead percentage accurately from video TimeRanges
-  const calculateBufferProgress = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return 0;
-    const curTime = video.currentTime;
-    let bufEnd = curTime;
-    if (video.buffered && video.buffered.length > 0) {
-      for (let i = 0; i < video.buffered.length; i++) {
-        const start = video.buffered.start(i);
-        const end = video.buffered.end(i);
-        if (start <= curTime + 0.5 && end >= curTime) {
-          bufEnd = end;
-          break;
-        }
-      }
-    }
-    const bufferedAhead = Math.max(0, bufEnd - curTime);
-    const targetBufferAhead = 3.0; // 3 seconds target for smooth play
-    const pct = Math.min(99, Math.round((bufferedAhead / targetBufferAhead) * 100));
-    return Math.max(15, pct);
-  }, []);
 
   // Client-side detection without SSR mismatch
   const isClient = useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -211,7 +199,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       setCurrentTime(0);
       setDuration(0);
       setBuffered(0);
-      setBufferPercent(15);
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
       }
@@ -310,15 +297,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         restoreTimeAndPlay();
       });
 
-      hls.on(Hls.Events.FRAG_LOADED, () => {
-        const real = calculateBufferProgress();
-        setBufferPercent((prev) => Math.max(prev, real));
-      });
-
-      hls.on(Hls.Events.FRAG_BUFFERED, () => {
-        const real = calculateBufferProgress();
-        setBufferPercent((prev) => Math.max(prev, real));
-      });
 
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
         if (data?.level !== undefined && hls?.levels?.[data.level]) {
@@ -333,7 +311,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             const isBuffered = isPositionBuffered(videoEl.currentTime);
             if (!isBuffered) {
               setIsBuffering(true);
-              setBufferPercent(calculateBufferProgress());
             }
           }
           return;
@@ -455,6 +432,18 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   // Ref to preserve original VTTCue timing before delay offset
   const originalCueTimesRef = useRef<WeakMap<VTTCue, { start: number; end: number }>>(new WeakMap());
+  const [subtitleLoadCount, setSubtitleLoadCount] = useState(0);
+  const attachSubtitleTrack = useCallback((track: HTMLTrackElement | null) => {
+    if (!track) return;
+    const loaded = () => setSubtitleLoadCount((count) => count + 1);
+    const failed = () => toast.error('Subtitle tidak dapat dimuat.');
+    track.addEventListener('load', loaded);
+    track.addEventListener('error', failed);
+    return () => {
+      track.removeEventListener('load', loaded);
+      track.removeEventListener('error', failed);
+    };
+  }, []);
 
   // Handle active subtitle track selection, position styling & delay timing
   useEffect(() => {
@@ -525,7 +514,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         styleElToRemove.remove();
       }
     };
-  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize, subtitleDelay]);
+  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize, subtitleDelay, subtitleLoadCount]);
 
   // Expose video DOM element to the ref
   useEffect(() => {
@@ -603,7 +592,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         waitingDebounceTimerRef.current = null;
       }
       setIsBuffering(false);
-      setBufferPercent(100);
     }
 
     video.currentTime = targetTime;
@@ -717,46 +705,10 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     isActive: true,
   });
 
-  // Update buffer percentage smoothly while genuinely buffering
-  const simulatedProgressRef = useRef<number>(15);
-
-  useEffect(() => {
-    if (!isBuffering) {
-      setBufferPercent(100);
-      return;
-    }
-
-    setBufferPercent((prev) => {
-      const start = prev > 0 && prev < 90 ? prev : 15;
-      simulatedProgressRef.current = start;
-      return start;
-    });
-
-    const timer = setInterval(() => {
-      const realPct = calculateBufferProgress();
-      
-      let nextSimulated = simulatedProgressRef.current;
-      if (realPct > nextSimulated) {
-        nextSimulated = realPct;
-      } else if (nextSimulated < 90) {
-        nextSimulated += Math.floor(Math.random() * 5) + 2;
-      }
-      
-      if (nextSimulated - simulatedProgressRef.current >= 5 || nextSimulated >= 90 || realPct > simulatedProgressRef.current) {
-        simulatedProgressRef.current = nextSimulated;
-        setBufferPercent(nextSimulated);
-      } else {
-        simulatedProgressRef.current = nextSimulated;
-      }
-    }, 200);
-
-    return () => clearInterval(timer);
-  }, [isBuffering, calculateBufferProgress]);
 
   const handleRetryVideo = () => {
     setHasVideoError(false);
     setIsBuffering(true);
-    setBufferPercent(15);
     const video = videoRef.current;
     if (video) {
       video.load();
@@ -774,7 +726,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     <div
       ref={containerRef}
       data-player-shortcuts
-      className="relative w-full h-full min-w-0 bg-black overflow-hidden group/player flex items-center justify-center [&_button]:min-h-11 [&_button]:min-w-11 [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-red-400 [&_input:focus-visible]:outline-2 [&_input:focus-visible]:outline-red-400 [&_select:focus-visible]:outline-2 [&_select:focus-visible]:outline-red-400"
+      className="player-shell relative w-full h-full min-w-0 bg-black group/player flex items-center justify-center [&_button]:min-h-11 [&_button]:min-w-11"
     >
       <video
         ref={videoRef}
@@ -802,7 +754,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           }
           setIsPlaying(true);
           setIsBuffering(false);
-          setBufferPercent(100);
           setHasVideoError(false);
         }}
         onPause={() => {
@@ -828,8 +779,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             const v = videoRef.current;
             if (v && !isPositionBuffered(v.currentTime) && !v.paused) {
               setIsBuffering(true);
-              const real = calculateBufferProgress();
-              setBufferPercent(real > 0 ? real : 20);
               if (isInParty && onPartyBuffering) onPartyBuffering(true);
             }
           }, 250);
@@ -844,7 +793,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
               waitingDebounceTimerRef.current = null;
             }
             setIsBuffering(false);
-            setBufferPercent(100);
           } else {
             // Outside of buffered range: debounce before showing spinner
             if (waitingDebounceTimerRef.current) clearTimeout(waitingDebounceTimerRef.current);
@@ -852,7 +800,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
               const v = videoRef.current;
               if (v && !isPositionBuffered(v.currentTime)) {
                 setIsBuffering(true);
-                setBufferPercent((prev) => (prev > 0 && prev < 90 ? prev : 20));
               }
             }, 250);
           }
@@ -865,7 +812,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           const video = videoRef.current;
           if (video && (video.readyState >= 2 || isPositionBuffered(video.currentTime))) {
             setIsBuffering(false);
-            setBufferPercent(100);
             if (isInParty && onPartyBuffering) onPartyBuffering(false);
           }
         }}
@@ -875,7 +821,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             waitingDebounceTimerRef.current = null;
           }
           setIsBuffering(false);
-          setBufferPercent(100);
           if (isInParty && onPartyBuffering) onPartyBuffering(false);
         }}
         onPlaying={() => {
@@ -885,7 +830,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           }
           setIsPlaying(true);
           setIsBuffering(false);
-          setBufferPercent(100);
           setHasVideoError(false);
           if (isInParty && onPartyBuffering) onPartyBuffering(false);
         }}
@@ -903,12 +847,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           setHasVideoError(true);
           setIsBuffering(false);
         }}
-        onProgress={() => {
-          if (isBuffering) {
-            const real = calculateBufferProgress();
-            if (real > 0) setBufferPercent((prev) => Math.max(prev, real));
-          }
-        }}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
           setCurrentTime(video.currentTime);
@@ -923,7 +861,16 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           setDuration(video.duration || 0);
           setHasVideoError(false);
         }}
-        onEnded={onEnded}
+        onEnded={() => {
+          setIsPlaying(false);
+          if (waitingDebounceTimerRef.current) {
+            clearTimeout(waitingDebounceTimerRef.current);
+            waitingDebounceTimerRef.current = null;
+          }
+          setIsBuffering(false);
+          if (isInParty && onPartyBuffering) onPartyBuffering(false);
+          if (autoNextEnabled && !stopAtEnd) onEnded?.();
+        }}
         onRateChange={(e) => {
           setSpeed(e.currentTarget.playbackRate);
         }}
@@ -936,52 +883,16 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             srcLang={sub.srcLang}
             src={sub.src}
             default={sub.default}
+            ref={attachSubtitleTrack}
           />
         ))}
       </video>
 
-      {/* Soft & Minimalist Buffering / Loading Indicator with Percentage */}
       {isBuffering && !hasVideoError && (
-        <div className="absolute inset-0 z-35 pointer-events-none flex flex-col items-center justify-center transition-opacity duration-300 animate-fade-in">
-          <div className="relative flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl bg-black/60 backdrop-blur-md shadow-2xl border border-white/10">
-            {/* Circular Progress Ring */}
-            <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
-                {/* Background track circle */}
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  className="text-white/15"
-                  fill="none"
-                />
-                {/* Dynamic animated progress arc */}
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeDasharray="125.66"
-                  strokeDashoffset={125.66 - (125.66 * Math.max(5, Math.min(99, bufferPercent || 15))) / 100}
-                  strokeLinecap="round"
-                  className="text-red-500 transition-all duration-200 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
-                  fill="none"
-                />
-              </svg>
-              {/* Percentage text in center */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs sm:text-sm font-bold font-mono text-white tracking-tighter">
-                  {Math.max(1, Math.min(99, bufferPercent || 15))}%
-                </span>
-              </div>
-            </div>
-
-            <span className="text-[10px] sm:text-[11px] text-zinc-300 font-semibold mt-2 tracking-wide animate-pulse">
-              Memuat Video...
-            </span>
+        <div className="absolute inset-0 z-35 pointer-events-none flex items-center justify-center">
+          <div role="status" aria-live="polite" className="flex items-center gap-3 rounded-lg bg-black/85 px-4 py-3 text-sm text-white">
+            <span aria-hidden="true" className="h-5 w-5 rounded-full border-2 border-zinc-500 border-t-white animate-spin" />
+            <span>Memuat video…</span>
           </div>
         </div>
       )}
@@ -994,8 +905,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h3 className="text-base font-bold text-zinc-100">Gagal Memuat Video</h3>
-          <p className="text-xs text-zinc-400 max-w-md leading-relaxed">
+          <h3 role="alert" className="text-base font-semibold text-zinc-100">Video tidak dapat dimuat</h3>
+          <p className="text-sm text-zinc-300 max-w-md leading-relaxed">
             Sumber pemutaran video terputus atau koneksi mengalami masalah. Silakan coba muat ulang stream.
           </p>
           <button
@@ -1003,12 +914,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             onClick={handleRetryVideo}
             className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center gap-2"
           >
-            <span>Muat Ulang Video</span>
+            <span>Coba putar lagi</span>
           </button>
         </div>
       )}
 
-      {/* Netflix Custom Player Overlay */}
       <PlayerOverlay
         title={title}
         isPlaying={isPlaying}
@@ -1052,7 +962,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onEpisodeChange={onEpisodeChange}
         hasNextEpisode={hasNextEpisode}
         onNextEpisode={onNextEpisode}
-        onTogglePiP={togglePictureInPicture}
+        autoNextEnabled={autoNextEnabled}
+        onCancelAutoNext={() => setAutoNextEnabled(false)}
+        stopAtEnd={stopAtEnd}
+        onStopAtEndChange={setStopAtEnd}
+        onTogglePiP={isClient && document.pictureInPictureEnabled && typeof videoRef.current?.requestPictureInPicture === 'function' ? togglePictureInPicture : undefined}
         partySlot={partySlot}
       />
 

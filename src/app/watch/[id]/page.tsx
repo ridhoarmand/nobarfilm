@@ -13,7 +13,7 @@ import { WatchPartyReactions } from '@/components/party/WatchPartyReactions';
 import { Loader2, AlertCircle, Film, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCachedSubtitleBlobUrl } from '@/lib/subtitleCache';
+import { getCachedSubtitleBlobUrl, toWebVtt } from '@/lib/subtitleCache';
 
 function WatchContent() {
   const params = useParams();
@@ -36,6 +36,17 @@ function WatchContent() {
   const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
   const [isSubtitleModalOpen, setIsSubtitleModalOpen] = useState(false);
   const [customSubtitles, setCustomSubtitles] = useState<Array<{ label: string; src: string }>>([]);
+  const customSubtitlesRef = useRef<Array<{ label: string; src: string }>>([]);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      for (const subtitle of customSubtitlesRef.current) URL.revokeObjectURL(subtitle.src);
+      customSubtitlesRef.current = [];
+    };
+  }, []);
 
   const { data: detail, isLoading: isLoadingDetail, error: detailError } = useMovieBoxDetail(subjectId);
 
@@ -299,6 +310,30 @@ function WatchContent() {
   const captionUrlsKey = useMemo(() => {
     return filteredCaptions.map((c) => c.url).join('|');
   }, [filteredCaptions]);
+  const captionCountRef = useRef(filteredCaptions.length);
+  captionCountRef.current = filteredCaptions.length;
+
+  const handleCustomSubtitleUpload = async (file: File) => {
+    if (!/\.(srt|vtt)$/i.test(file.name)) throw new Error('Pilih file .srt atau .vtt.');
+    let raw: string;
+    try {
+      raw = await file.text();
+    } catch {
+      throw new Error('File subtitle tidak dapat dibaca.');
+    }
+    if (!mountedRef.current) return;
+    const text = toWebVtt(raw);
+    if (!raw.trim() || !/^[ \t]*(?:\d{2}:)?\d{2}:\d{2}[,.]\d{3}[ \t]+-->[ \t]+(?:\d{2}:)?\d{2}:\d{2}[,.]\d{3}/m.test(text)) {
+      throw new Error('Subtitle tidak berisi cue yang dapat dibaca.');
+    }
+    const src = URL.createObjectURL(new Blob([text], { type: 'text/vtt;charset=utf-8' }));
+    const index = captionCountRef.current + customSubtitlesRef.current.length;
+    const next = [...customSubtitlesRef.current, { label: file.name.replace(/\.[^/.]+$/, ''), src }];
+    customSubtitlesRef.current = next;
+    setCustomSubtitles(next);
+    pendingSubtitleRef.current = index;
+    setSelectedSubtitleIndex(index);
+  };
 
   // Request a subtitle switch: fetch the target subtitle content FIRST,
   // then swap the active track once it is ready. This avoids the blink/flicker
@@ -542,7 +577,7 @@ function WatchContent() {
 
   const genres = subject?.genre ? subject.genre.split(',').map((g) => g.trim()).filter(Boolean) : [];
   const releaseYear = subject?.releaseDate ? new Date(subject.releaseDate).getFullYear() : null;
-  const displayTitle = isSeries ? `${subject?.title} — S${effectiveSeason} E${effectiveEpisode}` : subject?.title;
+  const displayTitle = isSeries ? `${subject?.title} · S${effectiveSeason} E${effectiveEpisode}` : subject?.title;
   const directors = subject?.staffList?.filter((s) => s.staffType === 1) ?? [];
   const cast = subject?.staffList?.filter((s) => s.staffType === 2).slice(0, 6) ?? [];
 
@@ -598,6 +633,7 @@ function WatchContent() {
           ) : (
           <MoviePlayer
             ref={videoRef}
+            mediaId={subjectId}
             src={effectiveStreamUrl}
             title={displayTitle}
             poster={subject?.coverHorizontalUrl || subject?.cover?.url}
@@ -610,10 +646,7 @@ function WatchContent() {
             onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
             subtitlePosition={subtitlePosition}
             onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
-            onCustomSubtitleUpload={(customSub: { label: string; src: string }) => {
-              setCustomSubtitles((prev) => [...prev, customSub]);
-              setSelectedSubtitleIndex(filteredCaptions.length + customSubtitles.length);
-            }}
+            onCustomSubtitleUpload={handleCustomSubtitleUpload}
             onProgress={handleProgress}
             hasNextEpisode={hasNextEpisode}
             onNextEpisode={handleNextEpisode}
@@ -787,9 +820,8 @@ function WatchContent() {
 
       {/* Floating Resume Toast Notification */}
       {showResumeToast && resumeTime > 5 && (
-        <div className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 bg-zinc-900/95 border border-red-500/50 text-white px-3 py-2 rounded-2xl shadow-2xl backdrop-blur-xl animate-fade-in sm:inset-x-auto sm:bottom-6 sm:left-6 sm:gap-3 sm:px-4 sm:py-3">
+        <div className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 bg-zinc-950 border border-zinc-700 text-white px-3 py-2 rounded-xl sm:inset-x-auto sm:bottom-6 sm:left-6 sm:gap-3 sm:px-4 sm:py-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
             <span className="text-xs font-semibold">
               Melanjutkan dari {Math.floor(resumeTime / 60)}:{String(Math.floor(resumeTime % 60)).padStart(2, '0')}
             </span>
@@ -800,7 +832,7 @@ function WatchContent() {
               if (video) video.currentTime = 0;
               setShowResumeToast(false);
             }}
-            className="min-h-11 shrink-0 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md"
+            className="min-h-11 shrink-0 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-semibold transition-colors"
           >
             Putar Awal
           </button>

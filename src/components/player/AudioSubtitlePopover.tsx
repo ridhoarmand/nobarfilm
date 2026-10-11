@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, MessageSquare, Upload, Sliders, Check, Clock, Type, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Upload, Sliders, Check, X } from 'lucide-react';
 
 interface AudioSubtitlePopoverProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ interface AudioSubtitlePopoverProps {
   onPositionChange?: (pos: number) => void;
   subtitleFontSize?: 'sm' | 'md' | 'lg' | 'xl';
   onFontSizeChange?: (size: 'sm' | 'md' | 'lg' | 'xl') => void;
-  onCustomSubtitleUpload?: (customSub: { label: string; src: string }) => void;
+  onCustomSubtitleUpload?: (file: File) => Promise<void>;
 }
 
 export function AudioSubtitlePopover({
@@ -46,35 +46,30 @@ export function AudioSubtitlePopover({
   onCustomSubtitleUpload,
 }: AudioSubtitlePopoverProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const objectUrlRef = useRef<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-      }
-    };
-  }, []);
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    if (!file || !onCustomSubtitleUpload) return;
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      await onCustomSubtitleUpload(file);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'File subtitle tidak dapat dibaca.');
+    } finally {
+      input.value = '';
+      setIsUploading(false);
     }
-
-    const url = URL.createObjectURL(file);
-    objectUrlRef.current = url;
-    
-    onCustomSubtitleUpload?.({
-      label: file.name.replace(/\.[^/.]+$/, ''),
-      src: url,
-    });
   };
+
+  const hasAdjustments = Boolean(onFontSizeChange || onDelayChange || onPositionChange);
 
   return (
     <div
@@ -84,211 +79,187 @@ export function AudioSubtitlePopover({
       aria-label="Pengaturan audio dan subtitle"
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className="absolute inset-y-3 left-1/2 -translate-x-1/2 sm:left-auto sm:right-3 sm:translate-x-0 z-50 w-[460px] max-w-[calc(100%-1.5rem)] overflow-y-auto overflow-x-hidden overscroll-contain bg-zinc-950/95 border border-zinc-800/90 text-white rounded-2xl shadow-2xl backdrop-blur-2xl p-3 sm:p-5 animate-fade-in scrollbar-thin"
+      className="player-panel text-sm text-white"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-4">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-red-500" />
-          <h3 className="font-bold text-sm sm:text-base text-zinc-100">
-            Audio & Subtitle
-          </h3>
-        </div>
+      <div className="player-panel-header">
+        <h3 className="font-semibold">Audio & subtitle</h3>
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white transition"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800 hover:text-white"
           aria-label="Tutup"
         >
-          <X className="w-4 h-4" />
+          <X aria-hidden="true" className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="space-y-4">
-        {/* AUDIO TRACKS SECTION */}
-        {audioOptions.length > 0 && (
-          <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850">
-            <div className="flex items-center gap-2 mb-2.5 text-red-400 font-bold text-xs uppercase tracking-wider">
-              <Volume2 className="w-4 h-4" />
-              <span>Bahasa Audio (Suara)</span>
-            </div>
-
-            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-              {audioOptions.map((opt) => {
-                const isActive = opt.code === activeAudioCode;
-                return (
-                  <button
-                    key={opt.code}
-                    type="button"
-                    onClick={() => onSelectAudio?.(opt.code)}
-                    aria-pressed={isActive}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                      isActive
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <span className="min-w-0 text-left break-words">{opt.label}</span>
-                    {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
+      {audioOptions.length > 0 && onSelectAudio && (
+        <section className="player-section">
+          <h4 className="mb-2 font-semibold">Bahasa audio</h4>
+          <div className="space-y-1">
+            {audioOptions.map((opt) => (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => onSelectAudio(opt.code)}
+                aria-pressed={opt.code === activeAudioCode}
+                className="player-option"
+              >
+                <span className="min-w-0 break-words text-left">{opt.label}</span>
+                {opt.code === activeAudioCode && <Check aria-hidden="true" className="h-4 w-4 shrink-0" />}
+              </button>
+            ))}
           </div>
+        </section>
+      )}
+
+      <section className="player-section">
+        <h4 className="mb-2 font-semibold">Subtitle</h4>
+        {subtitles.length === 0 && (
+          <p className="mb-2 text-sm text-zinc-300">
+            {onCustomSubtitleUpload
+              ? 'Subtitle bawaan tidak tersedia. Anda dapat mengunggah file .srt atau .vtt.'
+              : 'Subtitle bawaan tidak tersedia.'}
+          </p>
         )}
-
-        {/* SUBTITLE SELECTION SECTION */}
-        <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 text-red-400 font-bold text-xs uppercase tracking-wider">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span>Teks Terjemahan (Subtitle)</span>
-            </div>
+        {onSelectSubtitle && (
+          <div className="space-y-1">
             <button
               type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              aria-expanded={showAdvanced}
-              className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 font-semibold normal-case"
-            >
-              <Sliders className="w-3.5 h-3.5 text-red-500" />
-              {showAdvanced ? 'Sembunyikan Pengaturan' : 'Atur Ukuran & Delay'}
-            </button>
-          </div>
-
-          <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-            {/* Option Off / Nonaktif */}
-            <button
-              type="button"
-              onClick={() => onSelectSubtitle?.(null)}
+              onClick={() => onSelectSubtitle(null)}
               aria-pressed={activeSubtitleIndex === null}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-                activeSubtitleIndex === null
-                  ? 'bg-red-600 text-white shadow-md'
-                  : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-              }`}
+              className="player-option"
             >
-              <span>Nonaktifkan (Mati)</span>
-              {activeSubtitleIndex === null && <Check className="w-4 h-4 text-white flex-shrink-0" />}
+              <span>Nonaktif</span>
+              {activeSubtitleIndex === null && <Check aria-hidden="true" className="h-4 w-4 shrink-0" />}
             </button>
-
-            {/* Subtitles List (Indonesian & English Filtered) */}
-            {subtitles.map((sub, originalIdx) => {
-              const isActive = activeSubtitleIndex === originalIdx;
-              return (
-                <button
-                  key={originalIdx}
-                  type="button"
-                  onClick={() => onSelectSubtitle?.(originalIdx)}
-                  aria-pressed={isActive}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-red-600 text-white shadow-md'
-                      : 'bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                  }`}
-                >
-                  <span className="min-w-0 text-left break-words">{sub.label}</span>
-                  {isActive && <Check className="w-4 h-4 text-white flex-shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Manual File Upload (.srt / .vtt) */}
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 rounded-lg text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer transition">
-            <Upload className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-            <span>Unggah File Subtitle (.srt / .vtt)</span>
-          </button>
-          <input ref={fileInputRef} type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" aria-label="File subtitle" />
-        </div>
-
-        {/* ADVANCED SUBTITLE CONTROLS (Font Size, Delay, Position) */}
-        {showAdvanced && (
-          <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-850 space-y-3.5 animate-fade-in">
-            {/* Font Size Selector */}
-            <div>
-              <div className="flex items-center justify-between text-xs text-zinc-300 mb-1.5 font-semibold">
-                <span className="flex items-center gap-1.5">
-                  <Type className="w-3.5 h-3.5 text-red-400" /> Ukuran Teks Subtitle
-                </span>
-                <span className="text-red-400 font-bold uppercase text-[11px]">{subtitleFontSize}</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(['sm', 'md', 'lg', 'xl'] as const).map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => onFontSizeChange?.(size)}
-                    aria-pressed={subtitleFontSize === size}
-                    className={`py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      subtitleFontSize === size
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'bg-zinc-800/60 hover:bg-zinc-800 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {size === 'sm' ? 'Kecil' : size === 'md' ? 'Sedang' : size === 'lg' ? 'Besar' : 'Jumbo'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Subtitle Delay Sync */}
-            <div>
-              <div className="flex items-center justify-between text-xs text-zinc-300 mb-1.5 font-semibold">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-red-400" /> Sinkronisasi Waktu (Delay)
-                </span>
-                <span className="text-red-400 font-bold text-[11px]">{subtitleDelay > 0 ? `+${subtitleDelay}s` : `${subtitleDelay}s`}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onDelayChange?.(Math.max(-5, Math.round((subtitleDelay - 0.5) * 10) / 10))}
-                  className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-bold text-zinc-200 transition"
-                >
-                  -0.5s
-                </button>
-                <input
-                  type="range"
-                  aria-label="Penyesuaian waktu subtitle"
-                  aria-valuetext={`${subtitleDelay} detik`}
-                  min="-5"
-                  max="5"
-                  step="0.5"
-                  value={subtitleDelay}
-                  onChange={(e) => onDelayChange?.(parseFloat(e.target.value))}
-                  className="min-w-0 flex-1 accent-red-600 cursor-pointer h-6 bg-zinc-800 rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={() => onDelayChange?.(Math.min(5, Math.round((subtitleDelay + 0.5) * 10) / 10))}
-                  className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-bold text-zinc-200 transition"
-                >
-                  +0.5s
-                </button>
-              </div>
-            </div>
-
-            {/* Subtitle Vertical Position */}
-            <div>
-              <div className="flex items-center justify-between text-xs text-zinc-300 mb-1.5 font-semibold">
-                <span>Posisi Tinggi Layar</span>
-                <span className="text-red-400 font-bold text-[11px]">{subtitlePosition}%</span>
-              </div>
-              <input
-                type="range"
-                aria-label="Posisi tinggi subtitle"
-                aria-valuetext={`${subtitlePosition} persen dari tinggi layar`}
-                min="20"
-                max="95"
-                step="5"
-                value={subtitlePosition}
-                onChange={(e) => onPositionChange?.(parseInt(e.target.value, 10))}
-                className="w-full accent-red-600 cursor-pointer h-6 bg-zinc-800 rounded-lg"
-              />
-            </div>
+            {subtitles.map((sub, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => onSelectSubtitle(index)}
+                aria-pressed={activeSubtitleIndex === index}
+                className="player-option"
+              >
+                <span className="min-w-0 break-words text-left">{sub.label}</span>
+                {activeSubtitleIndex === index && <Check aria-hidden="true" className="h-4 w-4 shrink-0" />}
+              </button>
+            ))}
           </div>
         )}
-      </div>
+        {onCustomSubtitleUpload && (
+          <>
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="player-option mt-2 disabled:cursor-wait disabled:opacity-60"
+            >
+              <span className="flex items-center gap-2 text-left">
+                <Upload aria-hidden="true" className="h-4 w-4 shrink-0" />
+                {isUploading ? 'Membaca subtitle…' : 'Unggah subtitle (.srt / .vtt)'}
+              </span>
+            </button>
+            <input ref={fileInputRef} disabled={isUploading} type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" aria-label="File subtitle" />
+          </>
+        )}
+        {uploadError && <p role="alert" className="mt-2 text-sm text-zinc-200">{uploadError}</p>}
+      </section>
+
+      {hasAdjustments && (
+        <section className="player-section">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            aria-expanded={showAdvanced}
+            className="player-option"
+          >
+            <span className="flex items-center gap-2">
+              <Sliders aria-hidden="true" className="h-4 w-4 shrink-0" />
+              {showAdvanced ? 'Sembunyikan pengaturan subtitle' : 'Pengaturan subtitle'}
+            </span>
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 space-y-4">
+              {onFontSizeChange && (
+                <div>
+                  <p className="mb-2 text-zinc-300">Ukuran teks subtitle</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['sm', 'md', 'lg', 'xl'] as const).map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => onFontSizeChange(size)}
+                        aria-pressed={subtitleFontSize === size}
+                        className="player-option"
+                      >
+                        <span>{size === 'sm' ? 'Kecil' : size === 'md' ? 'Sedang' : size === 'lg' ? 'Besar' : 'Jumbo'}</span>
+                        {subtitleFontSize === size && <Check aria-hidden="true" className="h-4 w-4 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {onDelayChange && (
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-zinc-300">
+                    <span>Sinkronisasi waktu</span>
+                    <span className="tabular-nums">{subtitleDelay > 0 ? '+' : ''}{subtitleDelay} detik</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onDelayChange(Math.max(-5, Math.round((subtitleDelay - 0.5) * 10) / 10))}
+                      aria-label="Kurangi delay subtitle 0,5 detik"
+                      className="min-h-11 min-w-11 shrink-0 rounded-lg px-2 text-sm hover:bg-zinc-800"
+                    >
+                      −0.5s
+                    </button>
+                    <input
+                      type="range"
+                      aria-label="Penyesuaian waktu subtitle"
+                      aria-valuetext={`${subtitleDelay} detik`}
+                      min="-5"
+                      max="5"
+                      step="0.5"
+                      value={subtitleDelay}
+                      onChange={(e) => onDelayChange(parseFloat(e.target.value))}
+                      className="h-11 min-w-0 flex-1 cursor-pointer accent-red-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onDelayChange(Math.min(5, Math.round((subtitleDelay + 0.5) * 10) / 10))}
+                      aria-label="Tambah delay subtitle 0,5 detik"
+                      className="min-h-11 min-w-11 shrink-0 rounded-lg px-2 text-sm hover:bg-zinc-800"
+                    >
+                      +0.5s
+                    </button>
+                  </div>
+                </div>
+              )}
+              {onPositionChange && (
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-zinc-300">
+                    <span>Posisi tinggi layar</span>
+                    <span className="tabular-nums">{subtitlePosition}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label="Posisi tinggi subtitle"
+                    aria-valuetext={`${subtitlePosition} persen dari tinggi layar`}
+                    min="20"
+                    max="95"
+                    step="5"
+                    value={subtitlePosition}
+                    onChange={(e) => onPositionChange(parseInt(e.target.value, 10))}
+                    className="h-11 w-full cursor-pointer accent-red-600"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
