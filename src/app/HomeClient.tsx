@@ -30,10 +30,16 @@ export function HomeClient() {
   const scrollContinueWatching = (direction: 'left' | 'right') => {
     const slider = continueWatchingRef.current;
     if (!slider) return;
-    slider.scrollBy({
-      left: slider.clientWidth * 0.9 * (direction === 'left' ? -1 : 1),
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-    });
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+    const step = slider.clientWidth * 0.9;
+    if (direction === 'left' && slider.scrollLeft <= step) {
+      slider.scrollTo({ left: 0, behavior });
+    } else {
+      slider.scrollBy({
+        left: step * (direction === 'left' ? -1 : 1),
+        behavior,
+      });
+    }
   };
 
   // Handle Initial Loading state - SEAMLESS HYDRATION
@@ -123,7 +129,7 @@ export function HomeClient() {
                       <button type="button" onClick={() => scrollContinueWatching('right')} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kanan" aria-controls="continue-watching-row"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
                     </div>
                   </div>
-                  <div id="continue-watching-row" ref={continueWatchingRef} className="flex gap-4 overflow-x-auto p-2 pb-4 scrollbar-hide snap-x snap-mandatory">
+                  <div id="continue-watching-row" ref={continueWatchingRef} data-spatial-row style={{ scrollPaddingLeft: '0.5rem' }} className="flex gap-4 overflow-x-auto p-2 pb-4 scrollbar-hide snap-x snap-mandatory">
                     {continueWatchingData.map((item) => (
                       <ContinueWatchingCard key={item.id} item={item} onRemove={() => queryClient.invalidateQueries({ queryKey: ['continue-watching'] })} />
                     ))}

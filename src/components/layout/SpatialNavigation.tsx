@@ -6,7 +6,7 @@ const focusableSelector = 'a[href],button,input:not([type="hidden"]),select,text
 const nativeArrowSelector = 'input,textarea,select,[contenteditable="true"],[role="slider"],[role="spinbutton"],[role="combobox"],[data-native-arrows]';
 
 function canFocus(element: HTMLElement) {
-  if (element.tabIndex < 0 || element.matches(':disabled') || element.closest('[inert],[aria-hidden="true"],[aria-disabled="true"]')) return false;
+  if (element.tabIndex < 0 || element.matches(':disabled, .skip-link') || element.closest('[inert],[aria-hidden="true"],[aria-disabled="true"]')) return false;
   const rect = element.getBoundingClientRect();
   if (!rect.width || !rect.height) return false;
   if (typeof element.checkVisibility === 'function') {
@@ -50,13 +50,15 @@ export function SpatialNavigation() {
       } else {
         const origin = current.getBoundingClientRect();
         const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+        const currentRow = horizontal ? current.closest<HTMLElement>('[data-spatial-row]') : null;
+        const rowCandidates = currentRow ? candidates.filter((el) => currentRow.contains(el)) : candidates;
         const positive = event.key === 'ArrowRight' || event.key === 'ArrowDown';
         const originMain = horizontal ? (origin.left + origin.right) / 2 : (origin.top + origin.bottom) / 2;
         const originCross = horizontal ? (origin.top + origin.bottom) / 2 : (origin.left + origin.right) / 2;
         let bestScore = Infinity;
         let bestAligned = false;
 
-        for (const candidate of candidates) {
+        for (const candidate of rowCandidates) {
           if (candidate === current) continue;
           const rect = candidate.getBoundingClientRect();
           const main = horizontal ? (rect.left + rect.right) / 2 : (rect.top + rect.bottom) / 2;
@@ -65,6 +67,7 @@ export function SpatialNavigation() {
           const crossGap = horizontal
             ? Math.max(0, rect.top - origin.bottom, origin.top - rect.bottom)
             : Math.max(0, rect.left - origin.right, origin.left - rect.right);
+          if (horizontal && crossGap > 0) continue;
           const score = Math.abs(main - originMain) + crossGap * 4 + Math.abs(cross - originCross) * 0.25;
           // Keep movement on the same visual row/column before choosing a diagonal.
           const aligned = crossGap === 0;
@@ -83,6 +86,10 @@ export function SpatialNavigation() {
         if (next) {
           next.focus({ preventScroll: true });
           next.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+          const nextRow = next.closest<HTMLElement>('[data-spatial-row]');
+          if (nextRow && next === candidates.find((el) => nextRow.contains(el))) {
+            nextRow.scrollLeft = 0;
+          }
         }
       }
     };

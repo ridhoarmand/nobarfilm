@@ -61,6 +61,9 @@ const HOMEPAGE_SECTIONS: Array<{ title: string; filter: { tabId: number; classif
   { title: 'Serial Korea', filter: { tabId: 5, country: 'Korea' } },
   { title: 'Hollywood', filter: { tabId: 2, country: 'United States' } },
   { title: 'Drama China', filter: { tabId: 5, country: 'China' } },
+  { title: 'Horor', filter: { tabId: 2, genre: 'Horror' } },
+  { title: 'Serial Thailand', filter: { tabId: 5, country: 'Thailand' } },
+  { title: 'Misteri', filter: { tabId: 2, genre: 'Mystery' } },
 ];
 
 // H5 bundle has a /ranking-list route but it is network-unverified — the ranking route
