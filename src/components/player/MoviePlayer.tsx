@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { PlayerOverlay } from './PlayerOverlay';
+import type { OtherSubtitleContext, OtherSubtitleResult } from '@/types/other-subtitles';
 
 interface MoviePlayerProps {
   mediaId: string;
@@ -25,6 +26,8 @@ interface MoviePlayerProps {
   subtitlePosition?: number;
   onSubtitlePositionChange?: (pos: number) => void;
   onCustomSubtitleUpload?: (file: File) => Promise<void>;
+  otherSubtitleContext?: OtherSubtitleContext;
+  onOtherSubtitleSelect?: (result: OtherSubtitleResult, signal: AbortSignal) => Promise<void>;
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
@@ -59,6 +62,8 @@ interface MoviePlayerProps {
   children?: React.ReactNode;
 }
 
+const INDONESIAN_HLS_SUBTITLE = /indonesia|bahasa|\bid\b|\bin\b/i;
+
 export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   mediaId,
   src,
@@ -71,6 +76,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   subtitlePosition = 84,
   onSubtitlePositionChange,
   onCustomSubtitleUpload,
+  otherSubtitleContext,
+  onOtherSubtitleSelect,
   poster,
   onEnded,
   onProgress,
@@ -102,6 +109,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const subtitlesRef = useRef(subtitles);
+  subtitlesRef.current = subtitles;
 
   // Playback & player state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -219,6 +228,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
   // Ref to hold current HLS instance for quality control
   const hlsRef = useRef<Hls | null>(null);
+  const suspendedHlsSubtitlesRef = useRef<Hls | null>(null);
 
   // Handle HLS Quality Level Switching (Auto = -1, Manual = 0,1,2...)
   useEffect(() => {
@@ -279,6 +289,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       });
 
       hlsRef.current = hls;
+      suspendedHlsSubtitlesRef.current = null;
 
       hls.loadSource(currentSrc);
       hls.attachMedia(video);
@@ -290,11 +301,20 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         // Prefer Indonesian subtitle track (EXT-X-MEDIA via proxy) when present.
         const tracks = hls!.subtitleTracks || [];
         if (tracks.length > 0) {
-          const isId = (t: { name?: string; lang?: string; assocLang?: string }) => /indonesia|bahasa|\bid\b|\bin\b/i.test(`${t.name || ''} ${t.lang || ''} ${t.assocLang || ''}`);
-          const idx = tracks.findIndex(isId);
+          const idx = tracks.findIndex((track) => INDONESIAN_HLS_SUBTITLE.test(`${track.name || ''} ${track.lang || ''} ${track.assocLang || ''}`));
           if (idx >= 0) hls!.subtitleTrack = idx;
         }
+        if (subtitlesRef.current.length > 0) {
+          suspendedHlsSubtitlesRef.current = hls!;
+          hls!.subtitleDisplay = false;
+          hls!.subtitleTrack = -1;
+        }
+        setSubtitleLoadCount((count) => count + 1);
         restoreTimeAndPlay();
+      });
+
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+        setSubtitleLoadCount((count) => count + 1);
       });
 
 
@@ -450,6 +470,23 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     const video = videoRef.current;
     if (!video || !video.textTracks) return;
 
+    const hls = hlsRef.current;
+    if (hls) {
+      if (subtitles.length > 0) {
+        suspendedHlsSubtitlesRef.current = hls;
+        hls.subtitleDisplay = false;
+        hls.subtitleTrack = -1;
+      } else if (suspendedHlsSubtitlesRef.current === hls) {
+        hls.subtitleDisplay = true;
+        const tracks = hls.subtitleTracks;
+        if (tracks.length > 0) {
+          const idx = tracks.findIndex((track) => INDONESIAN_HLS_SUBTITLE.test(`${track.name || ''} ${track.lang || ''} ${track.assocLang || ''}`));
+          hls.subtitleTrack = idx >= 0 ? idx : tracks.findIndex((track) => track.default);
+          suspendedHlsSubtitlesRef.current = null;
+        }
+      }
+    }
+
     let styleEl = document.getElementById('nobar-subtitle-style') as HTMLStyleElement;
     if (!styleEl) {
       styleEl = document.createElement('style');
@@ -482,29 +519,34 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       }
     `;
 
-    // In-memory track mode switching, position & subtitleDelay offset mutation
-    for (let i = 0; i < video.textTracks.length; i++) {
-      const track = video.textTracks[i];
-      if (activeSubtitleIndex === i) {
-        track.mode = 'showing';
-        if (track.cues) {
-          for (let c = 0; c < track.cues.length; c++) {
-            const cue = track.cues[c] as VTTCue;
-            if (cue) {
-              cue.line = subtitlePosition;
-              cue.snapToLines = false;
+    // HLS tracks can precede React-owned tracks in video.textTracks.
+    if (subtitles.length > 0) {
+      const selectedTrack = activeSubtitleIndex == null
+        ? null
+        : video.querySelector<HTMLTrackElement>(`track[data-nobar-subtitle="${activeSubtitleIndex}"]`)?.track;
+      for (let i = 0; i < video.textTracks.length; i++) {
+        const track = video.textTracks[i];
+        if (track === selectedTrack) {
+          track.mode = 'showing';
+          if (track.cues) {
+            for (let c = 0; c < track.cues.length; c++) {
+              const cue = track.cues[c] as VTTCue;
+              if (cue) {
+                cue.line = subtitlePosition;
+                cue.snapToLines = false;
 
-              if (!originalCueTimesRef.current.has(cue)) {
-                originalCueTimesRef.current.set(cue, { start: cue.startTime, end: cue.endTime });
+                if (!originalCueTimesRef.current.has(cue)) {
+                  originalCueTimesRef.current.set(cue, { start: cue.startTime, end: cue.endTime });
+                }
+                const orig = originalCueTimesRef.current.get(cue)!;
+                cue.startTime = Math.max(0, orig.start + subtitleDelay);
+                cue.endTime = Math.max(0, orig.end + subtitleDelay);
               }
-              const orig = originalCueTimesRef.current.get(cue)!;
-              cue.startTime = Math.max(0, orig.start + subtitleDelay);
-              cue.endTime = Math.max(0, orig.end + subtitleDelay);
             }
           }
+        } else {
+          track.mode = 'disabled';
         }
-      } else {
-        track.mode = 'disabled';
       }
     }
 
@@ -514,7 +556,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         styleElToRemove.remove();
       }
     };
-  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize, subtitleDelay, subtitleLoadCount]);
+  }, [activeSubtitleIndex, subtitles, subtitlePosition, subtitleFontSize, subtitleDelay, subtitleLoadCount, currentSrc]);
 
   // Expose video DOM element to the ref
   useEffect(() => {
@@ -877,7 +919,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       >
         {subtitles.map((sub, idx) => (
           <track
-            key={idx}
+            key={`${currentSrc}:${sub.src}`}
+            data-nobar-subtitle={idx}
             kind="subtitles"
             label={sub.label}
             srcLang={sub.srcLang}
@@ -946,6 +989,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         subtitleFontSize={subtitleFontSize}
         onFontSizeChange={handleFontSizeChange}
         onCustomSubtitleUpload={onCustomSubtitleUpload}
+        otherSubtitleContext={otherSubtitleContext}
+        onOtherSubtitleSelect={onOtherSubtitleSelect}
         qualities={qualities}
         activeQualityIndex={activeQualityIndex}
         activeHlsHeight={activeHlsHeight}

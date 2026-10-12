@@ -22,10 +22,12 @@ import {
 } from 'lucide-react';
 import { PlayerProgressBar } from './PlayerProgressBar';
 import { AudioSubtitlePopover } from './AudioSubtitlePopover';
+import { OtherSubtitlesPopover } from './OtherSubtitlesPopover';
 import { QualityPopover } from './QualityPopover';
 import { EpisodePopover } from './EpisodePopover';
 import { usePlayerControls } from './hooks/usePlayerControls';
 import { usePlayerGestures } from './hooks/usePlayerGestures';
+import type { OtherSubtitleContext, OtherSubtitleResult } from '@/types/other-subtitles';
 
 
 export interface PlayerOverlayProps {
@@ -62,6 +64,8 @@ export interface PlayerOverlayProps {
   subtitleFontSize?: 'sm' | 'md' | 'lg' | 'xl';
   onFontSizeChange?: (size: 'sm' | 'md' | 'lg' | 'xl') => void;
   onCustomSubtitleUpload?: (file: File) => Promise<void>;
+  otherSubtitleContext?: OtherSubtitleContext;
+  onOtherSubtitleSelect?: (result: OtherSubtitleResult, signal: AbortSignal) => Promise<void>;
   // Qualities
   qualities?: number[];
   activeQualityIndex?: number;
@@ -118,6 +122,8 @@ export function PlayerOverlay({
   subtitleFontSize = 'md',
   onFontSizeChange,
   onCustomSubtitleUpload,
+  otherSubtitleContext,
+  onOtherSubtitleSelect,
   qualities = [],
   activeQualityIndex = 0,
   activeHlsHeight,
@@ -221,7 +227,8 @@ export function PlayerOverlay({
   }, [keepControlsVisible, isLocked]);
 
   // Settings panels are non-modal; keep Tab navigation native.
-  const [activePopover, setActivePopover] = useState<'subtitle' | 'quality' | 'episode' | 'more' | null>(null);
+  const [activePopover, setActivePopover] = useState<'subtitle' | 'other-subtitles' | 'quality' | 'episode' | 'more' | null>(null);
+  const subtitleSearchFocusRef = useRef(false);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -241,7 +248,12 @@ export function PlayerOverlay({
   useEffect(() => {
     if (activePopover === null) return;
     keepControlsVisible();
-    overlayRef.current?.querySelector<HTMLElement>('[data-popover] button, [data-popover] select')?.focus();
+    const panel = overlayRef.current;
+    const initialFocus = subtitleSearchFocusRef.current && activePopover === 'subtitle'
+      ? panel?.querySelector<HTMLElement>('[data-search-other-subtitles]')
+      : panel?.querySelector<HTMLElement>('[data-popover] [data-initial-focus]');
+    subtitleSearchFocusRef.current = false;
+    (initialFocus || panel?.querySelector<HTMLElement>('[data-popover] button, [data-popover] select'))?.focus();
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
@@ -253,7 +265,7 @@ export function PlayerOverlay({
     return () => window.removeEventListener('keydown', handleEscape, true);
   }, [activePopover, keepControlsVisible, closePopover]);
 
-  const togglePopover = (popover: 'subtitle' | 'quality' | 'episode' | 'more') => {
+  const togglePopover = (popover: 'subtitle' | 'other-subtitles' | 'quality' | 'episode' | 'more') => {
     if (activePopover === popover) {
       closePopover();
       return;
@@ -262,6 +274,11 @@ export function PlayerOverlay({
       popoverOpenerRef.current = document.activeElement;
     }
     setActivePopover(popover);
+  };
+
+  const backToSubtitles = () => {
+    subtitleSearchFocusRef.current = true;
+    setActivePopover('subtitle');
   };
 
 
@@ -499,14 +516,14 @@ export function PlayerOverlay({
                 {activeQualityIndex === -1 ? `Otomatis${activeHlsHeight ? ` · ${activeHlsHeight}p` : ''}` : qualities[activeQualityIndex] ? `${qualities[activeQualityIndex]}p` : ''}
               </span>
             )}
-            {(onSelectSubtitle || onSelectAudio || onCustomSubtitleUpload) && (
+            {(onSelectSubtitle || onSelectAudio || onCustomSubtitleUpload || (otherSubtitleContext && onOtherSubtitleSelect)) && (
               <button
                 type="button"
                 data-interactive="true"
                 onClick={(e) => { e.stopPropagation(); togglePopover('subtitle'); }}
                 onTouchEnd={(e) => e.stopPropagation()}
                 aria-label="Audio & Subtitle"
-                aria-expanded={activePopover === 'subtitle'}
+                aria-expanded={activePopover === 'subtitle' || activePopover === 'other-subtitles'}
                 aria-haspopup="dialog"
                 className="player-icon-button"
                 title="Audio & Subtitle"
@@ -572,6 +589,17 @@ export function PlayerOverlay({
           subtitleFontSize={subtitleFontSize}
           onFontSizeChange={onFontSizeChange}
           onCustomSubtitleUpload={onCustomSubtitleUpload}
+          onSearchOtherSubtitles={otherSubtitleContext && onOtherSubtitleSelect ? () => togglePopover('other-subtitles') : undefined}
+        />
+      )}
+
+      {activePopover === 'other-subtitles' && otherSubtitleContext && onOtherSubtitleSelect && (
+        <OtherSubtitlesPopover
+          key={otherSubtitleContext.mediaKey}
+          context={otherSubtitleContext}
+          onSelect={onOtherSubtitleSelect}
+          onBack={backToSubtitles}
+          onClose={closePopover}
         />
       )}
 

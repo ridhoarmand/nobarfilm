@@ -116,8 +116,9 @@ class ServerCache {
   }
 }
 
-// Singleton instance
-export const serverCache = new ServerCache();
+// Next route bundles must share tickets, including after development reloads.
+const cacheProcess = globalThis as typeof globalThis & { nobarfilmServerCache?: ServerCache };
+export const serverCache = cacheProcess.nobarfilmServerCache ??= new ServerCache();
 
 // Cache key generators
 export const cacheKeys = {

@@ -101,11 +101,15 @@ Konfigurasi host API H5 via environment variable (lihat `src/lib/moviebox/config
 - Subtitle SRT melewati `/api/subtitle` untuk dikonversi menjadi WebVTT. Referer mengikuti `MOVIEBOX_WEB_REFERER_ORIGIN`; ketersediaan bahasa bergantung pada judul dan episode.
 - Cache playback browser menggunakan versi payload agar data lama tanpa subtitle tidak digunakan kembali.
 - Tombol **Nyalakan Suara** memulihkan volume terakhir yang terdengar ketika volume nol. Perubahan mute/volume native juga disinkronkan dengan kontrol dan preferensi browser.
-- **Audio & Subtitle** menerima unggahan `.srt` atau `.vtt`. SRT dikonversi ke WebVTT di browser; URL Blob tetap tersedia selama halaman watch terbuka dan dibersihkan saat keluar. Ukuran, delay, dan posisi diterapkan kembali setelah cue selesai dimuat.
+- **Audio & Subtitle → Cari subtitle lain** mencari subtitle Indonesia melalui SubDL. Pilih kandidat judul/tahun, lalu release dan **Gunakan**. Season/episode mengikuti video aktif; subtitle bawaan tetap aktif sampai file tambahan berhasil dimuat. Hasil SubDL hanya tersedia untuk media asalnya; pemilihan subtitle tetap pribadi saat nobar.
+- Unggahan `.srt` atau `.vtt` tersedia di **Audio & Subtitle → Pengaturan subtitle**. SRT dikonversi ke WebVTT di browser; URL Blob bertahan selama halaman watch terbuka dan dicabut saat keluar. Ukuran, delay, dan posisi diterapkan kembali setelah cue dimuat, termasuk setelah ganti kualitas.
 - Buffering memakai indikator tanpa persentase; kegagalan video menampilkan pesan terpisah dengan tombol **Coba putar lagi**.
 - **Batal** pada banner episode berikutnya menonaktifkan auto-next untuk episode aktif, bukan sekadar menutup banner. Pilihan **Sampai video selesai** menghentikan playback pada event `ended` dan mengalahkan auto-next; timer 15/30/45/60 menit tetap berdasarkan waktu nyata.
+- Set `SUBDL_API_KEY` sebagai secret runtime server dari [panel SubDL](https://subdl.com/panel/api). `.env.example` menyediakan nama variabel kosong dan Compose meneruskannya saat runtime; jangan memakai `NEXT_PUBLIC_*` atau build args. Tanpa key valid, pencarian menampilkan pesan belum dikonfigurasi; playback dan subtitle bawaan tetap berjalan.
+- [API SubDL v2](https://subdl.com/developers) memakai kuota bersama untuk satu key. Akun Free yang diuji menyediakan 2.000 pencarian dan 50 unduhan per hari. Cache sukses dan ticket unduhan berlaku 300 detik dalam proses server; restart memerlukan pencarian ulang. Deployment banyak replica perlu sticky routing untuk alur pencarian/unduhan.
+- Hasil pencarian belum menjamin file dapat dimainkan atau timing sinkron. Integrasi menerima file individual SRT/VTT, bukan ZIP/ASS/SSA; provider dapat menolak unduhan meski metadata menampilkan satu file. Pilih release lain jika file ditolak atau berbeda cut, dan gunakan delay untuk offset konstan. Tidak ada retry otomatis yang menghabiskan kuota.
 
-Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara setelah volume nol, lalu pilih subtitle Indonesia atau unggah SRT melalui **Audio & Subtitle**. Uji **Batal** dan **Sampai video selesai** menjelang akhir episode.
+Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, pilih subtitle bawaan atau **Cari subtitle lain**, lalu uji upload dari **Pengaturan subtitle**, Nonaktif, ganti kualitas/episode, dan nobar dengan pilihan subtitle berbeda. Regresi BFF/converter: `node --import tsx --test src/lib/subdl.test.mts src/lib/subtitleCache.test.mts`. Sampel provider: Dune (2021) berhasil dimuat; Inception dan satu hasil Breaking Bad S5E1 ditemukan tetapi tidak dapat diunduh sebagai file individual. Ini bukan pengukuran keberhasilan seluruh katalog atau sinkronisasi sepanjang film.
 
 ---
 
@@ -114,6 +118,7 @@ Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara set
 - Header dan footer memakai ikon brand yang sudah tersedia di `public/icon-192.png`.
 - HP: navigasi bawah **Beranda / Cari / Favorit**, tombol sentuh minimal 44px, hero ringkas, hasil pencarian dua kolom, dan tata letak detail tanpa potongan horizontal. Favorit tersimpan lokal; menu Favorit menuju bagian `/#favorit`.
 - Laptop: pencarian cepat di header, kontrol carousel yang terlihat, judul kartu terbaca tanpa hover, serta tombol favorit terpisah dari tautan detail. Carousel berhenti saat interaksi/fokus dan menghormati preferensi reduced motion.
+- Hero beranda dan detail memisahkan backdrop/banner dari poster. Hanya gambar backdrop dengan rasio asli minimal 1,3:1 yang mengisi latar landscape; metadata ukuran cover sintetis tidak dipakai untuk menentukan rasio. Poster portrait ditampilkan utuh (`object-contain`), di kanan teks pada desktop dan di atas teks pada HP/tablet. Jika backdrop gagal atau bukan landscape, hero memakai poster; jika semua gambar gagal, judul dan tombol tetap tersedia. Kartu katalog tidak berubah.
 - Layar besar/TV: tipografi lebih besar dan fokus putih-merah. Tombol arah memindahkan fokus antar tautan/tombol dan menggulir kartu ke tampilan; Enter mengaktifkan kontrol yang dipilih.
 - Pemutar: header berisi kembali, judul, dan kontrol nobar; footer berisi satu timeline dan satu baris Putar/Jeda, mute, **Audio & Subtitle**, **Pengaturan pemutar**, dan fullscreen. Layout mengikuti lebar pemutar, termasuk ketika panel nobar terbuka. Enter saat belum memfokuskan kontrol memfokuskan tombol Putar/Jeda; kontrol tetap terlihat saat dijeda, fokus keyboard/remote aktif, atau panel terbuka.
 - Seek/volume memakai slider native: kiri/kanan mengubah nilai, atas/bawah memindahkan fokus keluar slider. Input teks dan pilihan native tidak diambil alih oleh navigasi arah.
@@ -121,6 +126,7 @@ Verifikasi lokal: jalankan `npm run dev`, buka halaman watch, nyalakan suara set
 - Episode detail memakai musim aktif yang benar, termasuk ketika musim pertama yang tersedia bukan musim 1.
 
 Verifikasi lokal: jalankan `npm run dev`; periksa beranda, pencarian, favorit, detail, dan pemutar pada 390×844, 844×390, 1365×768, serta 1920×1080. Uji Tab/tombol arah/Enter, seek, pilihan subtitle, dan Escape. Dukungan fullscreen/PiP bergantung pada browser; viewport TV bukan pengujian perangkat TV fisik.
+Regresi artwork hero: `node --import tsx --test src/lib/heroArtwork.test.mts`. Smoke browser memakai poster nyata Terikat Janji dan Inception pada 320×740, 390×844, 768×1024, 844×390, dan 1365×768; tidak ada crop portrait, tumpang tindih teks/poster, atau overflow horizontal. Jalur landscape diuji dengan fixture terang 1600×900, termasuk backdrop persegi, gambar gagal, banner tanpa poster, dan gambar kosong; fixture ini bukan bukti ketersediaan backdrop dari provider.
 
 ---
 

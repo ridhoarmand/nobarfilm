@@ -26,6 +26,7 @@ interface AudioSubtitlePopoverProps {
   subtitleFontSize?: 'sm' | 'md' | 'lg' | 'xl';
   onFontSizeChange?: (size: 'sm' | 'md' | 'lg' | 'xl') => void;
   onCustomSubtitleUpload?: (file: File) => Promise<void>;
+  onSearchOtherSubtitles?: () => void;
 }
 
 export function AudioSubtitlePopover({
@@ -44,6 +45,7 @@ export function AudioSubtitlePopover({
   subtitleFontSize = 'md',
   onFontSizeChange,
   onCustomSubtitleUpload,
+  onSearchOtherSubtitles,
 }: AudioSubtitlePopoverProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -117,7 +119,9 @@ export function AudioSubtitlePopover({
         <h4 className="mb-2 font-semibold">Subtitle</h4>
         {subtitles.length === 0 && (
           <p className="mb-2 text-sm text-zinc-300">
-            {onCustomSubtitleUpload
+            {onSearchOtherSubtitles
+              ? 'Subtitle bawaan tidak tersedia. Cari subtitle lain dalam bahasa Indonesia.'
+              : onCustomSubtitleUpload
               ? 'Subtitle bawaan tidak tersedia. Anda dapat mengunggah file .srt atau .vtt.'
               : 'Subtitle bawaan tidak tersedia.'}
           </p>
@@ -147,26 +151,14 @@ export function AudioSubtitlePopover({
             ))}
           </div>
         )}
-        {onCustomSubtitleUpload && (
-          <>
-            <button
-              type="button"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="player-option mt-2 disabled:cursor-wait disabled:opacity-60"
-            >
-              <span className="flex items-center gap-2 text-left">
-                <Upload aria-hidden="true" className="h-4 w-4 shrink-0" />
-                {isUploading ? 'Membaca subtitle…' : 'Unggah subtitle (.srt / .vtt)'}
-              </span>
-            </button>
-            <input ref={fileInputRef} disabled={isUploading} type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" aria-label="File subtitle" />
-          </>
+        {onSearchOtherSubtitles && (
+          <button type="button" data-search-other-subtitles onClick={onSearchOtherSubtitles} className="player-option mt-2 border border-zinc-500">
+            Cari subtitle lain
+          </button>
         )}
-        {uploadError && <p role="alert" className="mt-2 text-sm text-zinc-200">{uploadError}</p>}
       </section>
 
-      {hasAdjustments && (
+      {(hasAdjustments || onCustomSubtitleUpload) && (
         <section className="player-section">
           <button
             type="button"
@@ -181,6 +173,23 @@ export function AudioSubtitlePopover({
           </button>
           {showAdvanced && (
             <div className="mt-3 space-y-4">
+              {onCustomSubtitleUpload && (
+                <>
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="player-option mt-2 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <span className="flex items-center gap-2 text-left">
+                      <Upload aria-hidden="true" className="h-4 w-4 shrink-0" />
+                      {isUploading ? 'Membaca subtitle…' : 'Unggah subtitle (.srt / .vtt)'}
+                    </span>
+                  </button>
+                  <input ref={fileInputRef} disabled={isUploading} type="file" accept=".srt,.vtt" onChange={handleFileUpload} className="hidden" aria-label="File subtitle" />
+                </>
+              )}
+              {uploadError && <p role="alert" className="mt-2 text-sm text-zinc-200">{uploadError}</p>}
               {onFontSizeChange && (
                 <div>
                   <p className="mb-2 text-zinc-300">Ukuran teks subtitle</p>

@@ -10,6 +10,7 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_COOKIE_DOMAIN=.idho.eu.org
+      - SUBDL_API_KEY=${SUBDL_API_KEY:-}
 
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1"]

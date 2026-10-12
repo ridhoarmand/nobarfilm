@@ -8,7 +8,7 @@ import { Footer } from '@/components/layout/Footer';
 import { CastList } from '@/components/detail/CastList';
 import { SeasonSelector } from '@/components/detail/SeasonSelector';
 import { DownloadModal } from '@/components/detail/DownloadModal';
-import Image from 'next/image';
+import { HeroArtwork } from '@/components/shared/HeroArtwork';
 import Link from 'next/link';
 import { Play, Star, Calendar, Clock, Download, Globe, Share2, Heart, Users } from 'lucide-react';
 import { WatchPartyJoinModal } from '@/components/party/WatchPartyJoinModal';
@@ -188,20 +188,11 @@ export default function DetailPage() {
       <main id="main-content" className="page-content min-h-screen bg-[#141414] [&_button]:min-h-11 [&_button]:min-w-11">
         {/* Hero Section */}
         <div className="relative isolate">
-          {/* Background Image */}
-          <div className="absolute inset-0">
-            {subject?.cover?.url ? (
-              <Image unoptimized src={subject.cover.url} alt={subject?.title || 'Cover'} fill className="object-cover" priority sizes="100vw" />
-            ) : (
-              <div className="w-full h-full bg-zinc-900" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/85 to-[#141414]/40" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/25 to-[#141414]/20" />
-          </div>
+          <HeroArtwork key={`${subject.coverHorizontalUrl}-${subject.cover?.url}`} backdropUrl={subject.coverHorizontalUrl} posterUrl={subject.cover?.url} />
 
           {/* Content */}
-          <div className="content-container relative flex min-h-[420px] items-end py-10 sm:min-h-[540px] sm:py-14 2xl:min-h-[640px]">
-            <div className="min-w-0 w-full max-w-4xl">
+          <div className="content-container relative flex items-end pb-10 sm:pb-14 lg:min-h-[540px] lg:py-14 2xl:min-h-[640px]">
+            <div className="min-w-0 w-full max-w-4xl lg:max-w-[55%]">
               <h1 className="text-3xl sm:text-5xl md:text-6xl 2xl:text-7xl font-bold leading-tight break-words text-white mb-4">{subject?.title || 'Judul tidak tersedia'}</h1>
 
               {/* Meta Info */}

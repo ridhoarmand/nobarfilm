@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import { HeroArtwork } from '@/components/shared/HeroArtwork';
 import Link from 'next/link';
 import { Play, Info, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
 import { useState, useEffect, useRef, useId } from 'react';
@@ -9,7 +9,7 @@ export interface HeroSlide {
   id: string;
   title: string;
   description: string;
-  coverUrl: string;
+  backdropUrl: string;
   posterUrl: string;
   subjectId: string;
   subjectType: number;
@@ -61,7 +61,6 @@ export function Hero({ slides }: HeroProps) {
   const watchUrl = currentSlide.subjectType === 1
     ? `/watch/${currentSlide.subjectId}?season=0&episode=0`
     : `/watch/${currentSlide.subjectId}?season=1&episode=1`;
-  const image = currentSlide.coverUrl || currentSlide.posterUrl;
   const controlClass = 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/20 bg-zinc-900/80 text-white hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500';
 
   return (
@@ -90,14 +89,10 @@ export function Hero({ slides }: HeroProps) {
         touchEndX.current = null;
       }}
     >
-      <div className="relative aspect-video w-full overflow-hidden sm:absolute sm:inset-0 sm:aspect-auto">
-        {image && <Image src={image} alt="" fill className="object-cover object-center" priority sizes="100vw" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/10 to-transparent" />
-        <div className="absolute inset-0 hidden bg-gradient-to-r from-[#141414] via-[#141414]/75 to-transparent sm:block" />
-      </div>
+      <HeroArtwork key={`${currentSlide.backdropUrl}-${currentSlide.posterUrl}`} backdropUrl={currentSlide.backdropUrl} posterUrl={currentSlide.posterUrl} />
 
-      <div className="content-container relative z-10 pb-6 sm:flex sm:min-h-[580px] sm:flex-col sm:justify-end sm:pb-10 sm:pt-24 lg:min-h-[660px] lg:pb-12 2xl:min-h-[760px]">
-        <div id={slideId} aria-live={isPaused || reducedMotion ? 'polite' : 'off'} aria-atomic="true" className="max-w-2xl 2xl:max-w-3xl">
+      <div className="content-container relative z-10 pb-6 lg:flex lg:min-h-[580px] lg:flex-col lg:justify-end lg:pb-12 lg:pt-24 2xl:min-h-[760px]">
+        <div id={slideId} aria-live={isPaused || reducedMotion ? 'polite' : 'off'} aria-atomic="true" className="max-w-2xl lg:max-w-[55%]">
           <p className="mb-3 text-sm font-semibold text-red-400 sm:text-base">{currentSlide.recommendationReason || 'Pilihan untuk Anda'}</p>
           <h1 className="mb-4 break-words text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl 2xl:text-7xl">{currentSlide.title}</h1>
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-zinc-300 2xl:text-lg">

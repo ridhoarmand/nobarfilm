@@ -14,6 +14,10 @@ import { Loader2, AlertCircle, Film, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCachedSubtitleBlobUrl, toWebVtt } from '@/lib/subtitleCache';
+import { fetchJson } from '@/lib/fetcher';
+import type { OtherSubtitleContext, OtherSubtitleDownload, OtherSubtitleResult } from '@/types/other-subtitles';
+
+type CustomSubtitle = { label: string; src: string; providerId?: string; mediaKey?: string };
 
 function WatchContent() {
   const params = useParams();
@@ -32,11 +36,12 @@ function WatchContent() {
   
   const [qualityIndex, setQualityIndex] = useState(-1);
   const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<number | null>(null);
-  const pendingSubtitleRef = useRef<number | null>(null);
+  const subtitleSelectionGenerationRef = useRef(0);
+  const pendingAdditionalSelectionRef = useRef<number | null>(null);
+  const selectedAdditionalSubtitleRef = useRef<{ src: string; mediaKey: string } | null>(null);
   const [cachedSubtitleUrls, setCachedSubtitleUrls] = useState<Record<string, string>>({});
-  const [isSubtitleModalOpen, setIsSubtitleModalOpen] = useState(false);
-  const [customSubtitles, setCustomSubtitles] = useState<Array<{ label: string; src: string }>>([]);
-  const customSubtitlesRef = useRef<Array<{ label: string; src: string }>>([]);
+  const [customSubtitles, setCustomSubtitles] = useState<CustomSubtitle[]>([]);
+  const customSubtitlesRef = useRef<CustomSubtitle[]>([]);
   const mountedRef = useRef(false);
 
   useEffect(() => {
@@ -53,6 +58,32 @@ function WatchContent() {
   const isSeries = detail?.subject?.subjectType === 2;
   const effectiveSeason = isSeries ? (season ?? 1) : 0;
   const effectiveEpisode = isSeries ? (episode ?? 1) : 0;
+  const mediaKey = `${subjectId}:${effectiveSeason}:${effectiveEpisode}`;
+  const mediaKeyRef = useRef(mediaKey);
+  mediaKeyRef.current = mediaKey;
+
+  const otherSubtitleContext = useMemo<OtherSubtitleContext | undefined>(() => {
+    const subject = detail?.subject;
+    if (!subjectId || !subject || subject.subjectId !== subjectId || !subject.title.trim()) return undefined;
+    if (isSeries && (!Number.isInteger(effectiveSeason) || effectiveSeason <= 0 || !Number.isInteger(effectiveEpisode) || effectiveEpisode <= 0)) {
+      return undefined;
+    }
+    const year = new Date(subject.releaseDate).getUTCFullYear();
+    return {
+      mediaKey,
+      title: subject.title,
+      type: isSeries ? 'tv' : 'movie',
+      ...(Number.isFinite(year) && year > 0 && !subject.releaseDate.startsWith('1970-01-01') ? { year } : {}),
+      ...(isSeries ? { season: effectiveSeason, episode: effectiveEpisode } : {}),
+    };
+  }, [detail?.subject, subjectId, mediaKey, isSeries, effectiveSeason, effectiveEpisode]);
+
+  useEffect(() => {
+    subtitleSelectionGenerationRef.current++;
+    pendingAdditionalSelectionRef.current = null;
+    selectedAdditionalSubtitleRef.current = null;
+    setSelectedSubtitleIndex(null);
+  }, [mediaKey]);
 
   const {
     data: playerMetadata,
@@ -310,75 +341,156 @@ function WatchContent() {
   const captionUrlsKey = useMemo(() => {
     return filteredCaptions.map((c) => c.url).join('|');
   }, [filteredCaptions]);
-  const captionCountRef = useRef(filteredCaptions.length);
-  captionCountRef.current = filteredCaptions.length;
+  const filteredCaptionsRef = useRef(filteredCaptions);
+  filteredCaptionsRef.current = filteredCaptions;
+  const visibleCustomSubtitles = useMemo(
+    () => customSubtitles.filter((subtitle) => !subtitle.providerId || subtitle.mediaKey === mediaKey),
+    [customSubtitles, mediaKey],
+  );
+  const visibleCustomSubtitlesRef = useRef(visibleCustomSubtitles);
+  visibleCustomSubtitlesRef.current = visibleCustomSubtitles;
 
-  const handleCustomSubtitleUpload = async (file: File) => {
-    if (!/\.(srt|vtt)$/i.test(file.name)) throw new Error('Pilih file .srt atau .vtt.');
-    let raw: string;
-    try {
-      raw = await file.text();
-    } catch {
-      throw new Error('File subtitle tidak dapat dibaca.');
-    }
-    if (!mountedRef.current) return;
+  const isCurrentSubtitleSelection = useCallback((generation: number, selectionMediaKey: string, signal?: AbortSignal) => {
+    return mountedRef.current &&
+      subtitleSelectionGenerationRef.current === generation &&
+      mediaKeyRef.current === selectionMediaKey &&
+      !signal?.aborted;
+  }, []);
+
+  const selectAdditionalSubtitle = useCallback((subtitle: CustomSubtitle, selectionMediaKey: string) => {
+    const customIndex = visibleCustomSubtitlesRef.current.findIndex((item) => item.src === subtitle.src);
+    if (customIndex === -1) return;
+    selectedAdditionalSubtitleRef.current = { src: subtitle.src, mediaKey: selectionMediaKey };
+    setSelectedSubtitleIndex(filteredCaptionsRef.current.length + customIndex);
+  }, []);
+
+  const appendCustomSubtitle = (
+    raw: string,
+    label: string,
+    generation: number,
+    selectionMediaKey: string,
+    providerId?: string,
+    signal?: AbortSignal,
+  ) => {
+    if (!isCurrentSubtitleSelection(generation, selectionMediaKey, signal)) return;
     const text = toWebVtt(raw);
     if (!raw.trim() || !/^[ \t]*(?:\d{2}:)?\d{2}:\d{2}[,.]\d{3}[ \t]+-->[ \t]+(?:\d{2}:)?\d{2}:\d{2}[,.]\d{3}/m.test(text)) {
       throw new Error('Subtitle tidak berisi cue yang dapat dibaca.');
     }
     const src = URL.createObjectURL(new Blob([text], { type: 'text/vtt;charset=utf-8' }));
-    const index = captionCountRef.current + customSubtitlesRef.current.length;
-    const next = [...customSubtitlesRef.current, { label: file.name.replace(/\.[^/.]+$/, ''), src }];
+    const subtitle: CustomSubtitle = {
+      label,
+      src,
+      ...(providerId ? { providerId, mediaKey: selectionMediaKey } : {}),
+    };
+    const next = [...customSubtitlesRef.current, subtitle];
     customSubtitlesRef.current = next;
+    visibleCustomSubtitlesRef.current = [...visibleCustomSubtitlesRef.current, subtitle];
     setCustomSubtitles(next);
-    pendingSubtitleRef.current = index;
-    setSelectedSubtitleIndex(index);
+    selectAdditionalSubtitle(subtitle, selectionMediaKey);
   };
 
-  // Request a subtitle switch: fetch the target subtitle content FIRST,
-  // then swap the active track once it is ready. This avoids the blink/flicker
-  // when switching languages (old sub stays until the new one has loaded).
+  const handleCustomSubtitleUpload = async (file: File) => {
+    const generation = ++subtitleSelectionGenerationRef.current;
+    const selectionMediaKey = mediaKeyRef.current;
+    if (!/\.(srt|vtt)$/i.test(file.name)) throw new Error('Pilih file .srt atau .vtt.');
+    pendingAdditionalSelectionRef.current = generation;
+    try {
+      let raw: string;
+      try {
+        raw = await file.text();
+      } catch {
+        if (isCurrentSubtitleSelection(generation, selectionMediaKey)) {
+          throw new Error('File subtitle tidak dapat dibaca.');
+        }
+        return;
+      }
+      appendCustomSubtitle(raw, file.name.replace(/\.[^/.]+$/, ''), generation, selectionMediaKey);
+    } finally {
+      if (pendingAdditionalSelectionRef.current === generation) pendingAdditionalSelectionRef.current = null;
+    }
+  };
+
+  const handleOtherSubtitleSelect = async (result: OtherSubtitleResult, signal: AbortSignal): Promise<void> => {
+    const generation = ++subtitleSelectionGenerationRef.current;
+    const selectionMediaKey = mediaKeyRef.current;
+    pendingAdditionalSelectionRef.current = generation;
+    try {
+      if (!isCurrentSubtitleSelection(generation, selectionMediaKey, signal)) return;
+      const existing = customSubtitlesRef.current.find(
+        (subtitle) => subtitle.providerId === result.id && subtitle.mediaKey === selectionMediaKey,
+      );
+      if (existing) {
+        selectAdditionalSubtitle(existing, selectionMediaKey);
+        return;
+      }
+      const download = await fetchJson<OtherSubtitleDownload>('/api/subtitles/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: result.token }),
+        signal,
+      });
+      appendCustomSubtitle(download.text, download.label, generation, selectionMediaKey, result.id, signal);
+    } catch (error) {
+      if (isCurrentSubtitleSelection(generation, selectionMediaKey, signal)) throw error;
+    } finally {
+      if (pendingAdditionalSelectionRef.current === generation) pendingAdditionalSelectionRef.current = null;
+    }
+  };
+
+  // Keep the active track until its replacement has loaded successfully.
   const requestSubtitle = useCallback(
     async (idx: number | null) => {
-      pendingSubtitleRef.current = idx;
-
+      const generation = ++subtitleSelectionGenerationRef.current;
+      const selectionMediaKey = mediaKeyRef.current;
+      if (!isCurrentSubtitleSelection(generation, selectionMediaKey)) return;
       if (idx === null) {
+        selectedAdditionalSubtitleRef.current = null;
         setSelectedSubtitleIndex(null);
         return;
       }
 
-      const cap = filteredCaptions[idx];
-      if (!cap?.url) {
-        setSelectedSubtitleIndex(idx);
+      const cap = filteredCaptionsRef.current[idx];
+      if (!cap) {
+        const custom = visibleCustomSubtitlesRef.current[idx - filteredCaptionsRef.current.length];
+        if (custom) selectAdditionalSubtitle(custom, selectionMediaKey);
         return;
       }
-
-      // Already cached -> switch instantly without any transition gap
+      if (!cap.url) return;
       if (cachedSubtitleUrls[cap.url]) {
+        selectedAdditionalSubtitleRef.current = null;
         setSelectedSubtitleIndex(idx);
         return;
       }
 
-      // Otherwise fetch the subtitle content before switching
       try {
         const blobUrl = await getCachedSubtitleBlobUrl(cap.url);
-        // Ignore stale requests if user switched again while this was loading
-        if (pendingSubtitleRef.current !== idx) return;
-        if (blobUrl) {
-          setCachedSubtitleUrls((prev) => ({ ...prev, [cap.url]: blobUrl }));
+        if (!isCurrentSubtitleSelection(generation, selectionMediaKey) || filteredCaptionsRef.current[idx]?.url !== cap.url) return;
+        // The cache helper returns the original URL on failure, not a loaded track.
+        if (!blobUrl || blobUrl === cap.url) return;
+        setCachedSubtitleUrls((prev) => ({ ...prev, [cap.url]: blobUrl }));
+        selectedAdditionalSubtitleRef.current = null;
+        setSelectedSubtitleIndex(idx);
+      } catch (error) {
+        if (isCurrentSubtitleSelection(generation, selectionMediaKey)) {
+          console.error('[Subtitle] Active load error:', error);
         }
-        setSelectedSubtitleIndex(idx);
-      } catch (e) {
-        console.error('[Subtitle] Active load error:', e);
-        if (pendingSubtitleRef.current !== idx) return;
-        setSelectedSubtitleIndex(idx);
       }
     },
-    [filteredCaptions, cachedSubtitleUrls]
+    [cachedSubtitleUrls, isCurrentSubtitleSelection, selectAdditionalSubtitle],
   );
 
   // Auto-select subtitle based on user preference (stored in localStorage), fallback to Indonesian -> English -> First available
   useEffect(() => {
+    const selectedAdditional = selectedAdditionalSubtitleRef.current;
+    if (selectedAdditional?.mediaKey === mediaKey) {
+      const custom = visibleCustomSubtitlesRef.current.find((subtitle) => subtitle.src === selectedAdditional.src);
+      if (custom) {
+        selectAdditionalSubtitle(custom, mediaKey);
+        return;
+      }
+    }
+    if (pendingAdditionalSelectionRef.current === subtitleSelectionGenerationRef.current) return;
     if (filteredCaptions && filteredCaptions.length > 0) {
       let preferredLang = 'indonesia';
       if (typeof window !== 'undefined') {
@@ -387,7 +499,7 @@ function WatchContent() {
       }
 
       if (preferredLang === 'off') {
-        setSelectedSubtitleIndex(null);
+        requestSubtitle(null);
         return;
       }
 
@@ -415,8 +527,10 @@ function WatchContent() {
       // Fallback 3: First available caption
       const finalIdx = matchedIdx !== -1 ? matchedIdx : 0;
       requestSubtitle(finalIdx);
+    } else {
+      requestSubtitle(null);
     }
-  }, [captionUrlsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [captionUrlsKey, mediaKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handler for subtitle selection that persists user's language choice
   const handleSubtitleSelect = (idx: number | null) => {
@@ -450,16 +564,32 @@ function WatchContent() {
       default: false,
     }));
 
-    const uploadedSubs = customSubtitles.map((custom) => ({
+    const uploadedSubs = visibleCustomSubtitles.map((custom) => ({
       kind: 'subtitles',
       label: custom.label,
-      srcLang: 'custom',
+      srcLang: custom.providerId ? 'id' : 'custom',
       src: custom.src,
       default: false,
     }));
 
     return [...builtInSubs, ...uploadedSubs];
-  }, [filteredCaptions, customSubtitles, cachedSubtitleUrls]);
+  }, [filteredCaptions, visibleCustomSubtitles, cachedSubtitleUrls]);
+
+  const selectedAdditional = selectedAdditionalSubtitleRef.current;
+  const selectedCustomIndex = selectedAdditional?.mediaKey === mediaKey
+    ? visibleCustomSubtitles.findIndex((subtitle) => subtitle.src === selectedAdditional.src)
+    : -1;
+  const activeSubtitleIndex = selectedAdditional
+    ? selectedCustomIndex === -1 ? null : filteredCaptions.length + selectedCustomIndex
+    : selectedSubtitleIndex;
+
+  const partySubtitles = useMemo(() => filteredCaptions.map((cap) => ({
+    kind: 'subtitles',
+    label: cap.lanName || cap.lan,
+    srcLang: cap.lan,
+    src: `/api/subtitle?url=${encodeURIComponent(cap.url)}`,
+    default: false,
+  })), [filteredCaptions]);
 
   const subject = detail?.subject;
 
@@ -504,10 +634,10 @@ function WatchContent() {
           url: q.streamUrl,
           quality: q.resolution,
         })),
-        subtitles: formattedSubtitles,
+        subtitles: partySubtitles,
       });
     }
-  }, [isInParty, isHost, playbackData?.streamUrl, formattedSubtitles, uploadStreamPayload]);
+  }, [isInParty, isHost, playbackData?.streamUrl, partySubtitles, uploadStreamPayload]);
 
   const effectiveStreamUrl = useMemo(() => {
     if (isInParty && !isHost && streamPayload?.streamUrl) {
@@ -640,13 +770,15 @@ function WatchContent() {
             autoPlay
             initialTime={resumeTime}
             subtitles={formattedSubtitles}
-            activeSubtitleIndex={selectedSubtitleIndex}
+            activeSubtitleIndex={activeSubtitleIndex}
             onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
             subtitleDelay={subtitleDelay}
             onSubtitleDelayChange={(delay: number) => setSubtitleDelay(delay)}
             subtitlePosition={subtitlePosition}
             onSubtitlePositionChange={(pos: number) => setSubtitlePosition(pos)}
             onCustomSubtitleUpload={handleCustomSubtitleUpload}
+            otherSubtitleContext={otherSubtitleContext}
+            onOtherSubtitleSelect={handleOtherSubtitleSelect}
             onProgress={handleProgress}
             hasNextEpisode={hasNextEpisode}
             onNextEpisode={handleNextEpisode}
