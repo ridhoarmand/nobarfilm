@@ -3,8 +3,7 @@
 import { Subject } from '@/types/api';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, Play, Heart } from 'lucide-react';
-import { useWatchlist } from '@/hooks/useWatchlist';
+import { Star, Play } from 'lucide-react';
 
 interface MovieCardProps {
   movie: Subject;
@@ -13,8 +12,6 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
-  const { isInWatchlist, toggleWatchlist } = useWatchlist();
-  const isBookmarked = isInWatchlist(movie.subjectId);
 
   return (
     <div className="group/card relative min-w-0 w-full">
@@ -35,7 +32,6 @@ export function MovieCard({ movie, priority = false, rank }: MovieCardProps) {
           </div>
         </div>
       </Link>
-      <button type="button" onClick={() => toggleWatchlist(movie)} aria-pressed={isBookmarked} aria-label={`${isBookmarked ? 'Hapus dari' : 'Simpan ke'} favorit: ${movie.title}`} title={isBookmarked ? 'Hapus dari Favorit' : 'Simpan ke Favorit'} className={`absolute right-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 shadow-lg backdrop-blur-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${isBookmarked ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-black/75 text-white hover:bg-zinc-800'}`}><Heart className={`h-5 w-5 ${isBookmarked ? 'fill-current' : ''}`} aria-hidden="true" /></button>
     </div>
   );
 }

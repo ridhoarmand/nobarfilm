@@ -89,9 +89,9 @@ export function Hero({ slides }: HeroProps) {
         touchEndX.current = null;
       }}
     >
-      <HeroArtwork key={`${currentSlide.backdropUrl}-${currentSlide.posterUrl}`} backdropUrl={currentSlide.backdropUrl} posterUrl={currentSlide.posterUrl} />
+      <HeroArtwork key={`${currentSlide.subjectId || currentSlide.id}-${currentSlide.backdropUrl}-${currentSlide.posterUrl}`} backdropUrl={currentSlide.backdropUrl} posterUrl={currentSlide.posterUrl} compact />
 
-      <div className="content-container relative z-10 pb-6 lg:flex lg:min-h-[580px] lg:flex-col lg:justify-end lg:pb-12 lg:pt-24 2xl:min-h-[760px]">
+      <div className="content-container relative z-10 pb-6 lg:flex lg:min-h-[480px] lg:flex-col lg:justify-end lg:pb-12 lg:pt-16 2xl:min-h-[560px]">
         <div id={slideId} aria-live={isPaused || reducedMotion ? 'polite' : 'off'} aria-atomic="true" className="max-w-2xl lg:max-w-[55%]">
           <p className="mb-3 text-sm font-semibold text-red-400 sm:text-base">{currentSlide.recommendationReason || 'Pilihan untuk Anda'}</p>
           <h1 className="mb-4 break-words text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl 2xl:text-7xl">{currentSlide.title}</h1>
@@ -119,7 +119,7 @@ export function Hero({ slides }: HeroProps) {
             <span className="px-2 text-sm tabular-nums text-zinc-300">{activeIndex + 1} / {slideCount}</span>
             {!reducedMotion && <button type="button" onClick={() => setIsPaused((paused) => !paused)} className={controlClass} aria-label={isPaused ? 'Lanjutkan pergantian otomatis' : 'Jeda pergantian otomatis'}>{isPaused ? <Play className="h-4 w-4" aria-hidden="true" /> : <Pause className="h-4 w-4" aria-hidden="true" />}</button>}
             <div className="hidden flex-wrap gap-1 sm:flex" aria-label="Pilih tayangan">
-              {slides.map((slide, index) => <button key={`${slide.id}-${index}`} type="button" onClick={() => showSlide(index)} className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label={`Tayangan ${index + 1}: ${slide.title}`} aria-current={index === activeIndex ? 'true' : undefined} aria-controls={slideId}><span className={`h-2.5 rounded-full ${index === activeIndex ? 'w-6 bg-red-500' : 'w-2.5 bg-zinc-500'}`} /></button>)}
+              {slides.map((slide, index) => <button key={`${slide.subjectId || slide.id}-${index}`} type="button" onClick={() => showSlide(index)} className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label={`Tayangan ${index + 1}: ${slide.title}`} aria-current={index === activeIndex ? 'true' : undefined} aria-controls={slideId}><span className={`h-2.5 rounded-full ${index === activeIndex ? 'w-6 bg-red-500' : 'w-2.5 bg-zinc-500'}`} /></button>)}
             </div>
           </div>
         )}

@@ -58,10 +58,10 @@ export function HomeClient() {
 
   if (bannerSection?.banner?.items) {
     heroSlides = bannerSection.banner.items.map((item: BannerItem) => ({
-      id: item.id,
+      id: item.subjectId || item.subject?.subjectId || item.id,
       title: item.title,
       description: item.subject?.description || '',
-      backdropUrl: item.subject?.coverHorizontalUrl || item.image?.url || '',
+      backdropUrl: item.image?.url || item.subject?.coverHorizontalUrl || '',
       posterUrl: item.subject?.cover?.url || '',
       subjectId: item.subjectId || item.subject?.subjectId,
       subjectType: item.subjectType || item.subject?.subjectType || 1,
@@ -150,7 +150,7 @@ export function HomeClient() {
                       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-600/10 text-red-400"><Heart className="h-6 w-6" aria-hidden="true" /></span>
                       <div className="flex-1">
                         <h3 className="font-semibold text-white 2xl:text-lg">Belum ada judul favorit</h3>
-                        <p className="mt-1 text-sm leading-relaxed text-zinc-400 2xl:text-base">Tekan ikon hati pada film atau series untuk menyimpannya di sini. Favorit tersimpan di perangkat ini, tanpa perlu akun.</p>
+                        <p className="mt-1 text-sm leading-relaxed text-zinc-400 2xl:text-base">Tambahkan film atau series ke favorit dari halaman detail. Favorit tersimpan di perangkat ini, tanpa perlu akun.</p>
                       </div>
                       <Link href="/search" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500">Cari Tayangan</Link>
                     </div>

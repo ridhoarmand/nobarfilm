@@ -274,36 +274,41 @@ export default function DetailPage() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+                      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 sm:flex sm:flex-wrap">
                         <button
+                          type="button"
                           onClick={() => openDownloadModal(isSeries ? firstSeason : 0, isSeries ? 1 : 0)}
-                          className="min-h-12 min-w-0 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
+                          className="min-h-12 min-w-0 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                         >
                           <Download className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 shrink-0" aria-hidden="true" />
                           <span>Unduh</span>
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => toggleWatchlist(subject)}
-                          className={`min-h-12 min-w-0 flex items-center justify-center gap-2 px-4 py-3 border font-semibold rounded-lg transition-colors text-sm sm:text-base ${
+                          className={`min-h-12 min-w-0 flex items-center justify-center gap-2 px-3 sm:px-4 py-3 border font-semibold rounded-lg transition-colors text-sm sm:text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                             isBookmarked
                               ? 'bg-red-600/10 border-red-500/50 text-red-500'
                               : 'bg-zinc-800/90 hover:bg-zinc-700 border-zinc-700/80 text-white'
                           }`}
                           title={isBookmarked ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
+                          aria-label={isBookmarked ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
                           aria-pressed={isBookmarked}
                         >
-                          <Heart className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${isBookmarked ? 'fill-current' : ''}`} />
-                          <span>{isBookmarked ? 'Tersimpan' : 'Favorit'}</span>
+                          <Heart className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${isBookmarked ? 'fill-current' : ''}`} aria-hidden="true" />
+                          <span className="hidden sm:inline">{isBookmarked ? 'Tersimpan' : 'Favorit'}</span>
                         </button>
 
                         <button
+                          type="button"
                           onClick={handleShare}
-                          className="min-h-12 min-w-0 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
+                          className="min-h-12 min-w-0 flex items-center justify-center gap-2 px-3 sm:px-4 py-3 bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                           title="Bagikan Film"
+                          aria-label="Bagikan Film"
                         >
-                          <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 shrink-0" />
-                          <span>Bagikan</span>
+                          <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 shrink-0" aria-hidden="true" />
+                          <span className="hidden sm:inline">Bagikan</span>
                         </button>
                       </div>
                     </div>

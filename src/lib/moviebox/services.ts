@@ -9,8 +9,11 @@ import {
   Subject,
   SubjectType,
   OperatingSection,
+  BannerSection,
+  BannerItem,
   Season,
   Caption,
+  Image,
 } from '@/types/api';
 import {
   HOST,
@@ -21,9 +24,10 @@ import {
   PLACEHOLDER_PATH_MARKERS,
   MIN_REAL_DURATION_SECONDS,
 } from './config';
-import { normalizeSubject, filterSubjects, isAdultContent } from './normalizers';
+import { normalizeSubject, filterSubjects, isAdultContent, normalizeCover } from './normalizers';
 import { callMobileApi } from './client';
 import { h5Fetch } from './webClient';
+import { isLandscapeArtwork } from '../heroArtwork';
 
 // allow: SIZE_OK — task scope restricts edits to this single file; the auth block
 // (loginUser..registerUser below) is the part that would move to its own module first.
@@ -249,25 +253,140 @@ export const movieBoxService = {
     if (cached) return cached;
 
     console.log(`[MovieBox SDK] Building H5 filter homepage (${HOMEPAGE_SECTIONS.length} sections)`);
-    const sections = await Promise.all(
-      HOMEPAGE_SECTIONS.map(async (section) => {
-        try {
-          const json: any = await h5Fetch('/subject/filter', {
-            method: 'POST',
-            body: { classify: 'All', country: 'All', genre: 'All', year: 'All', sort: 'Hottest', page: 1, perPage: 20, ...section.filter },
-          });
-          return { ...section, subjects: json?.code === 0 ? toSubjects(json.data?.items ?? json.data?.list) : [] };
-        } catch (err: any) {
-          console.warn(`[MovieBox SDK] Homepage section "${section.title}" failed:`, err.message);
-          return { ...section, subjects: [] as Subject[] };
-        }
-      })
-    );
+    // ponytail: optional banner parallel with catalog filters, falls back to catalog top picks
+    interface RawHomeBannerImage {
+      url?: string;
+      width?: number;
+      height?: number;
+      size?: number;
+      format?: string;
+      thumbnail?: string;
+      blurHash?: string;
+      id?: string;
+    }
+
+    interface RawHomeBannerItem {
+      id?: string;
+      title?: string;
+      image?: RawHomeBannerImage;
+      url?: string;
+      subjectId?: string;
+      subjectType?: number;
+      subject?: {
+        title?: string;
+        [key: string]: unknown;
+      };
+    }
+
+    interface RawHomeOperatingSection {
+      type?: string;
+      title?: string;
+      position?: number;
+      banner?: { items?: RawHomeBannerItem[] };
+    }
+
+    interface RawHomeResponse {
+      code?: number;
+      data?: {
+        operatingList?: RawHomeOperatingSection[];
+      };
+    }
+
+    interface RawFilterResponse {
+      code?: number;
+      data?: {
+        items?: unknown[];
+        list?: unknown[];
+      };
+    }
+
+    const [homeRaw, sections] = await Promise.all([
+      h5Fetch('/home').catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn('[MovieBox SDK] Homepage banner request failed:', message);
+        return null;
+      }) as Promise<RawHomeResponse | null>,
+      Promise.all(
+        HOMEPAGE_SECTIONS.map(async (section) => {
+          try {
+            const json = (await h5Fetch('/subject/filter', {
+              method: 'POST',
+              body: { classify: 'All', country: 'All', genre: 'All', year: 'All', sort: 'Hottest', page: 1, perPage: 20, ...section.filter },
+            })) as RawFilterResponse | null;
+            const items = json?.data?.items ?? json?.data?.list;
+            return { ...section, subjects: json?.code === 0 && Array.isArray(items) ? toSubjects(items) : [] };
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.warn(`[MovieBox SDK] Homepage section "${section.title}" failed:`, message);
+            return { ...section, subjects: [] as Subject[] };
+          }
+        })
+      ),
+    ]);
+
+    let bannerSection: OperatingSection | null = null;
+    const rawBanner = homeRaw?.code === 0 && Array.isArray(homeRaw.data?.operatingList)
+      ? homeRaw.data.operatingList.find((s) => s?.type === 'BANNER' && Array.isArray(s?.banner?.items))
+      : null;
+    if (rawBanner?.banner?.items) {
+      const seenBannerIds = new Set<string>();
+      const bannerItems: BannerItem[] = [];
+
+      for (const item of rawBanner.banner.items) {
+        if (!item?.subject || !item?.image?.url) continue;
+        const width = Number(item.image.width) || 0;
+        const height = Number(item.image.height) || 0;
+        if (!isLandscapeArtwork(width, height)) continue;
+
+        const bannerTitle = String(item.title || item.subject.title || '').trim();
+        if (!bannerTitle) continue;
+
+        if (isAdultContent({ title: bannerTitle })) continue;
+
+        const normalizedSubject = normalizeSubject(item.subject);
+        if (!normalizedSubject.subjectId) continue;
+        if (!ALLOWED_SUBJECT_TYPES.has(normalizedSubject.subjectType)) continue;
+        if (isAdultContent(normalizedSubject)) continue;
+        if (normalizedSubject.hasResource === false) continue;
+
+        if (seenBannerIds.has(normalizedSubject.subjectId)) continue;
+        seenBannerIds.add(normalizedSubject.subjectId);
+
+        const coverNormalized = normalizeCover(item.image.url, 1280);
+        bannerItems.push({
+          id: normalizedSubject.subjectId,
+          title: bannerTitle || normalizedSubject.title,
+          image: {
+            url: coverNormalized.url,
+            width,
+            height,
+            size: item.image.size,
+            format: item.image.format,
+            thumbnail: item.image.thumbnail,
+            blurHash: item.image.blurHash,
+            id: item.image.id,
+          },
+          url: item.url || '',
+          subjectId: normalizedSubject.subjectId,
+          subjectType: normalizedSubject.subjectType,
+          subject: normalizedSubject,
+        });
+      }
+
+      if (bannerItems.length > 0) {
+        bannerSection = {
+          type: 'BANNER',
+          position: 0,
+          title: rawBanner.title || 'BANNER',
+          banner: { items: bannerItems },
+        };
+      }
+    }
 
     const operatingList: OperatingSection[] = [];
     const subjectsList: Subject[] = [];
     const seenTitles = new Set<string>();
-    let pos = 0;
+    let pos = bannerSection ? 1 : 0;
     for (const section of sections) {
       const fresh = section.subjects.filter((s) => !seenTitles.has(s.title.toLowerCase()));
       if (fresh.length === 0) continue;
@@ -279,19 +398,24 @@ export const movieBoxService = {
       throw new Error('H5 homepage gagal: semua section filter kosong.');
     }
 
+    const topPickList = operatingList[0]?.subjects?.slice(0, 8) ?? [];
+
+    if (bannerSection) {
+      operatingList.unshift(bannerSection);
+    }
+
     const data: HomepageResponse = {
-      topPickList: operatingList[0]?.subjects?.slice(0, 8) ?? [],
+      topPickList,
       homeList: operatingList,
       url: `${WEB_REFERER_ORIGIN}/`,
       referer: `${WEB_REFERER_ORIGIN}/`,
       allPlatform: [],
-      banner: null,
+      banner: bannerSection?.banner ?? null,
       live: null,
       platformList: [],
       shareParam: null,
       operatingList,
     };
-
     serverCache.set(key, data, cacheTTL.API_RESPONSE);
     return data;
   },

@@ -52,8 +52,18 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
     }
   }, [isOpen, captions, selectedSubtitle]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isDownloading) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDownloading, onClose]);
 
+  if (!isOpen) return null;
   // Generate smart filename
   const generateFilename = (type: 'video' | 'subtitle', subtitleLang?: string) => {
     const cleanTitle = title.replace(/[<>:"/\\|?*]/g, ''); // Remove invalid chars
@@ -145,15 +155,15 @@ export function DownloadModal({ isOpen, onClose, subjectId, title, subjectType, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="download-modal-title">
       <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-md w-full p-6 relative">
         {/* Close Button */}
-        <button onClick={onClose} disabled={isDownloading} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition disabled:opacity-50">
-          <X className="w-5 h-5" />
+        <button type="button" onClick={onClose} disabled={isDownloading} aria-label="Tutup" className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         {/* Title */}
-        <h2 className="text-2xl font-bold text-white mb-2">Download Options</h2>
+        <h2 id="download-modal-title" className="text-2xl font-bold text-white mb-2">Download Options</h2>
         <p className="text-gray-400 text-sm mb-6">{title}</p>
 
         {isLoading ? (
