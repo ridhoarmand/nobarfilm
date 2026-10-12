@@ -394,6 +394,15 @@ test('route provider errors stay controlled and are never cached publicly', asyn
   }
 });
 
+test('whitespace-only SUBDL_API_KEY yields 503 and no-store without provider call', async () => {
+  process.env.SUBDL_API_KEY = '   ';
+  const response = await searchRoute.GET(routeRequest('/api/subtitles/search?query=Inception&type=movie'));
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.deepEqual(await response.json(), { error: 'Subtitle eksternal belum dikonfigurasi.' });
+  assert.equal(calls.length, 0);
+});
+
 for (const [path, maximum, method] of [['search', 10, 'GET'], ['download', 5, 'POST']] as const) {
   test(`${path} route retains local limiter message and Retry-After with no-store`, async () => {
     const ip = `limiter-${++requestCounter}`;
