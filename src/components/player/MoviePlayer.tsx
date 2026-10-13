@@ -7,6 +7,13 @@ import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { PlayerOverlay } from './PlayerOverlay';
 import type { OtherSubtitleContext, OtherSubtitleResult } from '@/types/other-subtitles';
+import { applyAudioEnhanceParams } from '@/lib/audioProcessing';
+
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
 
 interface MoviePlayerProps {
   mediaId: string;
@@ -126,6 +133,74 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const [autoNextEnabled, setAutoNextEnabled] = useState(true);
   const [stopAtEnd, setStopAtEnd] = useState(false);
 
+  // Web Audio Clarity ("Suara Lebih Jelas")
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const sourceConnectedRef = useRef(false);
+  const [isAudioEnhanced, setIsAudioEnhanced] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('nobarfilm_pref_audio_enhance') === 'true';
+  });
+
+  const ensureAudioGraph = useCallback((initialEnable = false) => {
+    if (typeof window === 'undefined' || !videoRef.current) return null;
+    if (!audioCtxRef.current) {
+      try {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtxClass) return null;
+        const ctx = new AudioCtxClass();
+        const compressor = ctx.createDynamicsCompressor();
+        const gain = ctx.createGain();
+        const source = ctx.createMediaElementSource(videoRef.current);
+        source.connect(compressor);
+        compressor.connect(gain);
+        gain.connect(ctx.destination);
+        audioCtxRef.current = ctx;
+        compressorRef.current = compressor;
+        gainRef.current = gain;
+        sourceConnectedRef.current = true;
+        applyAudioEnhanceParams(initialEnable, ctx, compressor, gain);
+      } catch {
+        return null;
+      }
+    }
+    if (audioCtxRef.current?.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
+    return audioCtxRef.current;
+  }, []);
+
+  const toggleAudioEnhance = useCallback(() => {
+    const next = !isAudioEnhanced;
+    setIsAudioEnhanced(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nobarfilm_pref_audio_enhance', String(next));
+    }
+    if (!audioCtxRef.current) {
+      ensureAudioGraph(next);
+    } else {
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+      if (compressorRef.current && gainRef.current) {
+        applyAudioEnhanceParams(next, audioCtxRef.current, compressorRef.current, gainRef.current);
+      }
+    }
+  }, [isAudioEnhanced, ensureAudioGraph]);
+
+  // Cleanup Web Audio graph on player unmount only
+  useEffect(() => {
+    return () => {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+        compressorRef.current = null;
+        gainRef.current = null;
+        sourceConnectedRef.current = false;
+      }
+    };
+  }, []);
   useEffect(() => {
     setAutoNextEnabled(true);
     setStopAtEnd(false);
@@ -615,13 +690,18 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
+      if (isAudioEnhanced && !audioCtxRef.current) {
+        ensureAudioGraph(true);
+      } else if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
       video.play().catch(() => {});
       if (isInParty && onPartyPlay) onPartyPlay();
     } else {
       video.pause();
       if (isInParty && onPartyPause) onPartyPause();
     }
-  }, [isInParty, onPartyPlay, onPartyPause]);
+  }, [isInParty, onPartyPlay, onPartyPause, isAudioEnhanced, ensureAudioGraph]);
 
   const handleSeek = useCallback((targetTime: number) => {
     const video = videoRef.current;
@@ -666,7 +746,29 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   }, []);
 
-  const [brightness, setBrightness] = useState(1.0);
+  const [brightness, setBrightness] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1.0;
+    const saved = localStorage.getItem('nobarfilm_pref_brightness');
+    if (saved !== null) {
+      const val = parseFloat(saved);
+      if (Number.isFinite(val)) {
+        return Math.max(0.5, Math.min(1.5, Math.round(val * 100) / 100));
+      }
+    }
+    return 1.0;
+  });
+
+  const handleBrightnessChange = useCallback((newVal: number) => {
+    const clamped = Math.max(0.5, Math.min(1.5, Math.round(newVal * 100) / 100));
+    setBrightness(clamped);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nobarfilm_pref_brightness', String(clamped));
+    }
+  }, []);
+
+  const handleResetBrightness = useCallback(() => {
+    handleBrightnessChange(1.0);
+  }, [handleBrightnessChange]);
 
   const toggleFullscreen = () => {
     const container = containerRef.current;
@@ -797,6 +899,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           setIsPlaying(true);
           setIsBuffering(false);
           setHasVideoError(false);
+          if (isAudioEnhanced && !audioCtxRef.current) {
+            ensureAudioGraph(true);
+          } else if (audioCtxRef.current?.state === 'suspended') {
+            audioCtxRef.current.resume().catch(() => {});
+          }
         }}
         onPause={() => {
           if (waitingDebounceTimerRef.current) {
@@ -975,7 +1082,10 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         onVolumeChange={handleVolumeChange}
         onToggleMute={toggleMute}
         brightness={brightness}
-        onBrightnessChange={setBrightness}
+        onBrightnessChange={handleBrightnessChange}
+        onResetBrightness={handleResetBrightness}
+        isAudioEnhanced={isAudioEnhanced}
+        onToggleAudioEnhance={toggleAudioEnhance}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onBack={onBack}

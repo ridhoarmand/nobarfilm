@@ -177,10 +177,10 @@ export function usePlayerGestures({
           onVolumeChange(newVol);
           showHud('volume', Math.round(newVol * 100));
         } else if (start.side === 'left') {
-          // Left side = Brightness (0.3 to 1.3)
-          const newBright = Math.max(0.3, Math.min(1.3, start.initialBright + step));
+          // Left side = Brightness (0.5 to 1.5)
+          const newBright = Math.max(0.5, Math.min(1.5, start.initialBright + step));
           onBrightnessChange(newBright);
-          showHud('brightness', Math.round(((newBright - 0.3) / 1.0) * 100));
+          showHud('brightness', Math.round(newBright * 100));
         }
       }
     },

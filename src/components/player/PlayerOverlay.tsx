@@ -44,6 +44,9 @@ export interface PlayerOverlayProps {
   onToggleMute: () => void;
   brightness?: number;
   onBrightnessChange?: (brightness: number) => void;
+  onResetBrightness?: () => void;
+  isAudioEnhanced?: boolean;
+  onToggleAudioEnhance?: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onBack?: () => void;
@@ -109,6 +112,9 @@ export function PlayerOverlay({
   onToggleMute,
   brightness = 1.0,
   onBrightnessChange,
+  onResetBrightness,
+  isAudioEnhanced = false,
+  onToggleAudioEnhance,
   isFullscreen,
   onToggleFullscreen,
   onBack,
@@ -379,7 +385,7 @@ export function PlayerOverlay({
             <div className="w-16 h-1 bg-zinc-800 rounded-full overflow-hidden ml-1">
               <div
                 className="h-full bg-red-600 transition-all duration-75 rounded-full"
-                style={{ width: `${hudFeedback.value}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, hudFeedback.value ?? 0))}%` }}
               />
             </div>
           </div>
@@ -682,6 +688,72 @@ export function PlayerOverlay({
               <PictureInPicture className="size-4 shrink-0" />
               <span>Jendela kecil (PiP)</span>
             </button>
+          )}
+          {onToggleAudioEnhance && (
+            <div className="player-section">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                  <Volume2 className="size-4 text-zinc-400" />
+                  <span className="font-semibold text-white">Suara lebih jelas</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={Boolean(isAudioEnhanced)}
+                  onClick={onToggleAudioEnhance}
+                  aria-label="Mode suara lebih jelas"
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 cursor-pointer ${
+                    isAudioEnhanced ? 'bg-red-600' : 'bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
+                      isAudioEnhanced ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              <p className="text-[11px] leading-relaxed text-zinc-400">
+                Menaikkan volume dialog dan menyeimbangkan efek suara tanpa membuat suara pecah.
+              </p>
+            </div>
+          )}
+
+          {onBrightnessChange && (
+            <div className="player-section">
+              <div className="flex items-center justify-between gap-2 text-xs text-zinc-300 mb-2">
+                <div className="flex items-center gap-2">
+                  <Sun className="size-4 text-zinc-400" />
+                  <span className="font-semibold text-white">Kecerahan video</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="tabular-nums font-semibold text-zinc-200">
+                    {Math.round((brightness ?? 1.0) * 100)}%
+                  </span>
+                  {brightness !== 1.0 && onResetBrightness && (
+                    <button
+                      type="button"
+                      onClick={onResetBrightness}
+                      className="text-[11px] text-red-400 hover:text-red-300 font-medium px-1.5 py-0.5 rounded border border-red-500/30"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="1.5"
+                step="0.05"
+                value={brightness ?? 1.0}
+                onChange={(e) => onBrightnessChange(parseFloat(e.target.value))}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Kecerahan video"
+                aria-valuetext={`${Math.round((brightness ?? 1.0) * 100)} persen`}
+                className="w-full min-h-11 accent-red-500 cursor-pointer bg-zinc-800"
+              />
+            </div>
           )}
 
           <div className="player-section">
