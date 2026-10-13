@@ -25,7 +25,16 @@ export function SpatialNavigation() {
       const nativeControl = active?.closest(nativeArrowSelector);
       // A remote can leave ranges vertically; left/right still use native seeking/volume.
       const leavingRange = nativeControl?.matches('input[type="range"]') && (event.key === 'ArrowUp' || event.key === 'ArrowDown');
-      if (nativeControl && (!leavingRange || nativeControl.matches('[data-native-arrows]'))) return;
+      const isTextInput = nativeControl instanceof HTMLInputElement && /^(text|search|url|tel|password|email|)$/i.test(nativeControl.type);
+      const atTextStart = !isTextInput || nativeControl.selectionStart === null || (nativeControl.selectionStart === 0 && nativeControl.selectionEnd === 0);
+      const atTextEnd = !isTextInput || nativeControl.selectionStart === null || (nativeControl.selectionStart === nativeControl.value.length && nativeControl.selectionEnd === nativeControl.value.length);
+      const leavingTextInput = isTextInput && (
+        event.key === 'ArrowUp' ||
+        event.key === 'ArrowDown' ||
+        (event.key === 'ArrowLeft' && atTextStart) ||
+        (event.key === 'ArrowRight' && atTextEnd)
+      );
+      if (nativeControl && (!leavingRange && !leavingTextInput || nativeControl.matches('[data-native-arrows]'))) return;
 
       const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"],dialog[open]'));
       const dialog = dialogs.reverse().find((element) => {

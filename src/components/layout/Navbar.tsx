@@ -69,7 +69,7 @@ export function Navbar() {
           <nav aria-label="Navigasi utama" className="hidden items-center gap-1 md:flex">
             {navigation.map(({ href, label, active }) => (
               <Link key={label} href={href} aria-current={active ? 'page' : undefined}
-                className={`flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold transition-colors ${active ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+                className={`flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold transition-colors ${active ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'} ${label === 'Cari' ? 'lg:hidden' : ''}`}>
                 {label}
               </Link>
             ))}
@@ -79,11 +79,16 @@ export function Navbar() {
             {!isSearchPage && (
               <div ref={searchRef} className="relative hidden lg:block"
                 onKeyDownCapture={(event) => {
-                  if (event.key !== 'Escape') return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  searchInputRef.current?.focus();
-                  setShowDropdown(false);
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    searchInputRef.current?.focus();
+                    setShowDropdown(false);
+                  } else if (event.key === 'ArrowLeft' && document.activeElement !== searchInputRef.current) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    searchInputRef.current?.focus();
+                  }
                 }}
                 onBlurCapture={(event) => {
                   if (!event.currentTarget.contains(event.relatedTarget)) setShowDropdown(false);
@@ -96,9 +101,12 @@ export function Navbar() {
                       value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setShowDropdown(true); }}
                       onFocus={() => setShowDropdown(true)}
                       onKeyDown={(event) => {
-                        if (event.key === 'ArrowDown' && showDropdown && results.length > 0) {
-                          event.preventDefault();
-                          searchRef.current?.querySelector<HTMLAnchorElement>('[data-search-result]')?.focus();
+                        if (event.key === 'ArrowDown' && showDropdown && searchQuery.trim().length >= 2) {
+                          const firstItem = searchRef.current?.querySelector<HTMLElement>('[data-search-result], #nav-search-results button');
+                          if (firstItem) {
+                            event.preventDefault();
+                            firstItem.focus();
+                          }
                         }
                       }}
                       aria-expanded={showDropdown && searchQuery.trim().length >= 2}
