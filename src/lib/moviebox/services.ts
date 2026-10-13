@@ -62,7 +62,6 @@ const HOMEPAGE_SECTIONS: Array<{ title: string; filter: { tabId: number; classif
   { title: 'Hollywood', filter: { tabId: 2, country: 'United States' } },
   { title: 'Drama China', filter: { tabId: 5, country: 'China' } },
   { title: 'Horor', filter: { tabId: 2, genre: 'Horror' } },
-  { title: 'Serial Thailand', filter: { tabId: 5, country: 'Thailand' } },
   { title: 'Misteri', filter: { tabId: 2, genre: 'Mystery' } },
 ];
 
