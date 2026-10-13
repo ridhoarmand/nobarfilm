@@ -149,7 +149,6 @@ export function Navbar() {
                 )}
               </div>
             )}
-            <span className="hidden items-center gap-2 text-xs text-zinc-400 min-[1800px]:inline-flex"><span aria-hidden="true" className="rounded-lg border border-white/20 px-2 py-1">↑ ↓ ← →</span> Navigasi tombol arah</span>
             {!isSearchPage && <Link href="/search" aria-label="Cari film atau serial" className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-200 lg:hidden"><Search className="size-5" /></Link>}
           </div>
         </div>

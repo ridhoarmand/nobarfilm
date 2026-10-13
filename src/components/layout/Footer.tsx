@@ -55,7 +55,7 @@ export function Footer() {
                   </a>
                 </li>
                 <li>
-                  <a href="https://excalidraw.idho.eu.org" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-lg text-gray-400 hover:text-white text-sm transition">
+                  <a href="https://draw.idho.eu.org" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-lg text-gray-400 hover:text-white text-sm transition">
                     Excalidraw
                   </a>
                 </li>
