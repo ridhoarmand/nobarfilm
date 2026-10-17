@@ -2,14 +2,6 @@ import { encryptedResponse, getClientToken } from '@/lib/api-utils';
 import { movieBoxService } from '@/lib/moviebox';
 import { NextRequest, NextResponse } from 'next/server';
 
-function inferAudioOptions(title: string) {
-  const options = [{ code: 'orig', label: 'Original Audio' }];
-  if (/english/i.test(title)) {
-    options.push({ code: 'en', label: 'English Dub' });
-  }
-  return options;
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ subjectId: string }> }

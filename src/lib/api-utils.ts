@@ -33,19 +33,6 @@ export function encryptedResponse(data: unknown, status = 200, headersInit?: Hea
   return response;
 }
 
-/**
- * Common headers for Moviebox Upstream API to avoid 403 Forbidden
- * Mimics a real browser request more accurately.
- */
-export function getMovieboxHeaders() {
-  return {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
-    'Accept-Encoding': 'gzip',
-    'Sec-WebSocket-Version': '13',
-    'Cache-Control': 'no-cache',
-  };
-}
-
 export function getClientToken(request: Request | NextRequest): string | null {
   const authHeader = request.headers.get('Authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {

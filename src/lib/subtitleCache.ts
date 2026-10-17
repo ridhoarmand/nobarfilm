@@ -98,17 +98,3 @@ export async function getCachedSubtitleBlobUrl(subtitleUrl: string): Promise<str
   inflightRequests.set(subtitleUrl, fetchPromise);
   return fetchPromise;
 }
-
-/**
- * Clear all cached subtitle Blob URLs (e.g. when unmounting player)
- */
-export function clearAllSubtitleCache() {
-  for (const item of subtitleBlobCache.values()) {
-    try {
-      URL.revokeObjectURL(item.blobUrl);
-    } catch (e) {
-      console.error('Error revoking blob URL:', e);
-    }
-  }
-  subtitleBlobCache.clear();
-}

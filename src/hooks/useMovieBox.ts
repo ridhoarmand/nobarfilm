@@ -1,4 +1,4 @@
-import { useQuery, UseQueryOptions, keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, UseQueryOptions, keepPreviousData } from '@tanstack/react-query';
 import type { HomepageResponse, TrendingResponse, SearchResponse, DetailResponse, SourcesResponse, ApiError, Caption } from '@/types/api';
 import { fetchJson } from '@/lib/fetcher';
 
@@ -54,22 +54,6 @@ export function useMovieBoxTrending(page: number = 0, options?: Omit<UseQueryOpt
     staleTime: 1000 * 60 * 3, // 3 minutes
     placeholderData: keepPreviousData,
     ...options,
-  });
-}
-
-/**
- * Hook to fetch trending with infinite query
- */
-export function useInfiniteMovieBoxTrending() {
-  return useInfiniteQuery({
-    queryKey: ['moviebox', 'trending', 'infinite'],
-    queryFn: ({ pageParam = 0 }) => fetchJson<TrendingResponse>(`${API_BASE}/trending?page=${pageParam}`),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage: TrendingResponse, allPages: TrendingResponse[]) => {
-      if (!lastPage || lastPage.subjectList?.length === 0) return undefined;
-      return allPages.length; // Next page is current page count
-    },
-    staleTime: 1000 * 60 * 3,
   });
 }
 

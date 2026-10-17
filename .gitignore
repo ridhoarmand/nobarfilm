@@ -69,3 +69,13 @@ dist/
 *.swp
 *.swo
 *~
+/AGENTS.md
+# local agent/tooling artifacts
+/scratch/
+*.local
+.osb/
+.task/
+opencode.json*
+.claude/
+.cursor/
+AGENTS.local.md
