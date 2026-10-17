@@ -1,7 +1,7 @@
 services:
   nobarfilm:
     container_name: nobarfilm
-    image: ridhoarmand/nobarfilm:latest
+    image: ghcr.io/ridhoarmand/nobarfilm:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
