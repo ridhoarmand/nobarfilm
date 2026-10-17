@@ -353,6 +353,9 @@ export function PlayerOverlay({
       }}
       onMouseMove={!isLocked ? showControls : undefined}
       onMouseEnter={!isLocked ? showControls : undefined}
+      // Sentuhan di mana pun (termasuk di atas tombol) menunda ulang auto-hide;
+      // tanpa ini kontrol bisa hilang saat pengguna masih melangkah ke panel.
+      onTouchStartCapture={!isLocked ? showControls : undefined}
       onMouseLeave={!isLocked ? handleMouseLeave : undefined}
       onClick={!isLocked ? handleDesktopClick : undefined}
       onTouchStart={!isLocked ? handleTouchStart : undefined}
