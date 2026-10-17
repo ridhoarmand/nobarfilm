@@ -3,6 +3,9 @@ name: Build and Push Docker Image (GHCR)
 on:
   push:
     branches: ['master']
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
   workflow_dispatch:
 
 permissions:
@@ -25,28 +28,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate required secrets
-        shell: bash
-        env:
-          PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
-          PORTAINER_ACCESS_TOKEN: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
-        run: |
-          set -euo pipefail
-          required=(PORTAINER_URL PORTAINER_ACCESS_TOKEN)
-          missing=()
-          for key in "${required[@]}"; do
-            if [[ -z "${!key:-}" ]]; then
-              missing+=("$key")
-            fi
-          done
-          if [[ ${#missing[@]} -gt 0 ]]; then
-            echo "Missing required secrets: ${missing[*]}" >&2
-            exit 1
-          fi
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -63,16 +44,44 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # build cache; the base/standalone image itself stays small so
+          # Portainer's server-side pull (the real 5-minute cost) stays low
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # ignore world-writable dirs so context is smaller and faster
+          # (dockerignore already excludes .git/node_modules/.next)
 
       - name: Redeploy Portainer Stack
-        uses: wirgen/portainer-stack-redeploy-action@v1.1
-        with:
-          portainerUrl: ${{ secrets.PORTAINER_URL }}
-          accessToken: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
-          stackId: 17
-          endpointId: 3
+        # KICK-OFF ONLY: request redeploy then leave — the server-side image
+        # pull happens asynchronously on the Portainer host (~5 min), CI need
+        # not block on it. The action we used did the same PUT but waited for
+        # the synchronous result.
+        shell: bash
+        env:
+          PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
+          PORTAINER_ACCESS_TOKEN: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          CLEAN_URL="${PORTAINER_URL%/}"
+          # 1. Fetch current StackFileContent so the PUT keeps the compose identical.
+          curl -sS -f -H "X-API-Key: ${PORTAINER_ACCESS_TOKEN}" \
+            "${CLEAN_URL}/api/stacks/17/file" > /tmp/stackfile.json
+          python3 - <<'PYEOF'
+          import json
+          data = json.load(open('/tmp/stackfile.json'))
+          assert 'StackFileContent' in data, 'unexpected Portainer response'
+          json.dump({'pullImage': True, 'stackFileContent': data['StackFileContent']}, open('/tmp/putbody.json','w'))
+          PYEOF
+          # 2. Background the actual redeploy PUT — Portainer answers after the
+          #    image pull; we don't wait. Fire-and-forget from CI's view.
+          nohup curl -sS -f -X PUT \
+            -H "X-API-Key: ${PORTAINER_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/putbody.json \
+            "${CLEAN_URL}/api/stacks/17?endpointId=3" > /tmp/redeploy.log 2>&1 &
+          echo "Redeploy PUT fired in background (nohup); CI completed. Pull continues on the Portainer host."
+          # Give nohup a beat to send the request before the runner is torn down.
+          sleep 5
 
       - name: Clean up unused Docker images via Portainer API
         shell: bash
@@ -80,11 +89,11 @@ jobs:
           PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
           PORTAINER_ACCESS_TOKEN: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
         run: |
-          echo "Waiting 10 seconds for Portainer stack deployment to complete..."
-          sleep 10
           echo "Triggering Docker image prune via Portainer API (endpoint 3)..."
           CLEAN_URL="${PORTAINER_URL%/}"
+          # NOTE: prune BEFORE pull finishes would delete the image Tag still in
+          # use. So we only prune outdated dangling images, never the live one.
           curl -s -f -X POST \
             -H "X-API-Key: ${PORTAINER_ACCESS_TOKEN}" \
-            "${CLEAN_URL}/api/endpoints/3/docker/images/prune?dangling=false" || true
+            "${CLEAN_URL}/api/endpoints/3/docker/images/prune?dangling=true" || true
           echo "Portainer Docker image cleanup finished!"
