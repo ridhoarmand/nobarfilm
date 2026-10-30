@@ -88,8 +88,9 @@ async function ticket() {
 
 function rejectsStatus(status: number) {
   return (error: unknown) => {
-    assert.ok(error instanceof ApiError);
-    assert.equal(error.status, status);
+    // name, not instanceof: on Node 20 tsx loads fetcher.ts twice (ESM test + CJS subdl.ts)
+    assert.ok(error instanceof Error && error.name === 'ApiError');
+    assert.equal((error as ApiError).status, status);
     assert.ok(!error.message.includes('test-key'));
     assert.ok(!error.message.includes('https://'));
     return true;
