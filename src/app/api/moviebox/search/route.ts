@@ -1,4 +1,4 @@
-import { encryptedResponse, getClientToken } from '@/lib/api-utils';
+import { encryptedResponse } from '@/lib/api-utils';
 import { movieBoxService } from '@/lib/moviebox';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
         referer: '',
       });
     }
-
-    const clientToken = getClientToken(request);
-    const data = await movieBoxService.search(query, Number.isNaN(page) ? 1 : page, clientToken);
+    const data = await movieBoxService.search(query, Number.isNaN(page) ? 1 : page);
     return encryptedResponse(data);
   } catch (error: any) {
     console.error('[search] API Error:', error);

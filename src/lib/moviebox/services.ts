@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { serverCache, cacheKeys, cacheTTL } from '../cache';
 import {
   HomepageResponse,
@@ -16,7 +15,6 @@ import {
   Image,
 } from '@/types/api';
 import {
-  HOST,
   ALLOWED_SUBJECT_TYPES,
   WEB_REFERER_ORIGIN,
   H5_PATH_PREFIX,
@@ -25,7 +23,6 @@ import {
   MIN_REAL_DURATION_SECONDS,
 } from './config';
 import { normalizeSubject, filterSubjects, isAdultContent, normalizeCover } from './normalizers';
-import { callMobileApi } from './client';
 import { h5Fetch } from './webClient';
 import { isLandscapeArtwork } from '../heroArtwork';
 
@@ -134,122 +131,7 @@ async function h5SearchResponse(keyword: string, page: number, perPage: number):
 }
 
 export const movieBoxService = {
-  async loginUser(email: string, passwordPlain: string, clientIp?: string | null): Promise<any> {
-    const md5Password = crypto.createHash('md5').update(passwordPlain).digest('hex');
-    const payload = {
-      authType: 1,
-      mail: email,
-      password: md5Password,
-      package_name: 'com.moviebox.android',
-    };
-
-    const response = await callMobileApi(
-      'POST',
-      '/wefeed-mobile-bff/user-api/login',
-      { host: HOST },
-      payload,
-      false,
-      null,
-      clientIp
-    );
-
-    return response;
-  },
-
-  async getUserInfo(userId: string, clientToken: string): Promise<any> {
-    const response = await callMobileApi(
-      'GET',
-      '/wefeed-mobile-bff/user-api/info',
-      { host: HOST, userId },
-      null,
-      false,
-      clientToken
-    );
-
-    return response;
-  },
-
-  async checkMailAccount(email: string, clientIp?: string | null): Promise<any> {
-    const payload = {
-      authType: 1,
-      mail: email,
-      package_name: 'com.moviebox.android',
-    };
-    return await callMobileApi(
-      'POST',
-      '/wefeed-mobile-bff/user-api/check-mail-account',
-      { host: HOST },
-      payload,
-      false,
-      null,
-      clientIp
-    );
-  },
-
-  async getSmsCode(email: string, type: number = 1, clientIp?: string | null): Promise<any> {
-    const payload = {
-      authType: 1,
-      mail: email,
-      type: type,
-      package_name: 'com.moviebox.android',
-    };
-    return await callMobileApi(
-      'POST',
-      '/wefeed-mobile-bff/user-api/get-sms-code',
-      { host: HOST },
-      payload,
-      false,
-      null,
-      clientIp
-    );
-  },
-
-  async checkSmsCode(email: string, code: string, clientIp?: string | null): Promise<any> {
-    const payload = {
-      authType: 1,
-      mail: email,
-      verificationCode: code,
-      package_name: 'com.moviebox.android',
-    };
-    return await callMobileApi(
-      'POST',
-      '/wefeed-mobile-bff/user-api/check-sms-code',
-      { host: HOST },
-      payload,
-      false,
-      null,
-      clientIp
-    );
-  },
-
-  async registerUser(
-    email: string,
-    code: string,
-    passwordPlain: string,
-    inviteCode: string = '',
-    clientIp?: string | null
-  ): Promise<any> {
-    const md5Password = crypto.createHash('md5').update(passwordPlain).digest('hex');
-    const payload = {
-      authType: 1,
-      mail: email,
-      verificationCode: code,
-      password: md5Password,
-      inviteCode: inviteCode,
-      package_name: 'com.moviebox.android',
-    };
-    return await callMobileApi(
-      'POST',
-      '/wefeed-mobile-bff/user-api/register',
-      { host: HOST },
-      payload,
-      false,
-      null,
-      clientIp
-    );
-  },
-
-  async getHomepage(_clientToken?: string | null): Promise<HomepageResponse> {
+  async getHomepage(): Promise<HomepageResponse> {
     const key = cacheKeys.apiResponse('homepage', 'h5');
     const cached = serverCache.get<HomepageResponse>(key);
     if (cached) return cached;
@@ -442,12 +324,12 @@ export const movieBoxService = {
     return data;
   },
 
-  async getTrending(page: number = 0, clientToken?: string | null): Promise<TrendingResponse> {
+  async getTrending(page: number = 0): Promise<TrendingResponse> {
     const key = cacheKeys.apiResponse('trending', `page=${page}`);
     const cached = serverCache.get<TrendingResponse>(key);
     if (cached) return cached;
 
-    const homepage = await this.getHomepage(clientToken);
+    const homepage = await this.getHomepage();
     const combined = filterSubjects(
       homepage.operatingList.flatMap((section) => section.subjects || []).filter(Boolean)
     );
@@ -469,7 +351,7 @@ export const movieBoxService = {
     return data;
   },
 
-  async search(query: string, page: number = 1, _clientToken?: string | null): Promise<SearchResponse> {
+  async search(query: string, page: number = 1): Promise<SearchResponse> {
     const key = cacheKeys.apiResponse('search', `q=${query}&p=${page}`);
     const cached = serverCache.get<SearchResponse>(key);
     if (cached) return cached;
@@ -479,7 +361,7 @@ export const movieBoxService = {
     return data;
   },
 
-  async getDetail(subjectId: string, _clientToken?: string | null): Promise<DetailResponse> {
+  async getDetail(subjectId: string): Promise<DetailResponse> {
     const key = cacheKeys.apiResponse('detail', subjectId);
     const cached = serverCache.get<DetailResponse>(key);
     if (cached) return cached;
@@ -545,8 +427,7 @@ export const movieBoxService = {
   async getSources(
     subjectId: string,
     season?: number,
-    episode?: number,
-    _clientToken?: string | null
+    episode?: number
   ): Promise<SourcesResponse> {
     const detail = await this.getDetail(subjectId);
     const isSeries = detail.subject.subjectType === SubjectType.Series;
@@ -664,7 +545,4 @@ export const movieBoxService = {
     return data;
   },
 
-  async testCall(method: string, path: string, queryParams: any, body: any, clientToken?: string | null): Promise<any> {
-    return await callMobileApi(method, path, queryParams, body, false, clientToken);
-  },
 };

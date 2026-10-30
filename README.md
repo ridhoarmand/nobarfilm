@@ -36,7 +36,6 @@ Sumber: `src/lib/moviebox/config.ts` dan `.env.example`.
 | `SUBDL_API_KEY` | tidak | Secret **runtime server** (bukan `NEXT_PUBLIC_*`), dari [panel SubDL](https://subdl.com/panel/api). Tanpa key: pencarian subtitle lain mati, playback & subtitle bawaan tetap jalan. |
 | `MOVIEBOX_WEB_BFF_HOSTS` | tidak | Daftar host API urut, dipisah koma. Default `https://h5-api.aoneroom.com,https://officialmoviebox.com`. Fallback berurutan saat network error / 404 / 5xx. |
 | `MOVIEBOX_WEB_REFERER_ORIGIN` | tidak | Origin referer request. Default `https://officialmoviebox.com`. Hanya diubah jika provider memindahkan situs webnya. |
-| `MOVIEBOX_MASTER_EMAIL` + `MOVIEBOX_MASTER_PASSWORD` | tidak | Fallback opsional akun master mobile API. Guest device-session dipakai lebih dulu; konten tetap jalan tanpa keduanya. Detail: `src/lib/moviebox/client.ts`. |
 
 **Catatan DNS:** DNS ISP memblokir domain provider? Pakai `8.8.8.8` / `1.1.1.1` atau DoH. Semua video tetap lewat `/api/proxy/video` server-side.
 

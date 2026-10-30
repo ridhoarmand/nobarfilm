@@ -9,7 +9,6 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_COOKIE_DOMAIN=.idho.eu.org
       - SUBDL_API_KEY=${SUBDL_API_KEY:-}
 
     healthcheck:

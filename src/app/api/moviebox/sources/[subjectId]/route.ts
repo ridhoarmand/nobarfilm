@@ -1,4 +1,4 @@
-import { encryptedResponse, getClientToken } from "@/lib/api-utils";
+import { encryptedResponse } from "@/lib/api-utils";
 import { movieBoxService } from "@/lib/moviebox";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
@@ -25,8 +25,7 @@ export async function GET(
   const episode = Number.isFinite(episodeParsed) ? episodeParsed : undefined;
 
   try {
-    const clientToken = getClientToken(request);
-    const data = await movieBoxService.getSources(subjectId, season, episode, clientToken);
+    const data = await movieBoxService.getSources(subjectId, season, episode);
     console.log('[sources route] Called for subjectId:', subjectId, 'downloads count:', data?.downloads?.length, 'hasResource:', data?.hasResource);
     return encryptedResponse(data);
   } catch (error: any) {

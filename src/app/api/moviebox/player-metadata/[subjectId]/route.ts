@@ -1,4 +1,4 @@
-import { encryptedResponse, getClientToken } from '@/lib/api-utils';
+import { encryptedResponse } from '@/lib/api-utils';
 import { movieBoxService } from '@/lib/moviebox';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -12,8 +12,7 @@ export async function GET(
   const episode = searchParams.get('episode') !== null ? parseInt(searchParams.get('episode') || '0', 10) : undefined;
 
   try {
-    const clientToken = getClientToken(request);
-    const detail = await movieBoxService.getDetail(subjectId, clientToken);
+    const detail = await movieBoxService.getDetail(subjectId);
 
     const seasons = detail.resource?.seasons || [];
     const selectedSeason = seasons.find((item) => item.se === (season ?? seasons[0]?.se ?? 0));

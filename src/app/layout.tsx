@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { QueryProvider } from '@/components/providers/QueryProvider';
-import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ServiceWorkerRegistration } from '@/components/providers/ServiceWorkerRegistration';
 
 import { ClientToaster } from '@/components/layout/ClientToaster';
@@ -94,7 +93,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <SpatialNavigation />
         <QueryProvider>
-          <AuthProvider>{children}</AuthProvider>
+          {children}
         </QueryProvider>
 
         <ClientToaster />

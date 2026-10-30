@@ -1,11 +1,10 @@
-import { encryptedResponse, getClientToken } from '@/lib/api-utils';
+import { encryptedResponse } from '@/lib/api-utils';
 import { movieBoxService } from '@/lib/moviebox';
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const clientToken = getClientToken(request);
-    const data = await movieBoxService.getHomepage(clientToken);
+    const data = await movieBoxService.getHomepage();
     return encryptedResponse(data, 200, {
       'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300',
     });
