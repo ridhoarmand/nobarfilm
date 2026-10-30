@@ -4,8 +4,18 @@ import { ALLOWED_SUBJECT_TYPES } from './config';
 // Domain provider video dewasa / hentai pada stream sources yang diblokir
 const BLOCKED_SOURCE_DOMAINS_REGEX = /(watchhentai|xprimehub|hentai|pornhub|xvideos|spankbang|xhamster|redtube|youporn|eporner|tube8|beeg|extrahot)\b/i;
 
-// Genre khusus konten dewasa / erotis pada daftar search (seperti konten xprimehub / watchhentai)
-const ADULT_GENRES = ['adult', 'hentai', 'ecchi', 'erotica', 'erotic', 'hot', 'porn', 'porno', 'sensual'];
+// Genre yang selalu porn/semi-porn (web series India, Vivamax, hentai). H5 lang=id mengirim
+// genre berbahasa Indonesia ("Panas" = Hot), jadi keduanya harus ada di sini.
+const ADULT_GENRES = ['adult', 'panas', 'hot', 'hentai', 'ecchi', 'porn', 'porno', 'sensual'];
+
+// "Erotis" juga dipakai film layar lebar (Fifty Shades 353k vote, Crash 72k vote), sedangkan
+// konten porn berlabel Erotis/judul vulgar hampir selalu < 100 vote IMDb. Lolos hanya bila populer.
+const EROTIC_GENRES = ['erotis', 'erotic'];
+const MAINSTREAM_MIN_IMDB_VOTES = 300;
+
+// Kata khas judul porn/semi-porn yang juga muncul di film populer ("Sex Education", "Lust Stories"),
+// jadi hanya memblokir judul yang tidak populer (< MAINSTREAM_MIN_IMDB_VOTES).
+const SUSPECT_TITLE_REGEX = /\b(sex|sexy|f[u*]ck\w*|erotic\w*|sensu\w*|lust\w*|nude|naked|rape[ds]?|bhabhi|bhauji|aunty|devar|nangi|lund|chut|chudai|kamukta|kama\s*sutra|tharki|uncut|escort|massage|seduc\w*|desi|pinay|vmx|stepmom|stepdad|step\s*(mom|dad|sister|son))\b/i;
 
 // Kata kunci pornografi vulgar pada judul / sinopsis
 const ADULT_KEYWORDS_REGEX = /\b(xxx|hentai|porn|porno|jav|pussy|cock|milf|cum|blowjob|bukkake|gangbang|creampie|uncensored|dildo|生ハメ|おまんこ|wife\s*sex|wife\s*sharing|\[18\+\]|\(18\+\))\b/i;
@@ -32,6 +42,10 @@ export function isAdultContent(sub: any): boolean {
   // 2. Blokir berdasarkan genre konten dewasa (misal web series 18+ KiwiTv/xprimehub)
   const genre = String(sub.genre || '').toLowerCase();
   if (ADULT_GENRES.some((g) => genre.includes(g))) {
+    return true;
+  }
+  const obscure = Number(sub.imdbRatingCount || 0) < MAINSTREAM_MIN_IMDB_VOTES;
+  if (obscure && (EROTIC_GENRES.some((g) => genre.includes(g)) || SUSPECT_TITLE_REGEX.test(String(sub.title || '')))) {
     return true;
   }
 
