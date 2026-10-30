@@ -185,3 +185,31 @@ test('upstream /home gagal tidak menggagalkan katalog homepage', async () => {
   assert.equal(res.operatingList[0].type, 'SUBJECTS_MOVIE');
   assert.ok(res.topPickList.length > 0);
 });
+
+test('section kurasi /home dipakai langsung (tanpa /subject/filter), Short TV & konten dewasa tersaring', async () => {
+  const subject = (id: string, title: string, extra: Record<string, unknown> = {}) => ({
+    subjectId: id, subjectType: 1, title, hasResource: true,
+    cover: { url: 'https://pbcdn.aoneroom.com/c.jpg', width: 300, height: 450 }, ...extra,
+  });
+  homeResponder = () =>
+    jsonResponse({
+      code: 0,
+      data: {
+        operatingList: [
+          { type: 'SUBJECTS_MOVIE', title: 'Film Indonesia Lagi Ngetren', subjects: [subject('1', 'Warkop DKI'), subject('2', 'Nakal', { genre: 'Erotis,Panas' })] },
+          { type: 'SUBJECTS_MOVIE', title: 'Hot Short TV', subjects: [subject('3', 'CEO Drama', { subjectType: 7 })] },
+          { type: 'SUBJECTS_MOVIE', title: 'K-Drama Terbaru', subjects: [subject('4', 'Dead-End Job', { subjectType: 2 }), subject('1', 'Warkop DKI')] },
+        ],
+      },
+    });
+  let filterCalls = 0;
+  filterResponder = () => makeValidFilterResponse(++filterCalls);
+
+  const res = await movieBoxService.getHomepage();
+
+  assert.equal(filterCalls, 0);
+  assert.deepEqual(
+    res.operatingList.map((s) => [s.title, s.subjects?.map((x) => x.title)]),
+    [['Film Indonesia Lagi Ngetren', ['Warkop DKI']], ['K-Drama Terbaru', ['Dead-End Job']]],
+  );
+});

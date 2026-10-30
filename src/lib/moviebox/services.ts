@@ -136,7 +136,7 @@ export const movieBoxService = {
     const cached = serverCache.get<HomepageResponse>(key);
     if (cached) return cached;
 
-    console.log(`[MovieBox SDK] Building H5 filter homepage (${HOMEPAGE_SECTIONS.length} sections)`);
+    console.log('[MovieBox SDK] Building H5 homepage');
     // ponytail: optional banner parallel with catalog filters, falls back to catalog top picks
     interface RawHomeBannerImage {
       url?: string;
@@ -167,6 +167,7 @@ export const movieBoxService = {
       title?: string;
       position?: number;
       banner?: { items?: RawHomeBannerItem[] };
+      subjects?: unknown[];
     }
 
     interface RawHomeResponse {
@@ -184,13 +185,20 @@ export const movieBoxService = {
       };
     }
 
-    const [homeRaw, sections] = await Promise.all([
-      h5Fetch('/home').catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        console.warn('[MovieBox SDK] Homepage banner request failed:', message);
-        return null;
-      }) as Promise<RawHomeResponse | null>,
-      Promise.all(
+    const homeRaw = (await h5Fetch('/home').catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn('[MovieBox SDK] Homepage /home request failed:', message);
+      return null;
+    })) as RawHomeResponse | null;
+
+    // Editor-curated rows from /home (same rows officialmoviebox.com shows); the generic
+    // /subject/filter rows are only a fallback when /home is down or empty.
+    const curated = (homeRaw?.code === 0 ? homeRaw.data?.operatingList ?? [] : [])
+      .filter((s) => s?.type === 'SUBJECTS_MOVIE' && s.title)
+      .map((s) => ({ title: String(s.title), subjects: toSubjects(s.subjects) }));
+    const sections = curated.some((s) => s.subjects.length > 0)
+      ? curated
+      : await Promise.all(
         HOMEPAGE_SECTIONS.map(async (section) => {
           try {
             const json = (await h5Fetch('/subject/filter', {
@@ -205,8 +213,7 @@ export const movieBoxService = {
             return { ...section, subjects: [] as Subject[] };
           }
         })
-      ),
-    ]);
+      );
 
     let bannerSection: OperatingSection | null = null;
     const rawBanner = homeRaw?.code === 0 && Array.isArray(homeRaw.data?.operatingList)
@@ -279,7 +286,7 @@ export const movieBoxService = {
       operatingList.push({ type: 'SUBJECTS_MOVIE', position: pos++, title: section.title, subjects: fresh });
     }
     if (subjectsList.length === 0) {
-      throw new Error('H5 homepage gagal: semua section filter kosong.');
+      throw new Error('H5 homepage gagal: semua section kosong.');
     }
 
     const topPickList = operatingList[0]?.subjects?.slice(0, 8) ?? [];
