@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const rateLimit = checkRateLimit(request, 10, 60000);
+  if (!rateLimit.success && rateLimit.response) return rateLimit.response;
+
   try {
     const body = await request.json();
     const { text } = body;
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'Parameter text wajib diisi' }, { status: 400 });
+    }
+    if (text.length > 5000) {
+      return NextResponse.json({ error: 'Teks terlalu panjang (maks 5000 karakter)' }, { status: 413 });
     }
 
     // Call Google Translate free GTX endpoint

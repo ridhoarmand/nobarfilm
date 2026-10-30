@@ -131,7 +131,7 @@ export function OtherSubtitlesPopover({ context, onSelect, onBack, onClose }: Pr
     [context.title, context.type, context.season, context.episode, cancelRequest, showError]
   );
 
-  const useSubtitle = useCallback(
+  const applySubtitle = useCallback(
     async (result: OtherSubtitleResult) => {
       cancelRequest();
       const sequence = sequenceRef.current;
@@ -279,7 +279,7 @@ export function OtherSubtitlesPopover({ context, onSelect, onBack, onClose }: Pr
               disabled={busy !== null}
               className="player-option border border-zinc-500"
               onClick={() => {
-                if (retryResult) void useSubtitle(retryResult);
+                if (retryResult) void applySubtitle(retryResult);
                 else void search(selectedTitle || undefined, lastQueryRef.current);
               }}
             >
@@ -306,7 +306,7 @@ export function OtherSubtitlesPopover({ context, onSelect, onBack, onClose }: Pr
             {subtitles?.map((result) => (
               <div key={result.id} className="min-w-0 rounded-lg border border-zinc-700 p-3">
                 <p className="break-words text-zinc-200 [overflow-wrap:anywhere]">{result.release}</p>
-                <button type="button" disabled={busy === 'download'} className="player-option mt-2 border border-zinc-500" onClick={() => void useSubtitle(result)}>Gunakan</button>
+                <button type="button" disabled={busy === 'download'} className="player-option mt-2 border border-zinc-500" onClick={() => void applySubtitle(result)}>Gunakan</button>
               </div>
             ))}
           </div>

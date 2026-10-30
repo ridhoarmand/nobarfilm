@@ -1,34 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { WEB_CLIENT_UA } from '@/lib/moviebox/config';
+import { fetchPublic, BlockedUrlError } from '@/lib/safeFetch';
+import { toWebVtt } from '@/lib/subtitleFormat';
 
 export const dynamic = 'force-dynamic'; // Prevent static optimization
-
-function isValidProxyTargetUrl(urlString: string): boolean {
-  try {
-    const parsed = new URL(urlString);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-
-    const hostname = parsed.hostname.toLowerCase();
-
-    // Prevent access to loopback / private IP ranges / cloud metadata IPs
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '::1' ||
-      hostname === '169.254.169.254' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
-    ) {
-      return false;
-    }
-
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 // Header logic is per-host, host-agnostic: any external host is proxy-eligible
 // (PROXY_ALL_STREAMS), only header *defaults* differ by known host shapes.
@@ -51,13 +27,16 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Missing URL parameter', { status: 400 });
   }
 
-  // SSRF guard: private/loopback IPs blocked. Host-agnostic rule: ANY external
-  // https/http host is proxy-eligible — EXCEPT our own origin (loop prevention).
-  if (!isValidProxyTargetUrl(url)) {
-    return new NextResponse('Forbidden target URL', { status: 403 });
+  let targetHost: string;
+  try {
+    targetHost = new URL(url).hostname.toLowerCase();
+  } catch {
+    return new NextResponse('Invalid URL parameter', { status: 400 });
   }
+
+  // Host-agnostic: ANY public http(s) host is proxy-eligible (fetchPublic blocks
+  // internal IPs per redirect hop) — EXCEPT our own origin (loop prevention).
   const selfHost = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(',')[0].trim().toLowerCase().split(':')[0];
-  const targetHost = new URL(url).hostname.toLowerCase();
   if (selfHost && targetHost === selfHost) {
     return new NextResponse('Forbidden: self-referential proxy loop', { status: 403 });
   }
@@ -87,9 +66,8 @@ export async function GET(req: NextRequest) {
     }
 
     // 1. Fetch from Upstream using native fetch (connected to client request signal)
-    const upstreamRes = await fetch(url, {
+    const upstreamRes = await fetchPublic(url, {
       headers,
-      redirect: 'follow',
       signal: req.signal,
     });
 
@@ -151,10 +129,7 @@ export async function GET(req: NextRequest) {
       const text = decoder.decode(buffer);
       const baseUrl = new URL(finalUrl);
 
-      const subUrl = urlParams.get('sub');
-      const isMasterPlaylist = text.includes('#EXT-X-STREAM-INF');
-
-      let rewritten = text
+      const rewritten = text
         .split(/\r?\n/)
         .map((line) => {
           const trimmed = line.trim();
@@ -186,18 +161,6 @@ export async function GET(req: NextRequest) {
         })
         .join('\n');
 
-      if (isMasterPlaylist && subUrl) {
-        let proxiedSubUrl = `${origin}/api/proxy/video?url=${encodeURIComponent(subUrl)}`;
-        if (refererParam) proxiedSubUrl += `&referer=${encodeURIComponent(refererParam)}`;
-
-        const mediaLine = `#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Indonesia",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="id",URI="${proxiedSubUrl}"`;
-        rewritten = rewritten.replace('#EXTM3U', '#EXTM3U\n' + mediaLine);
-        rewritten = rewritten.replace(/#EXT-X-STREAM-INF:(.*)/g, (match, attrs) => {
-          if (attrs.includes('SUBTITLES=')) return match;
-          return `#EXT-X-STREAM-INF:${attrs},SUBTITLES="subs"`;
-        });
-      }
-
       return new NextResponse(rewritten, {
         status: 200,
         headers: {
@@ -210,15 +173,7 @@ export async function GET(req: NextRequest) {
 
     // VTT/SRT Logic
     if (isVtt || lowUrl.endsWith('.srt')) {
-      let vttContent = decoder.decode(buffer);
-      const isSrt = lowUrl.includes('.srt');
-
-      if (isSrt && !firstChunk.includes('WEBVTT')) {
-        vttContent = vttContent.replace(/\r\n/g, '\n').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
-        vttContent = 'WEBVTT\n\n' + vttContent;
-      }
-
-      vttContent = vttContent.replace(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3} --> (?:\d{2}:)?\d{2}:\d{2}\.\d{3})(.*)/g, (match, time, rest) => (rest.includes('line:') ? match : `${time} line:75%${rest}`));
+      const vttContent = toWebVtt(decoder.decode(buffer)).replace(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3} --> (?:\d{2}:)?\d{2}:\d{2}\.\d{3})(.*)/g, (match, time, rest) => (rest.includes('line:') ? match : `${time} line:75%${rest}`));
 
       return new NextResponse(vttContent, {
         status: 200,
@@ -239,6 +194,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof BlockedUrlError) {
+      return new NextResponse('Forbidden target URL', { status: 403 });
+    }
     console.error('Proxy error:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }

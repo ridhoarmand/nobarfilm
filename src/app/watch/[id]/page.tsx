@@ -13,7 +13,8 @@ import { WatchPartyReactions } from '@/components/party/WatchPartyReactions';
 import { Loader2, AlertCircle, Film, X, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCachedSubtitleBlobUrl, toWebVtt } from '@/lib/subtitleCache';
+import { getCachedSubtitleBlobUrl } from '@/lib/subtitleCache';
+import { toWebVtt } from '@/lib/subtitleFormat';
 import { fetchJson } from '@/lib/fetcher';
 import type { OtherSubtitleContext, OtherSubtitleDownload, OtherSubtitleResult } from '@/types/other-subtitles';
 
@@ -926,9 +927,8 @@ function WatchContent() {
                       body: JSON.stringify({ text: subject.description }),
                     });
                     const data = await res.json();
-                    if (data.translatedText) {
-                      setTranslatedSynopsis(data.translatedText);
-                    }
+                    if (!data.translatedText) throw new Error(data.error || `HTTP ${res.status}`);
+                    setTranslatedSynopsis(data.translatedText);
                   } catch (e) {
                     console.error('Translation error:', e);
                     toast.error('Gagal menerjemahkan sinopsis');

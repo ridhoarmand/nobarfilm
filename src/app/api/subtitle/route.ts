@@ -1,31 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { WEB_CLIENT_UA, WEB_REFERER_ORIGIN } from '@/lib/moviebox/config';
-
-// Helper function to convert SRT to VTT
-function srtToVtt(srtContent: string): string {
-  // Remove UTF-8 BOM if present and normalize line breaks
-  const cleanContent = srtContent.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trim();
-
-  // If the content is already WebVTT, return it as-is
-  if (cleanContent.startsWith('WEBVTT')) {
-    return cleanContent;
-  }
-
-  // Replace comma with dot in timestamps (00:00:00,000 --> 00:00:00.000)
-  const vttContent = cleanContent
-    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
-    .replace(/(\d{2}:\d{2}),(\d{3})/g, '00:$1.$2');
-
-  // Add WEBWTT header
-  return `WEBVTT\n\n${vttContent}`;
-}
-
-// Helper function to convert WebVTT to SRT
-function vttToSrt(vttContent: string): string {
-  const cleanContent = vttContent.replace(/^\uFEFF/, '').replace(/^WEBVTT/i, '').replace(/\r\n/g, '\n').trim();
-  return cleanContent.replace(/(\d{2}:\d{2}:\d{2})\.(\d{3})/g, '$1,$2');
-}
+import { fetchPublic, BlockedUrlError } from '@/lib/safeFetch';
+import { toWebVtt, vttToSrt } from '@/lib/subtitleFormat';
 
 export async function GET(request: NextRequest) {
   const rateLimit = checkRateLimit(request, 15, 10000);
@@ -43,13 +20,12 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch subtitle content from external server with referer header
-    const response = await fetch(url, {
+    const response = await fetchPublic(url, {
       headers: {
         'User-Agent': WEB_CLIENT_UA,
         'Referer': `${WEB_REFERER_ORIGIN}/`,
         'Origin': WEB_REFERER_ORIGIN,
       },
-      redirect: 'follow',
     });
 
     if (!response.ok) {
@@ -75,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Convert to WebVTT
-    const vttContent = srtToVtt(rawContent);
+    const vttContent = toWebVtt(rawContent);
     const headers: Record<string, string> = {
       'Content-Type': 'text/vtt; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
@@ -87,6 +63,9 @@ export async function GET(request: NextRequest) {
 
     return new NextResponse(vttContent, { headers });
   } catch (error: unknown) {
+    if (error instanceof BlockedUrlError) {
+      return NextResponse.json({ error: 'Forbidden target URL' }, { status: 403 });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Subtitle proxy error:', message);
     return NextResponse.json({ error: 'Failed to fetch subtitle' }, { status: 500 });

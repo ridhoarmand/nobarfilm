@@ -109,19 +109,6 @@ export function createRoom(
     chatHistory: [],
   };
 
-  // Schedule cleanup for API-created rooms (placeholder socketId)
-  // so orphaned rooms don't leak memory forever
-  if (hostSocketId.startsWith('init-')) {
-    room.cleanupTimer = setTimeout(() => {
-      const existing = rooms.get(code);
-      if (existing && existing.hostSocketId.startsWith('init-')) {
-        rooms.delete(code);
-        socketToRoom.delete(hostSocketId);
-        console.log(`[Party] Orphaned API room ${code} cleaned up`);
-      }
-    }, CLEANUP_DELAY);
-  }
-
   rooms.set(code, room);
   socketToRoom.set(hostSocketId, code);
   return room;
@@ -142,13 +129,6 @@ export function joinRoom(
   if (room.cleanupTimer) {
     clearTimeout(room.cleanupTimer);
     room.cleanupTimer = null;
-  }
-
-  // Clean up temporary placeholder if created via API
-  if (room.hostSocketId.startsWith('init-')) {
-    room.participants.delete(room.hostSocketId);
-    socketToRoom.delete(room.hostSocketId);
-    room.hostSocketId = socketId;
   }
 
   const isHost = room.participants.size === 0 || room.hostSocketId === socketId;

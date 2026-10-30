@@ -63,7 +63,9 @@ const MIME_TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-function serveStaticFile(filePath: string, res: any, cacheControl?: string): boolean {
+function serveStaticFile(baseDir: string, filePath: string, res: any, cacheControl?: string): boolean {
+  // Block path traversal: decoded "..%2f" segments must not escape baseDir
+  if (!filePath.startsWith(baseDir + path.sep)) return false;
   if (!fs.existsSync(filePath)) return false;
   try {
     const stat = fs.statSync(filePath);
@@ -109,7 +111,7 @@ const httpServer = createServer(async (req, res) => {
     if (pathname.startsWith('/_next/static/')) {
       const relPath = pathname.slice('/_next/static/'.length);
       const staticFilePath = path.join(resolvedStaticDir, relPath);
-      if (serveStaticFile(staticFilePath, res, 'public, max-age=31536000, immutable')) {
+      if (serveStaticFile(resolvedStaticDir, staticFilePath, res, 'public, max-age=31536000, immutable')) {
         return;
       }
     }
@@ -119,12 +121,10 @@ const httpServer = createServer(async (req, res) => {
       const cleanPath = pathname.startsWith('/') ? pathname.slice(1) : pathname;
       if (cleanPath) {
         const publicFilePath = path.join(resolvedPublicDir, cleanPath);
-        if (fs.existsSync(publicFilePath) && fs.statSync(publicFilePath).isFile()) {
-          const isSw = pathname === '/sw.js';
-          const cacheControl = isSw ? 'no-cache, no-store, must-revalidate' : 'public, max-age=86400';
-          if (serveStaticFile(publicFilePath, res, cacheControl)) {
-            return;
-          }
+        const isSw = pathname === '/sw.js';
+        const cacheControl = isSw ? 'no-cache, no-store, must-revalidate' : 'public, max-age=86400';
+        if (serveStaticFile(resolvedPublicDir, publicFilePath, res, cacheControl)) {
+          return;
         }
       }
     }

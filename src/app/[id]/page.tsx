@@ -349,9 +349,8 @@ export default function DetailPage() {
                             body: JSON.stringify({ text: subject.description }),
                           });
                           const data = await res.json();
-                          if (data.translatedText) {
-                            setTranslatedSynopsis(data.translatedText);
-                          }
+                          if (!data.translatedText) throw new Error(data.error || `HTTP ${res.status}`);
+                          setTranslatedSynopsis(data.translatedText);
                         } catch (e) {
                           console.error('Translation error:', e);
                           toast.error('Gagal menerjemahkan sinopsis');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toWebVtt } from './subtitleCache';
+import { toWebVtt } from './subtitleFormat';
 
 test('normalizes SRT BOM, CRLF, and hour timestamps for browser tracks', () => {
   assert.equal(

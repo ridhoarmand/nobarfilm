@@ -1,5 +1,7 @@
 'use client';
 
+import { toWebVtt } from './subtitleFormat';
+
 // In-memory Blob URL cache for temporary subtitle storage
 interface CachedSubtitle {
   blobUrl: string;
@@ -36,15 +38,6 @@ export function cleanSubtitleCache() {
 // Automatically run cache cleanup every 10 minutes
 if (typeof window !== 'undefined') {
   setInterval(cleanSubtitleCache, 10 * 60 * 1000);
-}
-
-export function toWebVtt(text: string): string {
-  const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trim();
-  if (normalized.startsWith('WEBVTT')) return normalized;
-  const cues = normalized
-    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
-    .replace(/(\d{2}:\d{2}),(\d{3})/g, '00:$1.$2');
-  return `WEBVTT\n\n${cues}`;
 }
 
 /**
