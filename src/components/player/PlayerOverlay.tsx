@@ -365,6 +365,11 @@ export function PlayerOverlay({
         setHasControlFocus(false);
         showControls();
       }}
+      // Klik mouse (detail > 0) jangan meninggalkan fokus di tombol: pintasan keyboard (←/→, J/L, Spasi)
+      // diabaikan selama tombol fokus. Aktivasi dari keyboard/remote (detail 0) tetap mempertahankan fokus.
+      onClickCapture={(e) => {
+        if (e.detail > 0) (e.target as Element).closest<HTMLElement>('button')?.blur();
+      }}
       onMouseMove={!isLocked ? showControls : undefined}
       onMouseEnter={!isLocked ? showControls : undefined}
       // Sentuhan di mana pun (termasuk di atas tombol) menunda ulang auto-hide;

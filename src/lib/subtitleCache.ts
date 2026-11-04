@@ -15,23 +15,24 @@ const subtitleBlobCache = new Map<string, CachedSubtitle>();
 // CDN rate-limit / blacklist on rapid repeated hits)
 const inflightRequests = new Map<string, Promise<string>>();
 
-// Subtitle Cache Cleaner (Interval Cleaner to prevent memory bloat)
-const MAX_CACHE_AGE_MS = 30 * 60 * 1000; // 30 minutes
+// Batasi jumlah, bukan umur: blob yang masih dipakai <track> (film panjang, >30 mnt) tidak boleh
+// dicabut, kalau tidak subtitle gagal dimuat saat track dibuat ulang (mis. ganti kualitas).
+const MAX_CACHE_ENTRIES = 30;
 
 /**
- * Clean temporary subtitle Blob URLs older than MAX_CACHE_AGE_MS
+ * Revoke the oldest subtitle Blob URLs beyond MAX_CACHE_ENTRIES.
  */
 export function cleanSubtitleCache() {
-  const now = Date.now();
-  for (const [key, item] of subtitleBlobCache.entries()) {
-    if (now - item.timestamp > MAX_CACHE_AGE_MS) {
-      try {
-        URL.revokeObjectURL(item.blobUrl);
-      } catch (e) {
-        console.error('Error revoking blob URL:', e);
-      }
-      subtitleBlobCache.delete(key);
+  const excess = subtitleBlobCache.size - MAX_CACHE_ENTRIES;
+  if (excess <= 0) return;
+  const oldest = [...subtitleBlobCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp).slice(0, excess);
+  for (const [key, item] of oldest) {
+    try {
+      URL.revokeObjectURL(item.blobUrl);
+    } catch (e) {
+      console.error('Error revoking blob URL:', e);
     }
+    subtitleBlobCache.delete(key);
   }
 }
 

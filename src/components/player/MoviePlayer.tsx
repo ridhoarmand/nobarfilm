@@ -936,7 +936,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           setIsPlaying(true);
           setIsBuffering(false);
           setHasVideoError(false);
-          if (isAudioEnhanced && !audioCtxRef.current) {
+          // AudioContext di luar gestur (autoplay) mulai suspended dan membisukan video; tunggu gestur.
+          const userActivation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+          if (isAudioEnhanced && !audioCtxRef.current && userActivation?.isActive) {
             ensureAudioGraph(true);
           } else if (audioCtxRef.current?.state === 'suspended') {
             audioCtxRef.current.resume().catch(() => {});
