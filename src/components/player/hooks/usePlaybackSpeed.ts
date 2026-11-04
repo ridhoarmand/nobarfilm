@@ -48,18 +48,8 @@ export function usePlaybackSpeed() {
     }
   }, []);
 
-  // Apply speed to a player instance
-  const applyToPlayer = useCallback((player: { playbackRate: number } | null) => {
-    if (player) {
-      // Re-read from localStorage/ref in case it was updated elsewhere
-      // But purely relying on ref is safer for concurrent updates
-      player.playbackRate = speedRef.current;
-    }
-  }, []);
-
   return {
     speed,
     setSpeed,
-    applyToPlayer,
   };
 }

@@ -86,7 +86,7 @@ export function HomeClient() {
         title: s.title,
         description: s.description || '',
         backdropUrl: s.coverHorizontalUrl || '',
-        posterUrl: s.cover.url,
+        posterUrl: s.cover?.url || '',
         subjectId: s.subjectId,
         subjectType: s.subjectType,
         recommendationReason: s.recommendation_reason,
@@ -135,6 +135,12 @@ export function HomeClient() {
                     ))}
                   </div>
                 </section>
+              )}
+
+              {heroSlides.length === 0 && contentSections.length === 0 && (
+                <p className="content-container py-16 text-center text-zinc-400">
+                  Katalog sedang kosong. Coba muat ulang beberapa saat lagi.
+                </p>
               )}
 
               {contentSections.map((section, index) => (

@@ -32,17 +32,6 @@ export function usePlayerControls(isPlaying: boolean, autoHideDelayMs: number = 
     setIsVisible(false);
   }, []);
 
-  const scheduleQuickHide = useCallback((delayMs: number = 800) => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-    }
-    if (isPlaying) {
-      hideTimerRef.current = setTimeout(() => {
-        setIsVisible(false);
-      }, delayMs);
-    }
-  }, [isPlaying]);
-
   useEffect(() => {
     queueMicrotask(() => {
       showControls();
@@ -59,6 +48,5 @@ export function usePlayerControls(isPlaying: boolean, autoHideDelayMs: number = 
     showControls,
     keepControlsVisible,
     hideControlsNow,
-    scheduleQuickHide,
   };
 }

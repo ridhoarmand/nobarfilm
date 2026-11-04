@@ -262,26 +262,6 @@ export function useMovieBoxPlaybackUrl(
 }
 
 /**
- * Hook to fetch ranking / category list
- */
-export function useMovieBoxRankingList(
-  categoryType: string,
-  page: number = 1,
-  options?: Omit<UseQueryOptions<SearchResponse, ApiError>, 'queryKey' | 'queryFn'>
-) {
-  return useQuery<SearchResponse, ApiError>({
-    queryKey: movieBoxQueryKeys.rankingList(categoryType, page),
-    queryFn: () => fetchJson<SearchResponse>(`${API_BASE}/ranking-list?id=${encodeURIComponent(categoryType)}&page=${page}`),
-    staleTime: 1000 * 60 * 10,
-    gcTime: 1000 * 60 * 30,
-    placeholderData: keepPreviousData,
-    enabled: !!categoryType,
-    refetchOnWindowFocus: false,
-    ...options,
-  });
-}
-
-/**
  * Infinite hook to fetch ranking / category list with infinite scrolling
  */
 export function useInfiniteMovieBoxRankingList(categoryType: string) {

@@ -1,1 +1,0 @@
-export { MoviePlayer } from './MoviePlayer';

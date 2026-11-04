@@ -1037,10 +1037,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         }}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
-          setCurrentTime(video.currentTime);
+          // timeupdate ~4x/detik; render ulang player + overlay hanya saat detik berganti.
+          const now = video.currentTime;
+          setCurrentTime((prev) => (Math.floor(prev) === Math.floor(now) ? prev : now));
           setDuration(video.duration || 0);
           if (video.buffered.length > 0) {
-            setBuffered(video.buffered.end(video.buffered.length - 1));
+            const end = Math.floor(video.buffered.end(video.buffered.length - 1));
+            setBuffered((prev) => (Math.floor(prev) === end ? prev : end));
           }
           onProgress?.(video.currentTime, video.duration || 0);
         }}
