@@ -326,7 +326,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   // Handle stream loading via hls.js (only for .m3u8) with native fallback
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !currentSrc) return;
+    if (!video) return;
+    // Sumber episode berikutnya masih dimuat: hentikan video lama di tempat (player tidak di-unmount).
+    if (!currentSrc) {
+      video.pause();
+      setIsBuffering(true);
+      return;
+    }
 
     const isEpisodeChanged = prevEpisodeRef.current.season !== activeSeason || prevEpisodeRef.current.episode !== activeEpisode;
     if (isEpisodeChanged) {

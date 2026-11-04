@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { keepPreviousData } from '@tanstack/react-query';
 import { clearCachedStreamData, useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
@@ -89,8 +90,11 @@ function WatchContent() {
   const {
     data: playerMetadata,
     isLoading: isLoadingMetadata,
+    isPlaceholderData: isMetadataPlaceholder,
   } = useMovieBoxPlayerMetadata(subjectId, effectiveSeason, effectiveEpisode, {
     enabled: !!subjectId && !isLoadingDetail,
+    // Ganti episode tidak boleh mengosongkan data: player tetap ter-mount (fullscreen tidak lepas).
+    placeholderData: keepPreviousData,
   });
 
   const [subtitleDelay, setSubtitleDelay] = useState(0);
@@ -300,25 +304,29 @@ function WatchContent() {
   }, [subjectId, isSeries, effectiveSeason, effectiveEpisode, resumeTime, router]);
 
   useEffect(() => {
-    if (!isSeries || !playerMetadata?.selected) return;
+    // Data episode lama (placeholder) jangan sampai membelokkan URL kembali ke episode lama.
+    if (!isSeries || !playerMetadata?.selected || isMetadataPlaceholder) return;
     const nextSeason = playerMetadata.selected.season;
     const nextEpisode = playerMetadata.selected.episode;
     if (season !== nextSeason || episode !== nextEpisode) {
-      const params = new URLSearchParams();
+      // Pertahankan t (posisi lanjut) dan party; hanya season/episode yang dibetulkan.
+      const params = new URLSearchParams(searchParams.toString());
       if (typeof nextSeason === 'number') params.set('season', String(nextSeason));
       if (typeof nextEpisode === 'number') params.set('episode', String(nextEpisode));
       const paramStr = params.toString();
       router.replace(`/watch/${subjectId}${paramStr ? `?${paramStr}` : ''}`);
     }
-  }, [episode, isSeries, playerMetadata, router, season, subjectId]);
+  }, [episode, isSeries, isMetadataPlaceholder, playerMetadata, router, searchParams, season, subjectId]);
 
   const {
     data: playbackData,
     isLoading: isLoadingPlayback,
     error: playbackError,
     refetch: refetchPlayback,
+    isPlaceholderData: isPlaybackPlaceholder,
   } = useMovieBoxPlaybackUrl(subjectId, effectiveSeason, effectiveEpisode, qualityIndex, {
     enabled: !!subjectId && !isLoadingDetail,
+    placeholderData: keepPreviousData,
   });
 
   const reloadPlayback = useCallback(() => {
@@ -718,7 +726,9 @@ function WatchContent() {
   const directors = subject?.staffList?.filter((s) => s.staffType === 1) ?? [];
   const cast = subject?.staffList?.filter((s) => s.staffType === 2).slice(0, 6) ?? [];
 
-  const hasNextEpisode = isSeries && availableEpisodes.length > 0 && effectiveEpisode < availableEpisodes.length;
+  // Nomor episode bisa berlubang (mis. 1, 2, 4): ambil yang berikutnya di daftar, bukan +1.
+  const nextEpisodeNumber = isSeries ? availableEpisodes[availableEpisodes.indexOf(effectiveEpisode) + 1] : undefined;
+  const hasNextEpisode = typeof nextEpisodeNumber === 'number' && availableEpisodes.includes(effectiveEpisode);
 
   const handleNextEpisode = () => {
     if (!hasNextEpisode) return;
@@ -727,8 +737,7 @@ function WatchContent() {
       saveProgressSync(time, duration);
     }
     lastProgressRef.current = { time: 0, duration: 0 };
-    setQualityIndex(0);
-    const nextEp = effectiveEpisode + 1;
+    const nextEp = nextEpisodeNumber!;
     if (isInParty && useWatchPartyStore.getState().isHost) {
       changeMedia(subjectId, effectiveSeason, nextEp, subject?.title || '');
     }
@@ -779,7 +788,7 @@ function WatchContent() {
           <MoviePlayer
             ref={videoRef}
             mediaId={subjectId}
-            src={effectiveStreamUrl}
+            src={isPlaybackPlaceholder && !(isInParty && !isHost) ? '' : effectiveStreamUrl}
             title={displayTitle}
             poster={subject?.coverHorizontalUrl || subject?.cover?.url}
             autoPlay
@@ -822,8 +831,7 @@ function WatchContent() {
                 saveProgressSync(time, duration);
               }
               lastProgressRef.current = { time: 0, duration: 0 };
-              setQualityIndex(0);
-              if (isInParty && isHost) {
+                        if (isInParty && isHost) {
                 changeMedia(subjectId, s, 1, subject?.title || '');
               }
               const params = new URLSearchParams();
@@ -842,8 +850,7 @@ function WatchContent() {
                 saveProgressSync(time, duration);
               }
               lastProgressRef.current = { time: 0, duration: 0 };
-              setQualityIndex(0);
-              if (isInParty && isHost) {
+                        if (isInParty && isHost) {
                 changeMedia(subjectId, effectiveSeason, e, subject?.title || '');
               }
               const params = new URLSearchParams();
