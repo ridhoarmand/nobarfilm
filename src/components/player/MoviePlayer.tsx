@@ -38,6 +38,8 @@ interface MoviePlayerProps {
   poster?: string;
   onEnded?: () => void;
   onProgress?: (time: number, duration: number) => void;
+  /** Ambil link sumber baru (lewati cache); dipakai saat muat ulang yang sama gagal lagi. */
+  onReloadSource?: () => void;
   onNextEpisode?: () => void;
   hasNextEpisode?: boolean;
   initialTime?: number;
@@ -88,6 +90,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   poster,
   onEnded,
   onProgress,
+  onReloadSource,
   onNextEpisode,
   hasNextEpisode = false,
   initialTime = 0,
@@ -129,6 +132,9 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const lastAudibleVolumeRef = useRef(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasVideoError, setHasVideoError] = useState(false);
+  // Naik = efek sumber dijalankan ulang (hls dibuat ulang) tanpa mengganti src.
+  const [reloadKey, setReloadKey] = useState(0);
+  const retryCountRef = useRef(0);
   const [isBuffering, setIsBuffering] = useState(false);
   const [autoNextEnabled, setAutoNextEnabled] = useState(true);
   const [stopAtEnd, setStopAtEnd] = useState(false);
@@ -365,6 +371,11 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
       hlsRef.current = hls;
       suspendedHlsSubtitlesRef.current = null;
+      // Error fatal beruntun tanpa segmen yang berhasil = sumber mati; berhenti dan tampilkan layar error.
+      let fatalRetries = 0;
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        fatalRetries = 0;
+      });
 
       hls.loadSource(currentSrc);
       hls.attachMedia(video);
@@ -418,6 +429,15 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
             hlsRef.current = null;
             video.src = currentSrc;
             restoreTimeAndPlay();
+            return;
+          }
+          if ((data.type === Hls.ErrorTypes.NETWORK_ERROR || data.type === Hls.ErrorTypes.MEDIA_ERROR) && ++fatalRetries > 3) {
+            console.warn('[HLS] Recovery failed 3 times, giving up');
+            hls?.destroy();
+            hls = null;
+            hlsRef.current = null;
+            setIsBuffering(false);
+            setHasVideoError(true);
             return;
           }
           switch (data.type) {
@@ -499,7 +519,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         hlsRef.current = null;
       }
     };
-  }, [currentSrc, autoPlay]);
+  }, [currentSrc, autoPlay, reloadKey]);
 
   const [subtitleFontSize, setSubtitleFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(() => {
     if (typeof window !== 'undefined') {
@@ -850,20 +870,21 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   });
 
 
+  // Percobaan pertama memuat ulang link yang sama; berikutnya minta link baru (link CDN bisa kedaluwarsa).
   const handleRetryVideo = () => {
     setHasVideoError(false);
     setIsBuffering(true);
-    const video = videoRef.current;
-    if (video) {
-      video.load();
-      video.play().catch(() => {});
-    }
+    hasAttemptedProxy.current = false;
+    retryCountRef.current += 1;
+    if (retryCountRef.current > 1 && onReloadSource) onReloadSource();
+    else setReloadKey((key) => key + 1);
   };
 
   const hasAttemptedProxy = useRef(false);
 
   useEffect(() => {
     hasAttemptedProxy.current = false;
+    retryCountRef.current = 0;
   }, [currentSrc]);
 
   return (

@@ -160,6 +160,9 @@ export function PlayerOverlay({
   const overlayRef = useRef<HTMLDivElement>(null);
   const popoverOpenerRef = useRef<HTMLElement | null>(null);
   const keyboardFocusRef = useRef(false);
+  // Status kontrol saat jari menyentuh; showControls() di pointerdown sudah membuatnya terlihat
+  // sebelum toggle di touchend berjalan, jadi toggle harus memakai nilai sebelum sentuhan.
+  const wasVisibleRef = useRef(false);
 
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null);
   const [sleepTimerEnd, setSleepTimerEnd] = useState<number | null>(null);
@@ -313,7 +316,7 @@ export function PlayerOverlay({
     brightness: brightness ?? 1.0,
     onBrightnessChange: onBrightnessChange ?? (() => {}),
     onToggleControls: () => {
-      if (isPlaying && isVisible && !hasControlFocus && activePopover === null) {
+      if (isPlaying && wasVisibleRef.current && !hasControlFocus && activePopover === null) {
         hideControlsNow();
       } else {
         showControls();
@@ -347,6 +350,7 @@ export function PlayerOverlay({
         }
       }}
       onPointerDownCapture={() => {
+        wasVisibleRef.current = controlsVisible;
         keyboardFocusRef.current = false;
         setHasControlFocus(false);
         showControls();

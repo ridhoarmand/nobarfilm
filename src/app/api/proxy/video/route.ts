@@ -13,7 +13,8 @@ function isProviderHost(hostname: string): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  const rateLimit = checkRateLimit(req, 20, 10000);
+  // Satu tontonan HLS = puluhan segmen + range per menit (web dan aplikasi NontonYuk).
+  const rateLimit = checkRateLimit(req, 300, 10000);
   if (!rateLimit.success && rateLimit.response) {
     return rateLimit.response;
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
+import { clearCachedStreamData, useMovieBoxDetail, useMovieBoxPlaybackUrl, useMovieBoxPlayerMetadata } from '@/hooks/useMovieBox';
 import { MoviePlayer } from '@/components/player/MoviePlayer';
 import { useMovieBoxWatchHistory } from '@/hooks/useMovieBoxWatchHistory';
 import { useWatchParty } from '@/hooks/useWatchParty';
@@ -316,9 +316,15 @@ function WatchContent() {
     data: playbackData,
     isLoading: isLoadingPlayback,
     error: playbackError,
+    refetch: refetchPlayback,
   } = useMovieBoxPlaybackUrl(subjectId, effectiveSeason, effectiveEpisode, qualityIndex, {
     enabled: !!subjectId && !isLoadingDetail,
   });
+
+  const reloadPlayback = useCallback(() => {
+    clearCachedStreamData(subjectId, effectiveSeason, effectiveEpisode);
+    void refetchPlayback();
+  }, [subjectId, effectiveSeason, effectiveEpisode, refetchPlayback]);
 
   const availableQualities = useMemo(() => {
     if (playbackData?.allDownloads && playbackData.allDownloads.length > 0) {
@@ -746,12 +752,20 @@ function WatchContent() {
               <p className="text-sm text-zinc-400 max-w-md">
                 Provider stream belum menyediakan video untuk judul ini saat ini. Coba kembali beberapa saat lagi.
               </p>
-              <button
-                onClick={() => router.back()}
-                className="min-h-11 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition"
-              >
-                Kembali
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={reloadPlayback}
+                  className="min-h-11 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-semibold transition"
+                >
+                  Coba lagi
+                </button>
+                <button
+                  onClick={() => router.back()}
+                  className="min-h-11 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full text-sm transition"
+                >
+                  Kembali
+                </button>
+              </div>
             </div>
           ) : !effectiveStreamUrl && !isInParty ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
@@ -781,6 +795,7 @@ function WatchContent() {
             otherSubtitleContext={otherSubtitleContext}
             onOtherSubtitleSelect={handleOtherSubtitleSelect}
             onProgress={handleProgress}
+            onReloadSource={reloadPlayback}
             hasNextEpisode={hasNextEpisode}
             onNextEpisode={handleNextEpisode}
             onEnded={() => {

@@ -139,6 +139,14 @@ export interface PlaybackData {
   embedUrl?: string;
 }
 
+/** Buang link sumber tersimpan agar refetch berikutnya meminta link baru ke server. */
+export function clearCachedStreamData(subjectId: string, season?: number, episode?: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(getStreamCacheKey(subjectId, season, episode));
+  } catch {}
+}
+
 // Helper to get cached stream data
 function getCachedStreamData(cacheKey: string): (PlaybackData & { expiry: number }) | null {
   if (typeof window === 'undefined') return null;
