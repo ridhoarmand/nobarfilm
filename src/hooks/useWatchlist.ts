@@ -7,19 +7,21 @@ const WATCHLIST_STORAGE_KEY = 'nobarfilm_watchlist_v1';
 
 export function useWatchlist() {
   const [watchlist, setWatchlist] = useState<Subject[]>([]);
+  // false sampai localStorage terbaca: halaman Favorit tidak berkedip ke tampilan kosong.
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from localStorage on mount (prevents SSR mismatch and cascading renders)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        queueMicrotask(() => {
-          setWatchlist(parsed);
-        });
-      }
+      const parsed = saved ? JSON.parse(saved) : null;
+      queueMicrotask(() => {
+        if (parsed) setWatchlist(parsed);
+        setIsLoaded(true);
+      });
     } catch (e) {
       console.error('Error loading watchlist:', e);
+      queueMicrotask(() => setIsLoaded(true));
     }
   }, []);
 
@@ -108,6 +110,7 @@ export function useWatchlist() {
 
   return {
     watchlist,
+    isLoaded,
     addToWatchlist,
     removeFromWatchlist,
     toggleWatchlist,

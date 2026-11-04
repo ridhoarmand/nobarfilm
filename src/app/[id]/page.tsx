@@ -257,7 +257,7 @@ export default function DetailPage() {
                           className="min-h-12 min-w-0 flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors shadow-lg text-sm sm:text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                         >
                           <Play className="w-5 h-5 fill-current shrink-0" aria-hidden="true" />
-                          <span>Tonton Sekarang</span>
+                          <span>Tonton</span>
                         </Link>
 
                         <button

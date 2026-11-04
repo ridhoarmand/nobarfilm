@@ -3,25 +3,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, Home, Loader2, Search, Star, X } from 'lucide-react';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useMovieBoxSearch } from '@/hooks/useMovieBox';
 import { AccountButton } from './AccountButton';
 
-function subscribeToHash(callback: () => void) {
-  window.addEventListener('hashchange', callback);
-  window.addEventListener('popstate', callback);
-  return () => {
-    window.removeEventListener('hashchange', callback);
-    window.removeEventListener('popstate', callback);
-  };
-}
-
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const hash = useSyncExternalStore(subscribeToHash, () => window.location.hash, () => '');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -33,11 +23,10 @@ export function Navbar() {
   const results = data?.items.slice(0, 5) || [];
   const isPending = isFetching || searchQuery.trim() !== debouncedQuery;
   const isSearchPage = pathname.startsWith('/search');
-  const isFavorites = pathname === '/' && hash === '#favorit';
   const navigation = [
-    { href: '/', label: 'Beranda', icon: Home, active: pathname === '/' && !isFavorites },
+    { href: '/', label: 'Beranda', icon: Home, active: pathname === '/' },
     { href: '/search', label: 'Cari', icon: Search, active: isSearchPage },
-    { href: '/#favorit', label: 'Favorit', icon: Heart, active: isFavorites },
+    { href: '/favorit', label: 'Favorit', icon: Heart, active: pathname.startsWith('/favorit') },
   ];
 
   useEffect(() => {

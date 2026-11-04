@@ -1,8 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMovieBoxHomepage } from '@/hooks/useMovieBox';
 import { useContinueWatching } from '@/hooks/useContinueWatching';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,13 +15,11 @@ import { ContinueWatchingCard } from '@/components/shared/ContinueWatchingCard';
 import { SectionSlider } from '@/components/shared/SectionSlider';
 import { Footer } from '@/components/layout/Footer';
 
-import { useWatchlist } from '@/hooks/useWatchlist';
 
 export function HomeClient() {
   const queryClient = useQueryClient();
   const { data: continueWatchingData } = useContinueWatching();
   const continueWatchingRef = useRef<HTMLDivElement>(null);
-  const { watchlist } = useWatchlist();
   
   // These will now use the prefetched data from HydrationBoundary
   const { data: homeData, isLoading: isHomeLoading, error: homeError, refetch } = useMovieBoxHomepage();
@@ -125,8 +122,8 @@ export function HomeClient() {
                       <p className="mt-1 text-sm text-zinc-400 2xl:text-base">{continueWatchingData.length} tayangan · Lanjutkan dari posisi terakhir</p>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => scrollContinueWatching('left')} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kiri" aria-controls="continue-watching-row"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
-                      <button type="button" onClick={() => scrollContinueWatching('right')} className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kanan" aria-controls="continue-watching-row"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+                      <button type="button" onClick={() => scrollContinueWatching('left')} className="hidden md:flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kiri" aria-controls="continue-watching-row"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+                      <button type="button" onClick={() => scrollContinueWatching('right')} className="hidden md:flex min-h-11 min-w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500" aria-label="Geser Lanjutkan Menonton ke kanan" aria-controls="continue-watching-row"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
                     </div>
                   </div>
                   <div id="continue-watching-row" ref={continueWatchingRef} data-spatial-row style={{ scrollPaddingLeft: '0.5rem' }} className="flex gap-4 overflow-x-auto p-2 pb-4 scrollbar-hide snap-x snap-mandatory">
@@ -152,23 +149,6 @@ export function HomeClient() {
                   categoryType={section.categoryType}
                 />
               ))}
-              <div id="favorit" className="relative z-10 scroll-mt-4">
-                {watchlist.length > 0 ? (
-                  <SectionSlider title="Favorit Saya" items={watchlist} />
-                ) : (
-                  <section className="content-container" aria-labelledby="favorite-heading">
-                    <h2 id="favorite-heading" className="mb-4 text-xl font-bold text-white sm:text-2xl 2xl:text-3xl">Favorit Saya</h2>
-                    <div className="flex flex-col items-start gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:flex-row sm:items-center sm:p-6">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-600/10 text-red-400"><Heart className="h-6 w-6" aria-hidden="true" /></span>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-white 2xl:text-lg">Belum ada judul favorit</h3>
-                        <p className="mt-1 text-sm leading-relaxed text-zinc-400 2xl:text-base">Tambahkan film atau series ke favorit dari halaman detail. Favorit tersimpan di perangkat ini, tanpa perlu akun.</p>
-                      </div>
-                      <Link href="/search" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500">Cari Tayangan</Link>
-                    </div>
-                  </section>
-                )}
-              </div>
 
             </div>
           </>

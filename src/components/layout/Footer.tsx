@@ -31,15 +31,10 @@ export function Footer() {
               <ul>
                 <li><Link href="/" className="inline-flex min-h-11 items-center rounded-lg text-sm transition hover:text-white">Beranda</Link></li>
                 <li><Link href="/search" className="inline-flex min-h-11 items-center rounded-lg text-sm transition hover:text-white">Cari film &amp; serial</Link></li>
-                <li><Link href="/#favorit" className="inline-flex min-h-11 items-center rounded-lg text-sm transition hover:text-white">Favorit saya</Link></li>
+                <li><Link href="/favorit" className="inline-flex min-h-11 items-center rounded-lg text-sm transition hover:text-white">Favorit saya</Link></li>
                 <li>
                   <a href="https://anime.idho.eu.org" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-lg text-gray-400 hover:text-white text-sm transition">
                     NobarAnime
-                  </a>
-                </li>
-                <li>
-                  <a href="https://film.idho.eu.org" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-lg text-gray-400 hover:text-white text-sm transition">
-                    NobarFilm
                   </a>
                 </li>
               </ul>
