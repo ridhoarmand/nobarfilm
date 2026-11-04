@@ -131,6 +131,14 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   const [isMuted, setIsMuted] = useState(false);
   const lastAudibleVolumeRef = useRef(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Penuhi layar (object-cover) saat fullscreen, padanan cubit-zoom di aplikasi NontonYuk.
+  const [fillScreen, setFillScreen] = useState(() => typeof window !== 'undefined' && localStorage.getItem('nobarfilm_pref_fill') === 'true');
+  const toggleFillScreen = () => {
+    setFillScreen((fill) => {
+      localStorage.setItem('nobarfilm_pref_fill', String(!fill));
+      return !fill;
+    });
+  };
   const [hasVideoError, setHasVideoError] = useState(false);
   // Naik = efek sumber dijalankan ulang (hls dibuat ulang) tanpa mengganti src.
   const [reloadKey, setReloadKey] = useState(0);
@@ -300,6 +308,8 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.playbackRate = speed;
+      // Muat sumber baru mereset playbackRate ke defaultPlaybackRate; samakan agar kecepatan tidak kembali ke 1x.
+      videoRef.current.defaultPlaybackRate = speed;
       if (initialTime > 0 && !hasResumed.current) {
         videoRef.current.currentTime = initialTime;
         hasResumed.current = true;
@@ -908,7 +918,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         style={{
           filter: brightness !== 1.0 ? `brightness(${brightness})` : undefined,
         }}
-        className="w-full h-full object-contain bg-black block"
+        className={`w-full h-full ${isFullscreen && fillScreen ? 'object-cover' : 'object-contain'} bg-black block`}
         onVolumeChange={(e) => {
           const video = e.currentTarget;
           const muted = video.muted || video.volume === 0;
@@ -1036,6 +1046,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           const video = e.currentTarget;
           setDuration(video.duration || 0);
           setHasVideoError(false);
+          video.playbackRate = speed;
         }}
         onEnded={() => {
           setIsPlaying(false);
@@ -1114,6 +1125,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         isAudioEnhanced={isAudioEnhanced}
         onToggleAudioEnhance={toggleAudioEnhance}
         isFullscreen={isFullscreen}
+        speed={speed}
+        onSpeedChange={(rate: number) => {
+          setSpeed(rate);
+          if (videoRef.current) videoRef.current.playbackRate = rate;
+        }}
+        fillScreen={fillScreen}
+        onToggleFillScreen={toggleFillScreen}
         onToggleFullscreen={toggleFullscreen}
         onBack={onBack}
         subtitles={subtitles}

@@ -260,6 +260,8 @@ body:has(.mobile-navigation) {
   background: rgb(255 255 255 / 12%);
 }
 
+/* Player sempit (HP potret): ±10 dtk lewat ketuk dua kali saja, agar baris kontrol tidak meluap. */
+.player-shell .player-skip,
 .player-shell .player-volume,
 .player-shell .player-audio-label,
 .player-shell .player-quality-summary {
@@ -388,6 +390,10 @@ body:has(.mobile-navigation) {
   .player-shell .player-control-group { gap: 8px; }
   .player-shell .player-volume { display: block; }
   .player-shell .player-audio-label { display: inline; }
+}
+
+@container player (min-width: 440px) {
+  .player-shell .player-skip { display: inline-flex; }
 }
 
 @container player (min-width: 1024px) {

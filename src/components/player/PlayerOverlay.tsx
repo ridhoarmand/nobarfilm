@@ -19,6 +19,8 @@ import {
   Settings,
   X,
   Check,
+  RotateCcw,
+  RotateCw,
 } from 'lucide-react';
 import { PlayerProgressBar } from './PlayerProgressBar';
 import { AudioSubtitlePopover } from './AudioSubtitlePopover';
@@ -94,6 +96,10 @@ export interface PlayerOverlayProps {
   onStopAtEndChange: (enabled: boolean) => void;
   // PiP
   onTogglePiP?: () => void;
+  speed: number;
+  onSpeedChange: (rate: number) => void;
+  fillScreen: boolean;
+  onToggleFillScreen: () => void;
   // Watch Party
   partySlot?: React.ReactNode;
 }
@@ -151,6 +157,10 @@ export function PlayerOverlay({
   stopAtEnd,
   onStopAtEndChange,
   onTogglePiP,
+  speed,
+  onSpeedChange,
+  fillScreen,
+  onToggleFillScreen,
   partySlot,
 }: PlayerOverlayProps) {
   const [isMobile, setIsMobile] = useState(false);
@@ -365,7 +375,8 @@ export function PlayerOverlay({
       onTouchStart={!isLocked ? handleTouchStart : undefined}
       onTouchMove={!isLocked ? handleTouchMove : undefined}
       onTouchEnd={!isLocked ? handleTouchEnd : undefined}
-      className={`absolute inset-0 z-30 flex flex-col justify-between select-none ${
+      // touch-action none: geser volume/kecerahan tidak ikut menggulir atau zoom halaman.
+      className={`absolute inset-0 z-30 flex flex-col justify-between select-none touch-none ${
         !isLocked && isPlaying && !controlsVisible ? 'cursor-none' : 'cursor-default'
       }`}
     >
@@ -499,6 +510,20 @@ export function PlayerOverlay({
             >
               {isPlaying ? <Pause className="size-5 fill-current" /> : <Play className="size-5 fill-current" />}
             </button>
+            {[-10, 10].map((delta) => (
+              <button
+                key={delta}
+                type="button"
+                data-interactive="true"
+                onClick={(e) => { e.stopPropagation(); onSeek(Math.max(0, Math.min(duration, currentTime + delta))); }}
+                onTouchEnd={(e) => e.stopPropagation()}
+                className="player-icon-button player-skip"
+                aria-label={delta < 0 ? 'Mundur 10 detik' : 'Maju 10 detik'}
+                title={delta < 0 ? 'Mundur 10 detik' : 'Maju 10 detik'}
+              >
+                {delta < 0 ? <RotateCcw className="size-5" /> : <RotateCw className="size-5" />}
+              </button>
+            ))}
             <button
               type="button"
               data-interactive="true"
@@ -668,6 +693,28 @@ export function PlayerOverlay({
           {hasNextEpisode && onNextEpisode && (
             <button type="button" onClick={() => { onNextEpisode(); closePopover(); }} className="player-option">
               Putar episode selanjutnya
+            </button>
+          )}
+          <div className="player-section">
+            <p id="player-speed-label" className="mb-2 text-xs font-semibold text-white">Kecepatan</p>
+            <div role="group" aria-labelledby="player-speed-label" className="grid grid-cols-6 gap-1">
+              {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                <button
+                  key={rate}
+                  type="button"
+                  aria-pressed={speed === rate}
+                  onClick={() => onSpeedChange(rate)}
+                  className={`min-h-11 rounded-lg text-xs font-semibold tabular-nums transition-colors ${speed === rate ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700'}`}
+                >
+                  {rate}x
+                </button>
+              ))}
+            </div>
+          </div>
+          {isFullscreen && (
+            <button type="button" role="switch" aria-checked={fillScreen} onClick={onToggleFillScreen} className="player-option">
+              <Maximize className="size-4 shrink-0" />
+              <span>Penuhi layar{fillScreen ? ' (aktif)' : ''}</span>
             </button>
           )}
           <button

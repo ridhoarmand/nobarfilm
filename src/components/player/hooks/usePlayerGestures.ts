@@ -234,7 +234,8 @@ export function usePlayerGestures({
             accumulatedSeekRef.current = 0;
           }, 900);
 
-          lastTapRef.current = { time: 0, side: 'center' };
+          // Ketukan berikutnya di sisi yang sama langsung lompat lagi (bukan selang-seling).
+          lastTapRef.current = { time: now, side: start.side };
         } else {
           lastTapRef.current = { time: now, side: start.side };
 
