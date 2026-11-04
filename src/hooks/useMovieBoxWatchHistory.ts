@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { ContinueWatchingItem } from '@/types/watch-history';
+import { pushProgress, syncFromRemote } from '@/lib/watchSync';
 
 interface UseMovieBoxWatchHistoryParams {
   subjectId: string;
@@ -22,6 +23,8 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
     queryKey: ['watch-progress', subjectId, currentSeason, currentEpisode],
     queryFn: async () => {
       if (typeof window === 'undefined') return null;
+      // Progres dari HP (aplikasi NontonYuk) atau peramban lain bila login akun NobarFilm.
+      await syncFromRemote(subjectId);
       const historyJson = localStorage.getItem('nobarfilm_watch_history');
       if (!historyJson) return null;
       try {
@@ -100,6 +103,7 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
       } catch (e) {
         console.error('Failed to write watch history to localStorage:', e);
       }
+      void pushProgress(newItem, isCompleted);
     },
     [subjectId, subjectType, title, coverUrl, currentSeason, currentEpisode, totalEpisodes]
   );

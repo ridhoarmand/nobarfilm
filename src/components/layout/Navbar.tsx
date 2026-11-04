@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useMovieBoxSearch } from '@/hooks/useMovieBox';
+import { AccountButton } from './AccountButton';
 
 function subscribeToHash(callback: () => void) {
   window.addEventListener('hashchange', callback);
@@ -150,6 +151,7 @@ export function Navbar() {
               </div>
             )}
             {!isSearchPage && <Link href="/search" aria-label="Cari film atau serial" className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-200 lg:hidden"><Search className="size-5" /></Link>}
+            <AccountButton />
           </div>
         </div>
       </header>

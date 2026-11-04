@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { ContinueWatchingItem } from '@/types/watch-history';
+import { syncFromRemote } from '@/lib/watchSync';
 
 export function useContinueWatching() {
   const queryClient = useQueryClient();
@@ -34,6 +35,7 @@ export function useContinueWatching() {
     queryKey: ['continue-watching'],
     queryFn: async () => {
       if (typeof window === 'undefined') return [];
+      await syncFromRemote();
       const historyJson = localStorage.getItem('nobarfilm_watch_history');
       if (!historyJson) return [];
       try {
