@@ -43,20 +43,14 @@ export function useContinueWatching() {
           (a, b) => new Date(b.last_watched_at).getTime() - new Date(a.last_watched_at).getTime()
         );
 
-        // Deduplicate: Keep exactly 1 latest item per film/series (by title or subject_id)
+        // Satu item terbaru per subject_id (bukan per judul: judul bisa kembar).
         const seen = new Set<string>();
         const uniqueItems: ContinueWatchingItem[] = [];
 
         for (const item of sorted) {
-          const normalizedTitle = item.title ? item.title.trim().toLowerCase() : '';
-          const key = item.subject_id || normalizedTitle;
-          const titleKey = normalizedTitle || item.subject_id;
-
-          if (!seen.has(key) && (!titleKey || !seen.has(titleKey))) {
-            seen.add(key);
-            if (titleKey) seen.add(titleKey);
-            uniqueItems.push(item);
-          }
+          if (!item.subject_id || seen.has(item.subject_id)) continue;
+          seen.add(item.subject_id);
+          uniqueItems.push(item);
         }
 
         // Clean up storage if duplicate items existed

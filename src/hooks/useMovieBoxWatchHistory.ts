@@ -26,10 +26,10 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
       if (!historyJson) return null;
       try {
         const items = JSON.parse(historyJson) as ContinueWatchingItem[];
-        const normalizedTitle = title ? title.trim().toLowerCase() : '';
+        // Kunci = subject_id saja; dua film berjudul sama tidak boleh berbagi progres.
         const match = items.find(
           (item) =>
-            (item.subject_id === subjectId || (normalizedTitle && item.title?.trim().toLowerCase() === normalizedTitle)) &&
+            item.subject_id === subjectId &&
             item.current_episode === (currentEpisode ?? 1) &&
             (typeof currentSeason !== 'number' || (item.current_season ?? 1) === currentSeason)
         );
@@ -65,13 +65,8 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
         }
       }
 
-      // Filter out this subject_id AND title to guarantee exactly 1 latest item per film/series
-      const normalizedTitle = title.trim().toLowerCase();
-      items = items.filter(
-        (item) =>
-          item.subject_id !== subjectId &&
-          (!item.title || item.title.trim().toLowerCase() !== normalizedTitle)
-      );
+      // Satu item terbaru per film/serial.
+      items = items.filter((item) => item.subject_id !== subjectId);
 
       const newItem: ContinueWatchingItem = {
         id: subjectId,
@@ -109,8 +104,14 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
     [subjectId, subjectType, title, coverUrl, currentSeason, currentEpisode, totalEpisodes]
   );
 
+  // timeupdate datang ~4x/detik; tulis paling sering tiap 10 dtk. Sisanya dikejar oleh flush di bawah.
+  const lastWriteRef = useRef(0);
   const saveProgress = useCallback(
     (progressSeconds: number, durationSeconds: number) => {
+      lastProgressRef.current = { time: progressSeconds, duration: durationSeconds };
+      const now = Date.now();
+      if (now - lastWriteRef.current < 10_000) return;
+      lastWriteRef.current = now;
       saveProgressSync(progressSeconds, durationSeconds);
     },
     [saveProgressSync]
@@ -125,13 +126,22 @@ export function useMovieBoxWatchHistory(params: UseMovieBoxWatchHistoryParams) {
       }
     };
 
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') flushProgress();
+    };
+
     window.addEventListener('pagehide', flushProgress);
     window.addEventListener('beforeunload', flushProgress);
+    document.addEventListener('visibilitychange', flushWhenHidden);
 
     return () => {
+      // Simpan ke episode lama (closure lama), lalu kosongkan agar waktunya tidak terbawa ke episode baru.
       flushProgress();
+      lastProgressRef.current = { time: 0, duration: 0 };
+      lastWriteRef.current = 0;
       window.removeEventListener('pagehide', flushProgress);
       window.removeEventListener('beforeunload', flushProgress);
+      document.removeEventListener('visibilitychange', flushWhenHidden);
     };
   }, [saveProgressSync]);
 

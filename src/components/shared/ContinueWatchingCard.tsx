@@ -52,13 +52,8 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
         if (historyJson) {
           try {
             let items = JSON.parse(historyJson) as ContinueWatchingItem[];
-            const normalizedTitle = item.title ? item.title.trim().toLowerCase() : '';
-            items = items.filter(
-              (i) =>
-                i.id !== item.id &&
-                i.subject_id !== item.subject_id &&
-                (!normalizedTitle || !i.title || i.title.trim().toLowerCase() !== normalizedTitle)
-            );
+            // Hapus per subject_id saja; film lain yang judulnya sama tetap ada.
+            items = items.filter((i) => i.subject_id !== item.subject_id);
             localStorage.setItem('nobarfilm_watch_history', JSON.stringify(items));
             window.dispatchEvent(new CustomEvent('nobarfilm_watch_history_updated'));
             window.dispatchEvent(new Event('storage'));

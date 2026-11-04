@@ -608,7 +608,7 @@ function WatchContent() {
 
   const subject = detail?.subject;
 
-  const { saveProgress, saveProgressSync } = useMovieBoxWatchHistory({
+  const { saveProgress, saveProgressSync, progressData } = useMovieBoxWatchHistory({
     subjectId,
     subjectType: subject?.subjectType || 1,
     title: subject?.title || '',
@@ -792,7 +792,8 @@ function WatchContent() {
             title={displayTitle}
             poster={subject?.coverHorizontalUrl || subject?.cover?.url}
             autoPlay
-            initialTime={resumeTime}
+            // Tanpa ?t= (mis. tombol Tonton di detail) tetap lanjut dari progres tersimpan.
+            initialTime={resumeTime || progressData?.progress_seconds || 0}
             subtitles={formattedSubtitles}
             activeSubtitleIndex={activeSubtitleIndex}
             onSubtitleSelect={(idx: number | null) => handleSubtitleSelect(idx)}
