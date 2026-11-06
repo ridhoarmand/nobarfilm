@@ -1,5 +1,5 @@
 import type { ContinueWatchingItem } from '@/types/watch-history';
-import { getSupabase } from './supabaseClient';
+import { getSupabase, storedSessionEmail } from './supabaseClient';
 
 /**
  * Progres tonton tersinkron dengan aplikasi NontonYuk lewat tabel Supabase `watch_progress`
@@ -116,7 +116,9 @@ export function mergeHistory(local: ContinueWatchingItem[], remote: WatchEntry[]
 }
 
 async function signedInClient() {
-  const supabase = getSupabase();
+  // Tanpa sesi tersimpan: jangan muat supabase-js sama sekali.
+  if (storedSessionEmail() === null) return null;
+  const supabase = await getSupabase();
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
   return data.session ? supabase : null;

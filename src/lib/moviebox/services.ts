@@ -130,12 +130,40 @@ async function h5SearchResponse(keyword: string, page: number, perPage: number):
   };
 }
 
+// Satu build beranda sekaligus; permintaan bersamaan menunggu promise yang sama.
+let homepageBuild: Promise<HomepageResponse> | null = null;
+
 export const movieBoxService = {
+  /**
+   * Stale-while-revalidate: build beranda dari upstream ~9 dtk, jadi setelah TTL 5 menit habis
+   * pengunjung langsung mendapat versi terakhir sementara versi baru dibangun di latar belakang.
+   * Hanya proses yang benar-benar baru (belum pernah build) yang menunggu.
+   */
   async getHomepage(): Promise<HomepageResponse> {
     const key = cacheKeys.apiResponse('homepage', 'h5');
     const cached = serverCache.get<HomepageResponse>(key);
     if (cached) return cached;
 
+    const staleKey = `${key}:stale`;
+    homepageBuild ??= this.buildHomepage()
+      .then((data) => {
+        serverCache.set(staleKey, data, 24 * 60 * 60);
+        return data;
+      })
+      .finally(() => {
+        homepageBuild = null;
+      });
+    const stale = serverCache.get<HomepageResponse>(staleKey);
+    if (stale) {
+      // Gagal build: tetap pakai versi lama, coba lagi di kunjungan berikutnya.
+      homepageBuild.catch((err) => console.error('[MovieBox SDK] Homepage refresh failed:', err));
+      return stale;
+    }
+    return homepageBuild;
+  },
+
+  async buildHomepage(): Promise<HomepageResponse> {
+    const key = cacheKeys.apiResponse('homepage', 'h5');
     console.log('[MovieBox SDK] Building H5 homepage');
     // ponytail: optional banner parallel with catalog filters, falls back to catalog top picks
     interface RawHomeBannerImage {

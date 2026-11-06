@@ -156,4 +156,6 @@ registerPartyHandlers(io);
 httpServer.listen(port, hostname, () => {
   console.log(`> NobarFilm ready on http://${hostname}:${port}`);
   console.log('> Watch Party (Socket.IO) active on /api/party/socket');
+  // Panaskan cache beranda (build upstream ~9 dtk) agar pengunjung pertama setelah deploy tidak menunggu.
+  fetch(`http://127.0.0.1:${port}/api/moviebox/homepage`).catch(() => {});
 });

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, UserRound, X } from 'lucide-react';
-import { getSupabase } from '@/lib/supabaseClient';
+import { getSupabase, storedSessionEmail } from '@/lib/supabaseClient';
 import { pushLocalHistory, syncFromRemote } from '@/lib/watchSync';
 
 /**
@@ -16,12 +16,9 @@ export function AccountButton() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // Status login dari localStorage; supabase-js baru dimuat saat login/keluar atau saat sinkron.
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setEmail(session?.user.email ?? null));
-    return () => data.subscription.unsubscribe();
+    queueMicrotask(() => setEmail(storedSessionEmail()));
   }, []);
 
   const open = () => {
@@ -32,20 +29,21 @@ export function AccountButton() {
 
   const signIn = async (event: React.FormEvent) => {
     event.preventDefault();
-    const supabase = getSupabase();
-    if (!supabase) return;
     if (!formEmail.trim() || password.length < 6) {
       setError('Email perlu diisi; password minimal 6 karakter.');
       return;
     }
     setBusy(true);
     setError('');
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: formEmail.trim(), password });
+    const supabase = await getSupabase();
+    if (!supabase) return;
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: formEmail.trim(), password });
     if (authError) {
       setBusy(false);
       setError(authError.message.includes('Invalid login') ? 'Email atau password salah.' : 'Gagal masuk. Periksa koneksi lalu coba lagi.');
       return;
     }
+    setEmail(data.user?.email ?? formEmail.trim());
     await pushLocalHistory();
     if (await syncFromRemote()) window.dispatchEvent(new CustomEvent('nobarfilm_watch_history_updated'));
     setBusy(false);
@@ -54,7 +52,8 @@ export function AccountButton() {
   };
 
   const signOut = async () => {
-    await getSupabase()?.auth.signOut();
+    await (await getSupabase())?.auth.signOut();
+    setEmail(null);
     close();
   };
 

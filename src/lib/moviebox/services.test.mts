@@ -213,3 +213,27 @@ test('section kurasi /home dipakai langsung (tanpa /subject/filter), Short TV & 
     [['Film Indonesia Lagi Ngetren', ['Warkop DKI']], ['K-Drama Terbaru', ['Dead-End Job']]],
   );
 });
+
+test('beranda kedaluwarsa langsung dibalas versi lama, lalu dibangun ulang sekali di latar belakang', async () => {
+  homeResponder = () => jsonResponse({ code: 500, message: 'down' }, 500);
+  let filterCalls = 0;
+  filterResponder = () => makeValidFilterResponse(++filterCalls);
+  const first = await movieBoxService.getHomepage();
+  const callsAfterFirstBuild = filterCalls;
+
+  // Lewati TTL 5 menit: entri segar habis, salinan stale (24 jam) masih ada.
+  const realNow = Date.now;
+  Date.now = () => realNow() + 6 * 60 * 1000;
+  try {
+    const [a, b] = await Promise.all([movieBoxService.getHomepage(), movieBoxService.getHomepage()]);
+    assert.equal(a, first);
+    assert.equal(b, first);
+    // Tunggu build latar belakang selesai: hanya satu build untuk dua permintaan.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(filterCalls, callsAfterFirstBuild * 2);
+    const fresh = await movieBoxService.getHomepage();
+    assert.notEqual(fresh, first);
+  } finally {
+    Date.now = realNow;
+  }
+});

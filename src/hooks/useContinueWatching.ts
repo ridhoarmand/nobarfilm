@@ -35,7 +35,10 @@ export function useContinueWatching() {
     queryKey: ['continue-watching'],
     queryFn: async () => {
       if (typeof window === 'undefined') return [];
-      await syncFromRemote();
+      // Tampilkan riwayat lokal dulu; data dari HP menyusul lewat event (throttle 30 dtk mencegah loop).
+      void syncFromRemote().then((changed) => {
+        if (changed) window.dispatchEvent(new CustomEvent('nobarfilm_watch_history_updated'));
+      });
       const historyJson = localStorage.getItem('nobarfilm_watch_history');
       if (!historyJson) return [];
       try {
