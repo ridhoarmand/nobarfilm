@@ -87,6 +87,12 @@ export function PlayerProgressBar({
             setPreviewTime(Math.min(total, Math.max(0, (e.clientX - rect.left) / rect.width * total)));
           }}
           onPointerLeave={() => setPreviewTime(null)}
+          // Bawaan range hanya 1 detik per tekan; samakan dengan pintasan ±10 detik.
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            onSeek(Math.min(total, Math.max(0, position + (e.key === 'ArrowLeft' ? -10 : 10))));
+          }}
           className="relative z-10 w-full min-w-0 h-11 appearance-none bg-transparent cursor-pointer accent-red-600 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-red-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-red-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white disabled:cursor-default"
         />
         {previewTime !== null && (

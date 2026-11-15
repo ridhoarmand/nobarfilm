@@ -71,6 +71,21 @@ export function usePlayerGestures({
   const lastTapRef = useRef<{ time: number; side: 'left' | 'right' | 'center' }>({ time: 0, side: 'center' });
   const accumulatedSeekRef = useRef<number>(0);
 
+  // Lencana ±Ns; lompatan searah dijumlahkan, ganti arah mulai dari nol.
+  const flashSeek = useCallback((step: number) => {
+    const acc = accumulatedSeekRef.current;
+    accumulatedSeekRef.current = acc === 0 || Math.sign(acc) !== Math.sign(step) ? step : acc + step;
+    setSeekFeedback({
+      side: step < 0 ? 'rewind' : 'forward',
+      seconds: Math.abs(accumulatedSeekRef.current),
+    });
+    if (seekTimerRef.current) clearTimeout(seekTimerRef.current);
+    seekTimerRef.current = setTimeout(() => {
+      setSeekFeedback(null);
+      accumulatedSeekRef.current = 0;
+    }, 900);
+  }, []);
+
   // Mouse click & double click handler (works for desktop and mouse on touchscreen laptops)
   const handleDesktopClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -212,27 +227,7 @@ export function usePlayerGestures({
           const isLeft = start.side === 'left';
           const step = isLeft ? -10 : 10;
           onSeek(step);
-
-          if (
-            accumulatedSeekRef.current === 0 ||
-            (isLeft && accumulatedSeekRef.current > 0) ||
-            (!isLeft && accumulatedSeekRef.current < 0)
-          ) {
-            accumulatedSeekRef.current = step;
-          } else {
-            accumulatedSeekRef.current += step;
-          }
-
-          setSeekFeedback({
-            side: isLeft ? 'rewind' : 'forward',
-            seconds: Math.abs(accumulatedSeekRef.current),
-          });
-
-          if (seekTimerRef.current) clearTimeout(seekTimerRef.current);
-          seekTimerRef.current = setTimeout(() => {
-            setSeekFeedback(null);
-            accumulatedSeekRef.current = 0;
-          }, 900);
+          flashSeek(step);
 
           // Ketukan berikutnya di sisi yang sama langsung lompat lagi (bukan selang-seling).
           lastTapRef.current = { time: now, side: start.side };
@@ -255,10 +250,11 @@ export function usePlayerGestures({
 
       touchStartRef.current = null;
     },
-    [onSeek, onToggleControls]
+    [onSeek, onToggleControls, flashSeek]
   );
 
   return {
+    flashSeek,
     handleDesktopClick,
     handleTouchStart,
     handleTouchMove,

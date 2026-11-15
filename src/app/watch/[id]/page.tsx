@@ -482,13 +482,17 @@ function WatchContent() {
         const blobUrl = await getCachedSubtitleBlobUrl(cap.url);
         if (!isCurrentSubtitleSelection(generation, selectionMediaKey) || filteredCaptionsRef.current[idx]?.url !== cap.url) return;
         // The cache helper returns the original URL on failure, not a loaded track.
-        if (!blobUrl || blobUrl === cap.url) return;
+        if (!blobUrl || blobUrl === cap.url) {
+          toast.error('Subtitle tidak dapat dimuat.');
+          return;
+        }
         setCachedSubtitleUrls((prev) => ({ ...prev, [cap.url]: blobUrl }));
         selectedAdditionalSubtitleRef.current = null;
         setSelectedSubtitleIndex(idx);
       } catch (error) {
         if (isCurrentSubtitleSelection(generation, selectionMediaKey)) {
           console.error('[Subtitle] Active load error:', error);
+          toast.error('Subtitle tidak dapat dimuat.');
         }
       }
     },

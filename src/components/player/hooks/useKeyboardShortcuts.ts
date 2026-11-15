@@ -63,29 +63,34 @@ export function useKeyboardShortcuts({
 
       const callbacks = callbacksRef.current;
 
+      // e.key, bukan e.code: remote Android TV (HDMI-CEC/virtual) sering mengirim code kosong.
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+
       // Handle number keys 0-9 to jump to 0%-90% of video
-      if (e.code >= 'Digit0' && e.code <= 'Digit9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        const num = parseInt(e.code.replace('Digit', ''), 10);
+      if (key >= '0' && key <= '9' && key.length === 1) {
         e.preventDefault();
-        callbacks.onSeekPercent?.(num * 0.1);
+        callbacks.onSeekPercent?.(Number(key) * 0.1);
         return;
       }
 
-      switch (e.code) {
-        case 'Space':
-        case 'KeyK':
+      switch (key) {
+        case ' ':
+        case 'k':
+        case 'MediaPlayPause':
           e.preventDefault();
           callbacks.onTogglePlay?.();
           break;
 
         case 'ArrowLeft':
-        case 'KeyJ':
+        case 'j':
+        case 'MediaRewind':
           e.preventDefault();
           callbacks.onSeek?.(-10);
           break;
 
         case 'ArrowRight':
-        case 'KeyL':
+        case 'l':
+        case 'MediaFastForward':
           e.preventDefault();
           callbacks.onSeek?.(10);
           break;
@@ -100,17 +105,17 @@ export function useKeyboardShortcuts({
           callbacks.onVolumeChange?.(-0.05);
           break;
 
-        case 'KeyM':
+        case 'm':
           e.preventDefault();
           callbacks.onToggleMute?.();
           break;
 
-        case 'KeyF':
+        case 'f':
           e.preventDefault();
           callbacks.onToggleFullscreen?.();
           break;
 
-        case 'KeyC':
+        case 'c':
           e.preventDefault();
           callbacks.onToggleSubtitle?.();
           break;

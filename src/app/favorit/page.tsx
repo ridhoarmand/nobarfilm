@@ -51,7 +51,7 @@ export default function FavoritPage() {
             ) : (
               <ul className={GRID}>
                 {watchlist.map((item, index) => (
-                  <li key={item.subjectId} className="relative">
+                  <li key={item.subjectId} data-spatial-item className="relative">
                     <UnifiedMediaCard
                       title={item.title}
                       cover={item.cover?.url || ''}

@@ -29,6 +29,7 @@ import { QualityPopover } from './QualityPopover';
 import { EpisodePopover } from './EpisodePopover';
 import { usePlayerControls } from './hooks/usePlayerControls';
 import { usePlayerGestures } from './hooks/usePlayerGestures';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import type { OtherSubtitleContext, OtherSubtitleResult } from '@/types/other-subtitles';
 
 
@@ -211,15 +212,39 @@ export function PlayerOverlay({
   }, [sleepTimerEnd, isPlaying, onTogglePlay]);
   
   const { isVisible, showControls, keepControlsVisible, hideControlsNow } = usePlayerControls(isPlaying, 3000);
+  // Settings panels are non-modal; keep Tab navigation native.
+  const [activePopover, setActivePopover] = useState<'subtitle' | 'other-subtitles' | 'quality' | 'episode' | 'more' | null>(null);
+  // Naik tiap tombol ditekan: menunda lepas-fokus otomatis selama remote masih dipakai.
+  const [keyTick, setKeyTick] = useState(0);
+
   useEffect(() => {
     const handleKeyboardFocus = (event: KeyboardEvent) => {
       keyboardFocusRef.current = true;
+      setKeyTick((tick) => tick + 1);
       const target = event.target instanceof HTMLElement ? event.target : null;
       const overlay = overlayRef.current;
       const canEnterControls = target === document.body ||
         target === document.documentElement ||
         target === overlay?.parentElement ||
         (target !== null && overlay?.contains(target));
+      // OK yang ditahan di remote mengulang keydown; jangan putar/jeda berkali-kali.
+      if (event.key === 'Enter' && event.repeat && canEnterControls) {
+        event.preventDefault();
+        return;
+      }
+      // Esc saat tombol kontrol terfokus: lepas fokus agar pintasan (←/→, ↑/↓) aktif lagi.
+      if (
+        event.key === 'Escape' && !event.defaultPrevented && !isLocked && activePopover === null &&
+        document.activeElement instanceof HTMLElement && overlay?.contains(document.activeElement)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        document.activeElement.blur();
+        // blur() tidak memicu focusout bila jendela tak terfokus; jangan bergantung pada onBlurCapture.
+        setHasControlFocus(false);
+        hideControlsNow();
+        return;
+      }
       if (
         event.key === 'Enter' && !event.defaultPrevented &&
         !event.ctrlKey && !event.altKey && !event.metaKey && !isLocked &&
@@ -229,6 +254,8 @@ export function PlayerOverlay({
       ) {
         event.preventDefault();
         event.stopPropagation();
+        // OK = putar/jeda langsung (seperti aplikasi TV), sekaligus memunculkan kontrol.
+        onTogglePlay();
         setHasControlFocus(true);
         keepControlsVisible();
         requestAnimationFrame(() => {
@@ -243,10 +270,21 @@ export function PlayerOverlay({
     };
     window.addEventListener('keydown', handleKeyboardFocus, true);
     return () => window.removeEventListener('keydown', handleKeyboardFocus, true);
-  }, [keepControlsVisible, isLocked]);
+  }, [keepControlsVisible, hideControlsNow, isLocked, activePopover, onTogglePlay]);
 
-  // Settings panels are non-modal; keep Tab navigation native.
-  const [activePopover, setActivePopover] = useState<'subtitle' | 'other-subtitles' | 'quality' | 'episode' | 'more' | null>(null);
+  // Remote diam 5 dtk saat memutar: lepas fokus dan sembunyikan kontrol, seperti pemutar TV.
+  // Tidak saat terkunci, kalau tidak tombol "Buka kunci" kehilangan fokus.
+  useEffect(() => {
+    if (!hasControlFocus || !isPlaying || activePopover !== null || isLocked) return;
+    const timer = setTimeout(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && overlayRef.current?.contains(active)) active.blur();
+      setHasControlFocus(false);
+      hideControlsNow();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [hasControlFocus, isPlaying, activePopover, isLocked, keyTick, hideControlsNow]);
+
   const subtitleSearchFocusRef = useRef(false);
 
   useEffect(() => {
@@ -316,6 +354,8 @@ export function PlayerOverlay({
     handleTouchEnd,
     seekFeedback,
     hudFeedback,
+    showHud,
+    flashSeek,
   } = usePlayerGestures({
     isMobile,
     onTogglePlay,
@@ -335,6 +375,31 @@ export function PlayerOverlay({
   });
 
 
+  // Pintasan di sini (bukan di MoviePlayer) agar tiap aksi keyboard/remote punya umpan balik di layar.
+  useKeyboardShortcuts({
+    onTogglePlay,
+    onSeek: (seconds) => {
+      onSeek(Math.max(0, Math.min(duration || 0, currentTime + seconds)));
+      flashSeek(seconds);
+      showControls();
+    },
+    onSeekPercent: (percent) => {
+      onSeek((duration || 0) * percent);
+      showControls();
+    },
+    onVolumeChange: (delta) => {
+      onVolumeChange(volume + delta);
+      showHud('volume');
+    },
+    onToggleMute: () => {
+      onToggleMute();
+      showHud('volume');
+    },
+    onToggleFullscreen,
+    onToggleSubtitle: () => onSelectSubtitle?.(activeSubtitleIndex === null ? 0 : null),
+    onEscape: () => (isFullscreen ? onToggleFullscreen() : onBack?.()),
+  });
+
   const handleMouseLeave = () => {
     if (isPlaying && activePopover === null && !hasControlFocus) {
       hideControlsNow();
@@ -345,6 +410,10 @@ export function PlayerOverlay({
   const controlsVisible = !isPlaying || isVisible || hasControlFocus || activePopover !== null;
   const showBottomBar = !isLocked && controlsVisible;
   const showTopBar = !isLocked && controlsVisible;
+  // Nilai HUD dibaca dari props agar selalu cocok dengan keadaan nyata (mis. setelah bisu/batal bisu).
+  const hudValue = hudFeedback?.type === 'volume'
+    ? Math.round((isMuted ? 0 : volume) * 100)
+    : Math.round((brightness ?? 1) * 100);
 
   return (
     <div
@@ -389,7 +458,7 @@ export function PlayerOverlay({
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="flex items-center gap-3 px-4 py-2 bg-black/85 text-white rounded-lg">
             {hudFeedback.type === 'volume' ? (
-              (hudFeedback.value || 0) === 0 ? (
+              hudValue === 0 ? (
                 <VolumeX className="w-4 h-4" />
               ) : (
                 <Volume2 className="w-4 h-4" />
@@ -402,13 +471,13 @@ export function PlayerOverlay({
                 {hudFeedback.type === 'volume' ? 'Volume' : 'Kecerahan'}
               </span>
               <span className="text-sm tabular-nums text-zinc-100">
-                {hudFeedback.value}%
+                {hudValue}%
               </span>
             </div>
             <div className="w-16 h-1 bg-zinc-800 rounded-full overflow-hidden ml-1">
               <div
                 className="h-full bg-red-600 transition-all duration-75 rounded-full"
-                style={{ width: `${Math.min(100, Math.max(0, hudFeedback.value ?? 0))}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, hudValue))}%` }}
               />
             </div>
           </div>
@@ -859,7 +928,7 @@ export function PlayerOverlay({
           <div className="player-section text-xs text-zinc-300 space-y-2">
             <p className="font-semibold text-zinc-200">Tips pemutar</p>
             <p>Ketuk dua kali sisi kiri / kanan untuk mundur / maju. Geser sisi kiri untuk kecerahan, sisi kanan untuk volume.</p>
-            <p>Keyboard / remote: Enter menampilkan kontrol dan memfokuskan tombol putar. Spasi / K putar atau jeda, J / L mundur atau maju 10 detik, M suara, F layar penuh. Saat tombol terfokus, gunakan arah untuk berpindah dan Enter / Spasi untuk memilih. Esc menutup pengaturan.</p>
+            <p>Remote / keyboard: OK (Enter) putar atau jeda dan menampilkan kontrol. Kiri / kanan mundur atau maju 10 detik, atas / bawah volume. Saat tombol terfokus, gunakan arah untuk berpindah; Esc atau diam 5 detik mengembalikan arah ke pintasan. Spasi / K putar atau jeda, M suara, F layar penuh, C subtitle.</p>
           </div>
         </div>
       )}

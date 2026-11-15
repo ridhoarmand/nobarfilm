@@ -71,7 +71,7 @@ export function ContinueWatchingCard({ item, onRemove }: ContinueWatchingCardPro
   };
 
   return (
-    <div className="flex-none w-64 sm:w-72 2xl:w-80 snap-start relative group/card">
+    <div data-spatial-item className="flex-none w-64 sm:w-72 2xl:w-80 snap-start relative group/card">
       <Link href={watchUrl} aria-label={`Lanjutkan menonton ${item.title}`} className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">
         <div className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 shadow-lg">
           {item.cover_url ? (

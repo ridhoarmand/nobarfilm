@@ -23,8 +23,8 @@ export function SpatialNavigation() {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
       const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const nativeControl = active?.closest(nativeArrowSelector);
-      // A remote can leave ranges vertically; left/right still use native seeking/volume.
-      const leavingRange = nativeControl?.matches('input[type="range"]') && (event.key === 'ArrowUp' || event.key === 'ArrowDown');
+      // A remote can leave ranges and selects vertically; left/right and OK keep native behaviour.
+      const leavingRange = nativeControl?.matches('input[type="range"],select') && (event.key === 'ArrowUp' || event.key === 'ArrowDown');
       const isTextInput = nativeControl instanceof HTMLInputElement && /^(text|search|url|tel|password|email|)$/i.test(nativeControl.type);
       const atTextStart = !isTextInput || nativeControl.selectionStart === null || (nativeControl.selectionStart === 0 && nativeControl.selectionEnd === 0);
       const atTextEnd = !isTextInput || nativeControl.selectionStart === null || (nativeControl.selectionStart === nativeControl.value.length && nativeControl.selectionEnd === nativeControl.value.length);
@@ -69,6 +69,11 @@ export function SpatialNavigation() {
 
         for (const candidate of rowCandidates) {
           if (candidate === current) continue;
+          // ←/→ melompati tombol sekunder kartu (mis. Hapus); tombol itu tetap terjangkau lewat ↑/↓.
+          if (horizontal) {
+            const item = candidate.closest('[data-spatial-item]');
+            if (item && candidates.find((el) => item.contains(el)) !== candidate) continue;
+          }
           const rect = candidate.getBoundingClientRect();
           const main = horizontal ? (rect.left + rect.right) / 2 : (rect.top + rect.bottom) / 2;
           if ((main - originMain) * (positive ? 1 : -1) <= 1) continue;
@@ -86,6 +91,15 @@ export function SpatialNavigation() {
             next = candidate;
           }
         }
+      }
+
+      // Buntu ke atas di bawah player (kontrolnya tersembunyi/inert): lepas fokus agar pintasan player aktif lagi.
+      const player = document.querySelector<HTMLElement>('[data-player-shortcuts]');
+      if (current && !next && event.key === 'ArrowUp' && player && !player.contains(current) && !dialog) {
+        event.preventDefault();
+        current.blur();
+        player.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+        return;
       }
 
       // Consume boundary arrows too: a focused button must not accidentally seek the video.

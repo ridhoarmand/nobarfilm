@@ -139,7 +139,7 @@ export function Navbar() {
                 )}
               </div>
             )}
-            {!isSearchPage && <Link href="/search" aria-label="Cari film atau serial" className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-200 lg:hidden"><Search className="size-5" /></Link>}
+            {!isSearchPage && <Link href="/search" aria-label="Cari film atau serial" className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-200 md:hidden"><Search className="size-5" /></Link>}
             <AccountButton />
           </div>
         </div>

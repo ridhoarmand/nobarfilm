@@ -4,7 +4,6 @@ import React, { useEffect, useRef, forwardRef, useSyncExternalStore, useState, u
 import Hls from 'hls.js';
 import toast from 'react-hot-toast';
 import { usePlaybackSpeed } from './hooks/usePlaybackSpeed';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { PlayerOverlay } from './PlayerOverlay';
 import type { OtherSubtitleContext, OtherSubtitleResult } from '@/types/other-subtitles';
 import { applyAudioEnhanceParams } from '@/lib/audioProcessing';
@@ -343,6 +342,13 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
       setIsBuffering(true);
       return;
     }
+    // Event `waiting` tidak muncul selama manifest + segmen pertama dimuat; tampilkan spinner sejak awal.
+    if (autoPlay) setIsBuffering(true);
+    // Autoplay diblokir browser: video diam menunggu ketukan, jadi spinner harus hilang.
+    // Hanya NotAllowedError; AbortError muncul saat ganti kualitas, setelah sumber baru menyalakan spinner.
+    const onPlayRejected = (err: unknown) => {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') setIsBuffering(false);
+    };
 
     const isEpisodeChanged = prevEpisodeRef.current.season !== activeSeason || prevEpisodeRef.current.episode !== activeEpisode;
     if (isEpisodeChanged) {
@@ -360,7 +366,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
         video.currentTime = savedTimeRef.current;
       }
       if (autoPlay) {
-        video.play().catch(() => {});
+        video.play().catch(onPlayRejected);
       }
     };
 
@@ -504,6 +510,7 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
 
         if (wasPlaying || autoPlay) {
           video.play().catch((playErr) => {
+            onPlayRejected(playErr);
             console.warn('[Player] Auto-resume after quality change handled safely:', playErr);
           });
         }
@@ -863,28 +870,6 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
     }
   };
 
-  useKeyboardShortcuts({
-    onTogglePlay: togglePlay,
-    onSeek: (seconds) => handleSeek(Math.max(0, Math.min(duration || 0, currentTime + seconds))),
-    onSeekPercent: (percent) => handleSeek((duration || 0) * percent),
-    onVolumeChange: (delta) => handleVolumeChange(volume + delta),
-    onToggleMute: toggleMute,
-    onToggleFullscreen: () => toggleFullscreen(),
-    onToggleSubtitle: () => {
-      if (onSubtitleSelect) {
-        onSubtitleSelect(activeSubtitleIndex === null ? 0 : null);
-      }
-    },
-    onEscape: () => {
-      if (checkIsFullscreen()) {
-        toggleFullscreen();
-      } else {
-        onBack?.();
-      }
-    },
-    isActive: true,
-  });
-
 
   // Percobaan pertama memuat ulang link yang sama; berikutnya minta link baru (link CDN bisa kedaluwarsa).
   const handleRetryVideo = () => {
@@ -1102,13 +1087,29 @@ export const MoviePlayer = forwardRef<HTMLVideoElement, MoviePlayerProps>(({
           <p className="text-sm text-zinc-300 max-w-md leading-relaxed">
             Sumber pemutaran video terputus atau koneksi mengalami masalah. Silakan coba muat ulang stream.
           </p>
-          <button
-            type="button"
-            onClick={handleRetryVideo}
-            className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center gap-2"
-          >
-            <span>Coba putar lagi</span>
-          </button>
+          <div className="mt-2 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              // Remote TV: OK langsung mencoba lagi. Jangan rebut fokus dari luar player (mis. chat nobar).
+              ref={(button) => {
+                const active = document.activeElement;
+                if (button && (!active || active === document.body || containerRef.current?.contains(active))) button.focus();
+              }}
+              onClick={handleRetryVideo}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center gap-2"
+            >
+              <span>Coba putar lagi</span>
+            </button>
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl text-xs transition-all"
+              >
+                Kembali
+              </button>
+            )}
+          </div>
         </div>
       )}
 
