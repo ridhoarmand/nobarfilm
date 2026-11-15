@@ -33,6 +33,9 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import type { OtherSubtitleContext, OtherSubtitleResult } from '@/types/other-subtitles';
 
 
+// Sebagian browser TV mengirim tombol Back remote sebagai GoBack/BrowserBack, bukan Escape.
+const isBackKey = (key: string) => key === 'Escape' || key === 'GoBack' || key === 'BrowserBack';
+
 export interface PlayerOverlayProps {
   title?: string;
   isPlaying: boolean;
@@ -234,7 +237,7 @@ export function PlayerOverlay({
       }
       // Esc saat tombol kontrol terfokus: lepas fokus agar pintasan (←/→, ↑/↓) aktif lagi.
       if (
-        event.key === 'Escape' && !event.defaultPrevented && !isLocked && activePopover === null &&
+        isBackKey(event.key) && !event.defaultPrevented && !isLocked && activePopover === null &&
         document.activeElement instanceof HTMLElement && overlay?.contains(document.activeElement)
       ) {
         event.preventDefault();
@@ -312,7 +315,7 @@ export function PlayerOverlay({
     subtitleSearchFocusRef.current = false;
     (initialFocus || panel?.querySelector<HTMLElement>('[data-popover] button, [data-popover] select'))?.focus();
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (!isBackKey(event.key)) return;
       event.preventDefault();
       event.stopPropagation();
       closePopover();
